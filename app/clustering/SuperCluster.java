@@ -4,7 +4,6 @@ import model.Cluster;
 import model.Point;
 import util.IKDPoint;
 import util.KDTree;
-import util.MyLogger;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -76,7 +75,7 @@ public class SuperCluster {
             int id = (i << 5) + (zoom + 1);
 
             // store all children Ids in parent cluster
-            List<Integer> children = new ArrayList<Integer>();
+            List<Cluster> children = new ArrayList<Cluster>();
 
             for (Cluster neighbor : neighbors) {
 
@@ -96,7 +95,7 @@ public class SuperCluster {
 
                 // children is empty, this neighbor is an original point
                 if (neighbor.children.isEmpty()) {
-                    children.add(neighbor.id);
+                    children.add(neighbor);
                 }
                 // children is not empty, this neighbor is already a cluster
                 else {
@@ -112,13 +111,20 @@ public class SuperCluster {
 
                 // children is empty, this point is an original point
                 if (p.children.isEmpty()) {
-                    children.add(p.id);
+                    children.add(p);
                 }
                 // children is not empty, this point is already a cluster
                 else {
                     children.addAll(p.children);
                 }
                 parent.children = children;
+
+                if (parent.children.size() == 1) {
+                    parent.expansionZoom = parent.children.get(0).expansionZoom;
+                }
+                else {
+                    parent.expansionZoom = zoom  + 1;
+                }
 
                 clusters.add(parent);
             }
@@ -231,8 +237,8 @@ public class SuperCluster {
                 labels[cluster.id] = cluster.id;
             }
             else {
-                for (Integer index : cluster.children) {
-                    labels[index] = cluster.id;
+                for (Cluster child : cluster.children) {
+                    labels[child.id] = cluster.id;
                 }
             }
         }

@@ -71,6 +71,7 @@ public class Agent extends AbstractActor {
             properties.put("point_count", clusters[i].numPoints);
             properties.put("point_count_abbreviated", clusters[i].numPoints);
             properties.put("id", clusters[i].id);
+            properties.put("expansionZoom", clusters[i].expansionZoom);
             feature.set("properties", properties);
 
             ObjectNode geometry = JsonNodeFactory.instance.objectNode();
@@ -103,6 +104,14 @@ public class Agent extends AbstractActor {
         }
     }
 
+    /**
+     * handle query request
+     *  - if given cluster key does NOT exists,
+     *      do the loadData and clusterData first,
+     *  - query the cluster
+     *
+     * @param _request
+     */
     private void handleQuery(Request _request) {
 
         if (_request.query == null) {
@@ -115,16 +124,30 @@ public class Agent extends AbstractActor {
         }
         String clusterKey = query.cluster;
 
+        // if given cluster key does NOT exists, do the loadData and clusterData first,
         if (!superClusters.containsKey(clusterKey)) {
-            // TODO - exception
+            if (_request.keyword == null) {
+                // TODO - exception
+            }
+            boolean success = loadData(_request.keyword);
+            if (!success) {
+                // TODO - exception
+            }
+
+            String clusterOrder = query.order == null? "original": query.order;
+            success = clusterData(clusterKey, clusterOrder);
+            if (!success) {
+                // TODO - exception
+            }
         }
+
+        // query the cluster
         SuperCluster cluster = superClusters.get(clusterKey);
 
         Cluster[] clusters;
         if (query.bbox == null) {
             clusters = cluster.getClusters(query.zoom);
-        }
-        else {
+        } else {
             clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom);
         }
 
@@ -158,22 +181,66 @@ public class Agent extends AbstractActor {
         }
     }
 
+    /**
+     * load data for given keyword
+     *
+     * @return
+     */
+    private boolean loadData(String keyword) {
+        if (this.keyword != null && this.keyword.equals(keyword)) {
+            return true;
+        }
+        if (postgreSQL == null) {
+            postgreSQL = new PostgreSQL();
+        }
+        pointTuples = postgreSQL.queryPointTuplesForKeyword(keyword);
+        if (pointTuples == null) {
+            return false;
+        }
+        for (int i = 0; i < pointTuples.length; i ++) {
+            pointTuples[i].id = i;
+        }
+        return true;
+    }
+
+    /**
+     * cluster data for given order and name it with given key
+     *
+     * @param clusterKey
+     * @param clusterOrder
+     * @return
+     */
+    private boolean clusterData(String clusterKey, String clusterOrder) {
+        Double[][] points = orderPoints(clusterOrder);
+        if (points == null) {
+            return false;
+        }
+        else {
+            SuperCluster cluster;
+            if (superClusters.containsKey(clusterKey)) {
+                cluster = superClusters.get(clusterKey);
+            }
+            else {
+                cluster = new SuperCluster();
+                superClusters.put(clusterKey, cluster);
+            }
+            cluster.load(points);
+        }
+        return true;
+    }
+
     private boolean handleCmd(Command _cmd, Request _request) {
+        boolean success = true;
         switch (_cmd.action) {
             case "load":
-                keyword = _request.keyword;
-                if (postgreSQL == null) {
-                    postgreSQL = new PostgreSQL();
+                success = loadData(_request.keyword);
+                if (success) {
+                    respond(buildCmdResponse(_request, _cmd.action, "data loaded, size = " + this.pointTuples.length, "done"));
                 }
-                pointTuples = postgreSQL.queryPointTuplesForKeyword(keyword);
-                if (pointTuples == null) {
+                else {
                     respond(buildCmdResponse(_request, _cmd.action, "load data failed", "error"));
                     return false;
                 }
-                for (int i = 0; i < pointTuples.length; i ++) {
-                    pointTuples[i].id = i;
-                }
-                respond(buildCmdResponse(_request, _cmd.action, "data loaded, size = " + pointTuples.length, "done"));
                 break;
             case "cluster":
                 if (_cmd.arguments.length != 2) {
@@ -183,22 +250,13 @@ public class Agent extends AbstractActor {
                 else {
                     String clusterKey = _cmd.arguments[0];
                     String clusterOrder = _cmd.arguments[1];
-                    Double[][] points = orderPoints(clusterOrder);
-                    if (points == null) {
-                        respond(buildCmdResponse(_request, _cmd.action, "argument for order is unknown", "error"));
-                        return false;
+                    success = clusterData(clusterKey, clusterOrder);
+                    if (success) {
+                        respond(buildCmdResponse(_request, _cmd.action, "cluster built for key = " + clusterKey + " order = " + clusterOrder, "done"));
                     }
                     else {
-                        SuperCluster cluster;
-                        if (superClusters.containsKey(clusterKey)) {
-                            cluster = superClusters.get(clusterKey);
-                        }
-                        else {
-                            cluster = new SuperCluster();
-                            superClusters.put(clusterKey, cluster);
-                        }
-                        cluster.load(points);
-                        respond(buildCmdResponse(_request, _cmd.action, "cluster built for key = " + clusterKey + " order = " + clusterOrder, "done"));
+                        respond(buildCmdResponse(_request, _cmd.action, "argument for order is unknown", "error"));
+                        return false;
                     }
                 }
                 break;

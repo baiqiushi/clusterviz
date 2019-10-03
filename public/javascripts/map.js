@@ -1,9 +1,6 @@
 angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
   .controller("MapCtrl", function($scope, $timeout, leafletData, moduleManager) {
 
-    $scope.times = [];
-    $scope.timestamps = {};
-
     $scope.keyword = "";
     $scope.resultCount = 0;
 
@@ -24,7 +21,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         id: $scope.keyword,
         keyword: $scope.keyword,
         query: {
-          cluster: "a",
+          cluster: $scope.keyword,
+          order: "original",
           zoom: $scope.map.getZoom(),
           bbox: [$scope.map.getBounds().getWest(),
             $scope.map.getBounds().getSouth(),
@@ -33,7 +31,6 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         }
       };
 
-      $scope.timestamps.t0 = Date.now();
       console.log("sending query:");
       console.log(JSON.stringify(query));
 
@@ -47,8 +44,10 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         keyword: keyword,
         cmds: commands
       };
+
       console.log("sending cmd:");
       console.log(JSON.stringify(cmd));
+
       $scope.ws.send(JSON.stringify(cmd));
     };
 
@@ -59,21 +58,32 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       }
       else {
         moduleManager.publishEvent(moduleManager.EVENT.WS_READY, {});
-        let commands = [{action: "load"}, {action: "cluster", arguments: ["a", "original"]}];
-        $scope.sendCmd("init", "wildfire", commands);
+        $scope.map.on('moveend', function() {
+          moduleManager.publishEvent(moduleManager.EVENT.CHANGE_ZOOM_LEVEL, {});
+        });
       }
     };
 
     // setting default map styles, zoom level, etc.
+    // angular.extend($scope, {
+    //   tiles: {
+    //     name: 'Mapbox',
+    //     url: 'https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}',
+    //     type: 'xyz',
+    //     options: {
+    //       accessToken: 'pk.eyJ1IjoiamVyZW15bGkiLCJhIjoiY2lrZ2U4MWI4MDA4bHVjajc1am1weTM2aSJ9.JHiBmawEKGsn3jiRK_d0Gw',
+    //       id: 'jeremyli.p6f712pj'
+    //     }
+    //   },
+    //   controls: {
+    //     custom: []
+    //   }
+    // });
     angular.extend($scope, {
       tiles: {
-        name: 'Mapbox',
-        url: 'https://api.tiles.mapbox.com/v4/{id}/{z}/{x}/{y}.png?access_token={accessToken}',
-        type: 'xyz',
-        options: {
-          accessToken: 'pk.eyJ1IjoiamVyZW15bGkiLCJhIjoiY2lrZ2U4MWI4MDA4bHVjajc1am1weTM2aSJ9.JHiBmawEKGsn3jiRK_d0Gw',
-          id: 'jeremyli.p6f712pj'
-        }
+        name: 'OpenStreetMap',
+        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
       },
       controls: {
         custom: []
@@ -107,10 +117,13 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       });
 
       $scope.waitForWS();
-      // moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD, function(e) {
-      //   $scope.cleanClusterMap();
-      //   $scope.sendQuery(e);
-      // });
+      moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD, function(e) {
+        $scope.cleanClusterMap();
+        $scope.sendQuery(e);
+      });
+      moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_ZOOM_LEVEL, function(e) {
+        $scope.sendQuery(e);
+      });
     };
 
     $scope.handleResult = function(result) {
@@ -125,19 +138,10 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       $timeout(function() {
         const response = JSON.parse(event.data);
 
+        console.log("===== websocket response =====");
         console.log(JSON.stringify(response));
 
         if (response.type === "cmd") {
-          if (response.id === "init") {
-            if (response.result.cursor === "cluster" && response.status === "done") {
-              let e = {keyword: "wildfire"};
-              $scope.sendQuery(e);
-
-              $scope.map.on('moveend', function() {
-                $scope.sendQuery({keyword: "wildfire"});
-              });
-            }
-          }
         }
         else if (response.type === "analysis") {
         }
@@ -152,10 +156,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
       // initialize the points layer
       if (!$scope.pointsLayer) {
-        $scope.pointsLayer = L.geoJson(null, { pointToLayer: $scope.createClusterIcon,
-          onEachFeature: function (feature, layer) {
-            layer.bindPopup('<h1>'+feature.properties.id+'</h1><p>points: '+feature.properties.point_count+'</p>');
-          }}).addTo($scope.map);
+        $scope.pointsLayer = L.geoJson(null, { pointToLayer: $scope.createClusterIcon}).addTo($scope.map);
         $scope.points = [];
       }
 
@@ -168,7 +169,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         $scope.pointsLayer.addData($scope.points);
       }
 
-      $scope.pointsLayer.on('click', (e) => {
+      // analysis of distance between clicked points
+      $scope.pointsLayer.on('contextmenu', (e) => {
         if (e.layer.feature.properties.id) {
           if ($scope.selectedCount !== 1) {
             $scope.p1 = e.layer.feature.properties.id;
@@ -195,6 +197,13 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
             console.log(JSON.stringify(analysis));
             $scope.ws.send(JSON.stringify(analysis));
           }
+        }
+      });
+
+      $scope.pointsLayer.on('click', (e) => {
+        // zoom in if click on a cluster
+        if (e.layer.feature.properties.point_count) {
+          $scope.map.flyTo(e.latlng, e.layer.feature.properties.expansionZoom);
         }
       });
 
@@ -250,3 +259,5 @@ angular.module("clustermap.map")
       $scope.resultCount = e.resultCount;
     })
   });
+
+console.log(L.version);

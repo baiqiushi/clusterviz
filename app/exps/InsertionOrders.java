@@ -6,6 +6,9 @@ import model.PointTuple;
 import util.PostgreSQL;
 import util.RandIndex;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -21,14 +24,11 @@ public class InsertionOrders {
         System.out.println("... ...");
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
 
-        if (args.length != 1) {
-            System.err.println("Please provide one and only one arguement as the keyword!");
-            return;
-        }
-
-        String keyword  = args[0];
+        System.out.println("Please enter a keyword: (press ENTER to finish)");
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
+        String keyword = bufferedReader.readLine();
 
         // 1) Load original data from PostgreSQL
         PostgreSQL postgreSQL = new PostgreSQL();

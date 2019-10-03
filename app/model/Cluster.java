@@ -5,10 +5,11 @@ import java.util.List;
 
 public class Cluster extends Point {
     public int zoom = Integer.MAX_VALUE;
+    public int expansionZoom = Integer.MAX_VALUE;
     public int id;
     public int parentId = -1;
     public int numPoints = 0;
-    public List<Integer> children = new ArrayList<Integer>();
+    public List<Cluster> children = new ArrayList<Cluster>();
 
     public Cluster(int k) {
         super(k);
@@ -16,7 +17,12 @@ public class Cluster extends Point {
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("{id: " + id + ", numPoints: " + numPoints + ", zoom: " + zoom + ", parentId: " + parentId + ", coordinates: ");
+        sb.append("{id: " + id +
+                ", numPoints: " + numPoints +
+                ", zoom: " + zoom +
+                ", expansionZoom: " + expansionZoom +
+                ", parentId: " + parentId +
+                ", coordinates: ");
         sb.append(super.toString());
         sb.append(", childrenSize: " + children.size());
         sb.append("}");
@@ -32,6 +38,7 @@ public class Cluster extends Point {
         to.children = this.children;
         to.parentId = this.parentId;
         to.zoom = this.zoom;
+        to.expansionZoom = this.expansionZoom;
         return to;
     }
 }
