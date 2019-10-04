@@ -1,6 +1,8 @@
 angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
   .controller("MapCtrl", function($scope, $timeout, leafletData, moduleManager) {
 
+    $scope.zoomshift = 0;
+
     $scope.keyword = "";
     $scope.resultCount = 0;
 
@@ -16,14 +18,18 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         $scope.keyword = e.keyword;
       }
 
+      if (e.order) {
+        $scope.order = e.order;
+      }
+
       let query = {
         type: "query",
         id: $scope.keyword,
         keyword: $scope.keyword,
         query: {
-          cluster: $scope.keyword,
-          order: "original",
-          zoom: $scope.map.getZoom(),
+          cluster: $scope.keyword + "-" + $scope.order,
+          order: $scope.order,
+          zoom: $scope.map.getZoom() + $scope.zoomshift,
           bbox: [$scope.map.getBounds().getWest(),
             $scope.map.getBounds().getSouth(),
             $scope.map.getBounds().getEast(),

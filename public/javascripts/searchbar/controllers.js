@@ -11,7 +11,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                     alert("Your query only contains stopwords. Please re-enter your query.");
                 } else {
                     moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD,
-                        {keyword: keywords[0]});
+                        {keyword: keywords[0], order: $scope.order});
                 }
             }
         };
@@ -19,6 +19,8 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         moduleManager.subscribeEvent(moduleManager.EVENT.WS_READY, function(e) {
             $scope.disableSearchButton = false;
         });
+
+        $scope.orders = ["original", "reverse", "spatial"];
     })
     .directive("searchBar", function () {
         return {
@@ -33,7 +35,8 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                 '<button type="submit" class="btn btn-primary" id="submit-button" ng-disabled="disableSearchButton">Submit</button>',
                 '</span>',
                 '</div>',
-                '</form>'
+                '</form>',
+                '<select ng-model="order" ng-options="x for x in orders" ng-init="order = orders[0]"></select>'
             ].join('')
         };
     });

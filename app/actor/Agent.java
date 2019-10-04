@@ -30,12 +30,15 @@ public class Agent extends AbstractActor {
     private PostgreSQL postgreSQL;
     private PointTuple[] pointTuples;
     private Map<String, SuperCluster> superClusters;
+    private Map<String, Integer> superClustersHits;
+    private final int MAX_CLUSTERS = 30;
 
     @Inject
     public Agent() {
         this.out = null;
         this.config = null;
         this.superClusters = new HashMap<>();
+        this.superClustersHits = new HashMap<>();
     }
 
     @Inject
@@ -43,6 +46,7 @@ public class Agent extends AbstractActor {
         this.out = out;
         this.config = config;
         this.superClusters = new HashMap<>();
+        this.superClustersHits = new HashMap<>();
     }
 
     public static Props getProps() {
@@ -141,6 +145,9 @@ public class Agent extends AbstractActor {
             }
         }
 
+        // Add hit to querying super cluster
+        superClustersHits.put(clusterKey, superClustersHits.get(clusterKey) + 1);
+
         // query the cluster
         SuperCluster cluster = superClusters.get(clusterKey);
 
@@ -221,8 +228,23 @@ public class Agent extends AbstractActor {
                 cluster = superClusters.get(clusterKey);
             }
             else {
+                // if too many cached clusters, replace the least used one
+                if (superClusters.size() > MAX_CLUSTERS) {
+                    String leastUsedClusterKey = null;
+                    int leastHit = Integer.MAX_VALUE;
+                    for (Map.Entry<String, Integer> map: this.superClustersHits.entrySet()) {
+                        if (map.getValue() < leastHit) {
+                            leastHit = map.getValue();
+                            leastUsedClusterKey = map.getKey();
+                        }
+                    }
+                    if (leastUsedClusterKey != null) {
+                        superClusters.remove(leastUsedClusterKey);
+                    }
+                }
                 cluster = new SuperCluster();
                 superClusters.put(clusterKey, cluster);
+                superClustersHits.put(clusterKey, 0);
             }
             cluster.load(points);
         }
