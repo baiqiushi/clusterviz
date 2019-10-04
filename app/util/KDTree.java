@@ -1,7 +1,6 @@
 package util;
 
 import javafx.util.Pair;
-import model.Cluster;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -203,11 +202,11 @@ public class KDTree<T extends Number & Comparable<? super T>> {
                 System.out.print("[" + level + "] ");
                 currentLevel = level;
             }
-            System.out.print(((Cluster)node.getPoint()).id);
+            System.out.print(node.getPoint().getId());
             if (!node.getDuplicates().isEmpty()) {
                 System.out.print("[");
                 for (IKDPoint<T> duplicate: node.getDuplicates()) {
-                    System.out.print(((Cluster)duplicate).id + ",");
+                    System.out.print(duplicate.getId() + ",");
                 }
             }
             System.out.print(", ");
@@ -232,11 +231,11 @@ public class KDTree<T extends Number & Comparable<? super T>> {
         while (queue.size() > 0) {
             Node node = queue.poll();
             if (node.left != null) {
-                System.out.println("\"[" + node.align + "] " + ((Cluster)node.getPoint()).id + "\" -> \"[" + node.left.align + "] " + ((Cluster)node.left.getPoint()).id + "\"");
+                System.out.println("\"[" + node.align + "] " + node.getPoint().getId() + "\" -> \"[" + node.left.align + "] " + node.left.getPoint().getId() + "\"");
                 queue.add(node.left);
             }
             if (node.right != null) {
-                System.out.println("\"[" + node.align + "] " + ((Cluster)node.getPoint()).id + "\" -> \"[" + node.right.align + "] " + ((Cluster)node.right.getPoint()).id + "\"");
+                System.out.println("\"[" + node.align + "] " + node.getPoint().getId() + "\" -> \"[" + node.right.align + "] " + node.right.getPoint().getId() + "\"");
                 queue.add(node.right);
             }
         }

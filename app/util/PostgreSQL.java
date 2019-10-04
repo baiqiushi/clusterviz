@@ -46,7 +46,7 @@ public class PostgreSQL {
 
         System.out.println("Querying PostgreSQL with keyword: [" + keyword + "] ... ...");
         List<PointTuple> result = new ArrayList<PointTuple>();
-        String sql = "SELECT create_at, x, y FROM tweets WHERE to_tsvector('english', text)@@to_tsquery('english', ?)";
+        String sql = "SELECT create_at, x, y, id FROM tweets WHERE to_tsvector('english', text)@@to_tsquery('english', ?)";
         long start = System.nanoTime();
         try {
             PreparedStatement statement = conn.prepareStatement(sql);
@@ -56,10 +56,12 @@ public class PostgreSQL {
                 Timestamp create_at = rs.getTimestamp(1);
                 Double x = rs.getDouble(2);
                 Double y = rs.getDouble(3);
+                long tid = rs.getLong(4);
                 PointTuple pt = new PointTuple(2);
                 pt.timestamp = create_at;
                 pt.setDimensionValue(0, x);
                 pt.setDimensionValue(1, y);
+                pt.tid = tid;
                 result.add(pt);
             }
         } catch (SQLException e) {

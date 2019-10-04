@@ -6,6 +6,7 @@ import util.IKDPoint;
 public class Point implements IKDPoint<Double> {
     int k;
     Double[] values;
+    public int id;
 
     public Point(int k) {
         this.k = k;
@@ -48,8 +49,6 @@ public class Point implements IKDPoint<Double> {
         return distance;
     }
 
-    public void increaseSize() {
-    }
 
     public boolean leftTo(IKDPoint y) {
         Point py = (Point) y;
@@ -86,5 +85,13 @@ public class Point implements IKDPoint<Double> {
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    public int getId() {
+        return this.id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 }
