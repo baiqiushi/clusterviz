@@ -18,6 +18,10 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         $scope.keyword = e.keyword;
       }
 
+      if (!$scope.keyword) {
+        return;
+      }
+
       if (e.order) {
         $scope.order = e.order;
       }
@@ -64,6 +68,22 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       }
       else {
         moduleManager.publishEvent(moduleManager.EVENT.WS_READY, {});
+
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD, function(e) {
+          $scope.cleanClusterMap();
+          $scope.sendQuery(e);
+        });
+
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_ZOOM_LEVEL, function(e) {
+          $scope.sendQuery(e);
+        });
+
+        moduleManager.subscribeEvent(moduleManager.EVENT.CONSOLE_INPUT, function(e) {
+          console.log("sending console command:");
+          console.log(JSON.stringify(e));
+          $scope.ws.send(JSON.stringify(e));
+        });
+
         $scope.map.on('moveend', function() {
           moduleManager.publishEvent(moduleManager.EVENT.CHANGE_ZOOM_LEVEL, {});
         });
@@ -123,13 +143,6 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       });
 
       $scope.waitForWS();
-      moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD, function(e) {
-        $scope.cleanClusterMap();
-        $scope.sendQuery(e);
-      });
-      moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_ZOOM_LEVEL, function(e) {
-        $scope.sendQuery(e);
-      });
     };
 
     $scope.handleResult = function(result) {
@@ -147,12 +160,13 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         console.log("===== websocket response =====");
         console.log(JSON.stringify(response));
 
-        if (response.type === "cmd") {
-        }
-        else if (response.type === "analysis") {
+        if (response.type === "query") {
+          $scope.handleResult(response.result);
         }
         else {
-          $scope.handleResult(response.result);
+          if (response.id === "console") {
+            moduleManager.publishEvent(moduleManager.EVENT.CONSOLE_OUTPUT, response);
+          }
         }
       });
     };
@@ -193,10 +207,13 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
               type: "analysis",
               keyword: $scope.keyword,
               analysis: {
-                cluster: "a",
-                zoom: $scope.map.getZoom() + 1,
-                p1: $scope.p1,
-                p2: $scope.p2
+                objective: "distance",
+                arguments: [
+                  $scope.keyword + "-" + $scope.order, // clusterKey
+                  $scope.map.getZoom() + 1, // zoom
+                  $scope.p1, // point1_id
+                  $scope.p2
+                ]
               }
             };
             console.log("sending analysis:");

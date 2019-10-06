@@ -13,6 +13,7 @@ import model.*;
 import play.libs.Json;
 import util.MyLogger;
 import util.PostgreSQL;
+import util.RandIndex;
 
 import javax.inject.Inject;
 import java.util.*;
@@ -29,8 +30,28 @@ public class Agent extends AbstractActor {
     private String keyword;
     private PostgreSQL postgreSQL;
     private PointTuple[] pointTuples;
+    /**
+     * maps from ordering of points to tid
+     * key - clusterKey
+     * value - map array with the same order as Double[][] points,
+     *         value[i] is the tid of point at ith position
+     */
+    private Map<String, Long[]> orderMaps;
+    /**
+     * map of SuperCluster instances
+     * key - clusterKey
+     * value - handle to SuperCluster instance
+     */
     private Map<String, SuperCluster> superClusters;
+    /**
+     * map of SuperCluster visiting counters
+     * key - clusterKey
+     * value - counter, number of visiting times of the cluster
+     */
     private Map<String, Integer> superClustersHits;
+    /**
+     * Maximum number of SuperCluster instances being kept in memory
+     */
     private final int MAX_CLUSTERS = 30;
 
     @Inject
@@ -39,6 +60,7 @@ public class Agent extends AbstractActor {
         this.config = null;
         this.superClusters = new HashMap<>();
         this.superClustersHits = new HashMap<>();
+        this.orderMaps = new HashMap<>();
     }
 
     @Inject
@@ -47,6 +69,7 @@ public class Agent extends AbstractActor {
         this.config = config;
         this.superClusters = new HashMap<>();
         this.superClustersHits = new HashMap<>();
+        this.orderMaps = new HashMap<>();
     }
 
     public static Props getProps() {
@@ -218,7 +241,7 @@ public class Agent extends AbstractActor {
      * @return
      */
     private boolean clusterData(String clusterKey, String clusterOrder) {
-        Double[][] points = orderPoints(clusterOrder);
+        Double[][] points = orderPoints(clusterKey, clusterOrder);
         if (points == null) {
             return false;
         }
@@ -289,65 +312,102 @@ public class Agent extends AbstractActor {
         return true;
     }
 
-    private Double[][] orderPoints(String _order) {
+    private Double[][] orderPoints(String _key, String _order) {
         Double[][] points = new Double[pointTuples.length][2];
+        Long[] orderMap = new Long[points.length];
         switch (_order) {
             case "original":
                 for (int i = 0; i < pointTuples.length; i ++) {
                     points[i][0] = pointTuples[i].getDimensionValue(0);
                     points[i][1] = pointTuples[i].getDimensionValue(1);
+                    orderMap[i] = pointTuples[i].tid;
                 }
                 break;
             case "reverse":
                 for (int i = 0; i < pointTuples.length; i ++) {
                     points[pointTuples.length - 1 - i][0] = pointTuples[i].getDimensionValue(0);
                     points[pointTuples.length - 1 - i][1] = pointTuples[i].getDimensionValue(1);
+                    orderMap[pointTuples.length - 1 - i] = pointTuples[i].tid;
                 }
                 break;
             case "spatial":
                 List<PointTuple> pointTuplesList = Arrays.asList(pointTuples);
-                Collections.sort(pointTuplesList, new Comparator<PointTuple>() {
-                    public int compare(PointTuple p1, PointTuple p2) {
-                        if (p1.getDimensionValue(0) == p2.getDimensionValue(0)
-                                && p1.getDimensionValue(1) == p2.getDimensionValue(1)) {
-                            return 0;
-                        }
-                        else if (p1.getDimensionValue(0) == p2.getDimensionValue(0)) {
-                            if (p1.getDimensionValue(1) < p2.getDimensionValue(1)) {
-                                return -1;
-                            }
-                            else {
-                                return 1;
-                            }
-                        }
-                        else if (p1.getDimensionValue(1) == p2.getDimensionValue(1)) {
-                            if (p1.getDimensionValue(0) < p2.getDimensionValue(0)) {
-                                return -1;
-                            }
-                            else {
-                                return 1;
-                            }
-                        }
-                        else {
-                            if (p1.getDimensionValue(0) < p2.getDimensionValue(0)) {
-                                return -1;
-                            }
-                            else {
-                                return 1;
-                            }
-                        }
-                    }
-                });
+                Collections.sort(pointTuplesList, PointTuple.getSpatialComparator());
                 PointTuple[] cPointTuples = pointTuplesList.toArray(new PointTuple[pointTuplesList.size()]);
                 for (int i = 0; i < cPointTuples.length; i ++) {
                     points[i][0] = cPointTuples[i].getDimensionValue(0);
                     points[i][1] = cPointTuples[i].getDimensionValue(1);
+                    orderMap[i] = cPointTuples[i].tid;
+                }
+                break;
+            case "reverse-spatial":
+                List<PointTuple> pointTuplesList_ = Arrays.asList(pointTuples);
+                Collections.sort(pointTuplesList_, PointTuple.getReverseSpatialComparator());
+                PointTuple[] cPointTuples_ = pointTuplesList_.toArray(new PointTuple[pointTuplesList_.size()]);
+                for (int i = 0; i < cPointTuples_.length; i ++) {
+                    points[i][0] = cPointTuples_[i].getDimensionValue(0);
+                    points[i][1] = cPointTuples_[i].getDimensionValue(1);
+                    orderMap[i] = cPointTuples_[i].tid;
                 }
                 break;
             default:
                 return null;
         }
+        orderMaps.put(_key, orderMap);
         return points;
+    }
+
+    /**
+     * Calculate rand index between given (clusterKey1/2) two clustering results
+     * for data points within given range ([x0, y0] - [x1, y1]) at given zoom level
+     *
+     * @param clusterKey1
+     * @param clusterKey2
+     * @param zoom
+     * @return
+     */
+    private double randIndex(String clusterKey1, String clusterKey2, int zoom) {
+        if (!superClusters.containsKey(clusterKey1) || !superClusters.containsKey(clusterKey2)) {
+            // TODO - exception
+            return 0.0;
+        }
+
+        int[] labels1 = superClusters.get(clusterKey1).getClusteringLabels(zoom);
+        int[] labels2 = superClusters.get(clusterKey2).getClusteringLabels(zoom);
+
+        // one cluster only has partial data,
+        // make labels1/clusterKey1 always point to the smaller one,
+        // and labels2/clusterKey2 always point to the larger one
+        if (labels1.length > labels2.length) {
+            int[] labelsSwap = labels1;
+            labels1 = labels2;
+            labels2 = labelsSwap;
+
+            String clusterKeySwap = clusterKey1;
+            clusterKey1 = clusterKey2;
+            clusterKey2 = clusterKeySwap;
+        }
+
+        // build hash map from tid to array index of labels1 (cluster result 1)
+        Map<Long, Integer> tidMap1 = new HashMap<>();
+        Long[] orderMap1 = orderMaps.get(clusterKey1);
+        for (int i = 0;i < labels1.length; i ++) {
+            tidMap1.put(orderMap1[i], i);
+        }
+
+        // build labels array with the same tid order as labels1
+        int[] newLabels2 = new int[labels1.length];
+        Long[] orderMap2 = orderMaps.get(clusterKey2);
+        for (int i = 0; i < orderMap2.length; i ++) {
+            Long tid = orderMap2[i];
+            if (tidMap1.containsKey(tid)) {
+                int index = tidMap1.get(tid);
+                newLabels2[index] = labels2[i];
+            }
+        }
+        labels2 = newLabels2;
+
+        return RandIndex.randIndex(labels1, labels2);
     }
 
     private JsonNode buildCmdResponse(Request _request, String _cursor, String _msg, String _status) {
@@ -383,35 +443,67 @@ public class Agent extends AbstractActor {
     }
 
     private void handleAnalysis(Request _request) {
-        if (_request.keyword == null) {
+        if (_request.analysis.objective == null) {
             // TODO - exception
         }
-        keyword = _request.keyword;
-        if (_request.analysis == null) {
-            // TODO - exception
+        switch (_request.analysis.objective) {
+            case "distance":
+                if (_request.keyword == null) {
+                    // TODO - exception
+                }
+                keyword = _request.keyword;
+                if (_request.analysis == null) {
+                    // TODO - exception
+                }
+                Analysis analysis = _request.analysis;
+                if (analysis.arguments.length != 4) {
+                    // TODO - exception
+                }
+
+                String clusterKey = analysis.arguments[0];
+                int zoom = Integer.valueOf(analysis.arguments[1]);
+                int p1 = Integer.valueOf(analysis.arguments[2]);
+                int p2 = Integer.valueOf(analysis.arguments[3]);
+
+                if (!superClusters.containsKey(clusterKey)) {
+                    // TODO - exception
+                }
+                SuperCluster cluster = superClusters.get(clusterKey);
+
+                double distance = cluster.getClusterDistance(zoom, p1, p2);
+                double radius = cluster.getRadius(zoom);
+
+                JsonNode response = Json.toJson(_request);
+                ObjectNode result = JsonNodeFactory.instance.objectNode();
+                result.put("distance", distance);
+                result.put("radius", radius);
+                ((ObjectNode) response).put("status", "done");
+                ((ObjectNode) response).set("result", result);
+                respond(response);
+                break;
+            case "randindex":
+                if (_request.analysis == null) {
+                    // TODO - exception
+                }
+                analysis = _request.analysis;
+                if (analysis.arguments.length != 3) {
+                    // TODO - exception
+                }
+                String clusterKey1 = analysis.arguments[0];
+                String clusterKey2 = analysis.arguments[1];
+                zoom = Integer.valueOf(analysis.arguments[2]);
+
+                double randIndex = randIndex(clusterKey1, clusterKey2, zoom);
+
+                response = Json.toJson(_request);
+                result = JsonNodeFactory.instance.objectNode();
+                result.put("randIndex", randIndex);
+                ((ObjectNode) response).put("status", "done");
+                ((ObjectNode) response).set("result", result);
+                respond(response);
+                break;
         }
-        Analysis analysis = _request.analysis;
 
-        if (analysis.cluster == null) {
-            // TODO - exception
-        }
-        String clusterKey = analysis.cluster;
-
-        if (!superClusters.containsKey(clusterKey)) {
-            // TODO - exception
-        }
-        SuperCluster cluster = superClusters.get(clusterKey);
-
-        double distance = cluster.getClusterDistance(analysis.zoom, analysis.p1, analysis.p2);
-        double radius = cluster.getRadius(analysis.zoom);
-
-        JsonNode response = Json.toJson(_request);
-        ObjectNode result = JsonNodeFactory.instance.objectNode();
-        result.put("distance", distance);
-        result.put("radius", radius);
-        ((ObjectNode) response).put("status", "done");
-        ((ObjectNode) response).set("result", result);
-        respond(response);
     }
 
     private void handleRequest(JsonNode _request) {

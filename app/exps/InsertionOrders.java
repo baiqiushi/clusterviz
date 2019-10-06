@@ -60,38 +60,7 @@ public class InsertionOrders {
 
         // 4) Run SuperCluster for spatial (left-bottom to right-top) order (C)
         List<PointTuple> pointTuplesList = Arrays.asList(pointTuples);
-        Collections.sort(pointTuplesList, new Comparator<PointTuple>() {
-            public int compare(PointTuple p1, PointTuple p2) {
-                if (p1.getDimensionValue(0) == p2.getDimensionValue(0)
-                        && p1.getDimensionValue(1) == p2.getDimensionValue(1)) {
-                    return 0;
-                }
-                else if (p1.getDimensionValue(0) == p2.getDimensionValue(0)) {
-                    if (p1.getDimensionValue(1) < p2.getDimensionValue(1)) {
-                        return -1;
-                    }
-                    else {
-                        return 1;
-                    }
-                }
-                else if (p1.getDimensionValue(1) == p2.getDimensionValue(1)) {
-                    if (p1.getDimensionValue(0) < p2.getDimensionValue(0)) {
-                        return -1;
-                    }
-                    else {
-                        return 1;
-                    }
-                }
-                else {
-                    if (p1.getDimensionValue(0) < p2.getDimensionValue(0)) {
-                        return -1;
-                    }
-                    else {
-                        return 1;
-                    }
-                }
-            }
-        });
+        Collections.sort(pointTuplesList, PointTuple.getSpatialComparator());
         PointTuple[] cPointTuples = pointTuplesList.toArray(new PointTuple[pointTuplesList.size()]);
         Double[][] cPoints = new Double[length][2];
         for (int i = 0; i < cPointTuples.length; i ++) {

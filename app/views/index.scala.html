@@ -11,5 +11,18 @@
     <div class="stats" ng-controller="CountCtrl">
       {{resultCount}}
     </div>
+
+    <div id="console" class="sticky" ng-controller="console">
+      <terminal> </terminal>
+    </div>
+    <button id="console-btn" class="float">Terminal</button>
+    <script>
+            $(document).ready(function(){
+              $("#console").hide();
+            });
+            $("#console-btn").click(function(){
+              $("#console").slideToggle();
+            });
+    </script>
   </div>
 }
