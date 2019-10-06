@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 public class InsertionOrders {
@@ -102,7 +101,7 @@ public class InsertionOrders {
 
             // labels for B
             int[] bLabels = bSuperCluster.getClusteringLabels(z);
-            for (int i = 0; i < bLabels.length; i ++) {
+            for (int i = 0; i < bLabels.length / 2; i ++) {
                 int temp = bLabels[i];
                 bLabels[i] = bLabels[bLabels.length - 1 - i];
                 bLabels[bLabels.length - 1 - i] = temp;

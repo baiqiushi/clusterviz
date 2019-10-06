@@ -21,3 +21,5 @@ lazy val root = (project in file(".")).
 scalaVersion := "2.13.0"
 
 libraryDependencies += guice
+
+PlayKeys.devSettings += "play.server.http.idleTimeout" -> "3600 seconds"
