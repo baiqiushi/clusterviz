@@ -342,7 +342,7 @@ mapchoose li #img1, #img2 {
   width: 100%;
 }
 
-/* cluster markers*/
+/* cluster markers */
 .marker-cluster-small {
   background-color: rgba(181, 226, 140, 0.6);
 }
@@ -382,3 +382,33 @@ mapchoose li #img1, #img2 {
   line-height: 30px;
 }
 
+/* sticky div */
+div.sticky {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 60%;
+  -moz-box-shadow: 10px -10px 5px  rgba(0,0,0,0.6);
+  -webkit-box-shadow: 10px -10px 5px  rgba(0,0,0,0.6);
+}
+
+/* floating button */
+.float{
+  position:fixed;
+  width:80px;
+  height:40px;
+  bottom:20px;
+  right:20px;
+  background-color: white;
+  opacity: 0.5;
+  color: dodgerblue;
+  border: 2px solid #008CBA;
+  border-radius:8px;
+  text-align:center;
+}
+
+.float:hover {
+  background-color: #008CBA;
+  color: white;
+  opacity: 0.8;
+}

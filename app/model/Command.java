@@ -13,6 +13,7 @@ public class Command {
      *    - original
      *    - reverse
      *    - spatial
+     *    - reverse-spatial
      */
     public String action;
     public String[] arguments;

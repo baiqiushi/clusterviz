@@ -54,7 +54,9 @@ angular.module("clustermap.common", [])
                 CHANGE_REGION_BY_DRAG: "CHANGE_REGION_BY_DRAG",
                 CHANGE_MAP_TYPE: "CHANGE_MAP_TYPE",
                 WS_READY: "WS_READY",
-                CHANGE_RESULT_COUNT: "CHANGE_RESULT_COUNT"
+                CHANGE_RESULT_COUNT: "CHANGE_RESULT_COUNT",
+                CONSOLE_INPUT: "CONSOLE_INPUT",
+                CONSOLE_OUTPUT: "CONSOLE_OUTPUT"
             },
 
             /**
