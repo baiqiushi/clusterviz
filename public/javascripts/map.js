@@ -31,8 +31,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         id: $scope.keyword,
         keyword: $scope.keyword,
         query: {
-          cluster: $scope.keyword + "-" + $scope.order,
+          cluster: $scope.keyword + "-" + $scope.order + (e.progressive? "-progressive": ""),
           order: $scope.order,
+          progressive: e.progressive,
           zoom: $scope.map.getZoom() + $scope.zoomshift,
           bbox: [$scope.map.getBounds().getWest(),
             $scope.map.getBounds().getSouth(),
@@ -40,6 +41,17 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
             $scope.map.getBounds().getNorth()]
         }
       };
+
+      if (e.progressive) {
+        query.analysis = {
+          objective: "randindex",
+          arguments: [
+            $scope.keyword + "-" + $scope.order,
+            $scope.keyword + "-" + $scope.order + "-progressive",
+            e.zoom? e.zoom: $scope.map.getZoom() + $scope.zoomshift
+          ]
+        };
+      }
 
       console.log("sending query:");
       console.log(JSON.stringify(query));
@@ -147,7 +159,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
     $scope.handleResult = function(result) {
       if(result.data.length > 0) {
-        $scope.resultCount += result.data.length;
+        $scope.resultCount = result.data.length;
         moduleManager.publishEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, {resultCount: $scope.resultCount});
         $scope.drawClusterMap(result.data);
       }

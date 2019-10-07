@@ -16,6 +16,9 @@ import util.PostgreSQL;
 import util.RandIndex;
 
 import javax.inject.Inject;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class Agent extends AbstractActor {
@@ -53,6 +56,10 @@ public class Agent extends AbstractActor {
      * Maximum number of SuperCluster instances being kept in memory
      */
     private final int MAX_CLUSTERS = 30;
+    private static final DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private Date start;
+    private Date end;
+    private int intervalDays;
 
     @Inject
     public Agent() {
@@ -61,6 +68,13 @@ public class Agent extends AbstractActor {
         this.superClusters = new HashMap<>();
         this.superClustersHits = new HashMap<>();
         this.orderMaps = new HashMap<>();
+        try {
+            this.start = sdf.parse("2015-11-17 21:33:26");
+            this.end = sdf.parse("2017-01-09 18:00:55");
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        this.intervalDays = 30;
     }
 
     @Inject
@@ -70,6 +84,13 @@ public class Agent extends AbstractActor {
         this.superClusters = new HashMap<>();
         this.superClustersHits = new HashMap<>();
         this.orderMaps = new HashMap<>();
+        try {
+            this.start = sdf.parse(config.getString("progressive.start"));
+            this.end = sdf.parse(config.getString("progressive.end"));
+        } catch(ParseException e) {
+            e.printStackTrace();
+        }
+        this.intervalDays = config.getInt("progressive.interval");
     }
 
     public static Props getProps() {
@@ -151,20 +172,28 @@ public class Agent extends AbstractActor {
         }
         String clusterKey = query.cluster;
 
+        // handle progressive query
+        if (query.progressive) {
+            handleQueryProgressively(_request);
+            return;
+        }
+
         // if given cluster key does NOT exists, do the loadData and clusterData first,
         if (!superClusters.containsKey(clusterKey)) {
-            if (_request.keyword == null) {
-                // TODO - exception
-            }
-            boolean success = loadData(_request.keyword);
-            if (!success) {
-                // TODO - exception
-            }
+            if (query.progressive != true) {
+                if (_request.keyword == null) {
+                    // TODO - exception
+                }
+                boolean success = loadData(_request.keyword);
+                if (!success) {
+                    // TODO - exception
+                }
 
-            String clusterOrder = query.order == null? "original": query.order;
-            success = clusterData(clusterKey, clusterOrder);
-            if (!success) {
-                // TODO - exception
+                String clusterOrder = query.order == null ? "original" : query.order;
+                success = clusterData(clusterKey, clusterOrder);
+                if (!success) {
+                    // TODO - exception
+                }
             }
         }
 
@@ -191,6 +220,88 @@ public class Agent extends AbstractActor {
         ((ObjectNode) response).put("status", "done");
         ((ObjectNode) response).set("result", result);
         respond(response);
+    }
+
+    private void handleQueryProgressively(Request _request) {
+        Query query = _request.query;
+        String clusterKey = query.cluster;
+        if (_request.keyword == null) {
+            // TODO - exception
+        }
+        this.pointTuples = null;
+        Date currentStart = new Date(this.start.getTime());
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(currentStart);
+        calendar.add(Calendar.DATE, this.intervalDays);
+        Date currentEnd = calendar.getTime();
+        long totalDays = (this.end.getTime() - this.start.getTime()) / (24 * 3600 * 1000);
+        while (currentStart.before(this.end)) {
+
+            long progress = (currentEnd.getTime() - this.start.getTime()) / (24 * 3600 * 1000);
+            progress = 100 * progress / totalDays;
+
+            boolean success = loadNewData(_request.keyword, currentStart, currentEnd);
+            if (!success) {
+                // TODO - exception
+            }
+
+            String clusterOrder = query.order == null ? "original" : query.order;
+            success = clusterData(clusterKey, clusterOrder);
+            if (!success) {
+                // TODO - exception
+            }
+
+            // Add hit to querying super cluster
+            superClustersHits.put(clusterKey, superClustersHits.get(clusterKey) + 1);
+
+            // query the cluster
+            SuperCluster cluster = superClusters.get(clusterKey);
+
+            Cluster[] clusters;
+            if (query.bbox == null) {
+                clusters = cluster.getClusters(query.zoom);
+            } else {
+                clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom);
+            }
+
+            JsonNode response = Json.toJson(_request);
+
+            ObjectNode result = JsonNodeFactory.instance.objectNode();
+            ArrayNode data = result.putArray("data");
+
+            buildGeoJsonArrayCluster(clusters, data);
+
+            ((ObjectNode) response).put("status", progress);
+            ((ObjectNode) response).set("result", result);
+            respond(response);
+
+            if (_request.analysis != null) {
+                Analysis analysis = _request.analysis;
+                if (analysis.arguments.length != 3) {
+                    // TODO - exception
+                }
+                String clusterKey1 = analysis.arguments[0];
+                String clusterKey2 = analysis.arguments[1];
+                int zoom = Integer.valueOf(analysis.arguments[2]);
+
+                double randIndex = randIndex(clusterKey1, clusterKey2, zoom);
+
+                response = Json.toJson(_request);
+                ((ObjectNode) response).put("type", "analysis");
+                ((ObjectNode) response).put("id", "console");
+                result = JsonNodeFactory.instance.objectNode();
+                result.put("randIndex", randIndex);
+                ((ObjectNode) response).put("status", "done");
+                ((ObjectNode) response).set("result", result);
+                respond(response);
+            }
+
+            currentStart = currentEnd;
+            calendar = Calendar.getInstance();
+            calendar.setTime(currentStart);
+            calendar.add(Calendar.DATE, this.intervalDays);
+            currentEnd = calendar.getTime();
+        }
     }
 
     private void handleCmds(Request _request) {
@@ -229,6 +340,36 @@ public class Agent extends AbstractActor {
         }
         for (int i = 0; i < pointTuples.length; i ++) {
             pointTuples[i].id = i;
+        }
+        return true;
+    }
+
+    /**
+     * load new data for given keyword and time range, and append to the end of this.pointTuples
+     *
+     * @return
+     */
+    private boolean loadNewData(String keyword, Date start, Date end) {
+        if (this.keyword != null && this.keyword.equals(keyword)) {
+            return true;
+        }
+        if (postgreSQL == null) {
+            postgreSQL = new PostgreSQL();
+        }
+        PointTuple[] deltaPointTuples = postgreSQL.queryPointTuplesForKeywordAndTime(keyword, start, end);
+        if (deltaPointTuples == null) {
+            return false;
+        }
+        for (int i = 0; i < deltaPointTuples.length; i ++) {
+            deltaPointTuples[i].id = i;
+        }
+        if (pointTuples == null) {
+            pointTuples = deltaPointTuples;
+        }
+        else {
+            List<PointTuple> base = new ArrayList(Arrays.asList(pointTuples));
+            base.addAll(Arrays.asList(deltaPointTuples));
+            pointTuples = base.toArray(new PointTuple[base.size()]);
         }
         return true;
     }
