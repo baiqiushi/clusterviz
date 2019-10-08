@@ -412,3 +412,14 @@ div.sticky {
   color: white;
   opacity: 0.8;
 }
+
+/* progress bar*/
+#myProgress {
+  background-color: lightgrey;
+}
+
+#myBar {
+  width: 0%;
+  height: 5px;
+  background-color: dodgerblue;
+}

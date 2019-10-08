@@ -57,6 +57,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       console.log(JSON.stringify(query));
 
       $scope.ws.send(JSON.stringify(query));
+
+      document.getElementById("myBar").style.width = "0%";
     };
 
     $scope.sendCmd = function(id, keyword, commands) {
@@ -174,6 +176,14 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
         if (response.type === "query") {
           $scope.handleResult(response.result);
+          if (response.query.progressive) {
+            document.getElementById("myBar").style.width = response.status + "%";
+          }
+          else {
+            if (response.status === "done") {
+              document.getElementById("myBar").style.width = "100%";
+            }
+          }
         }
         else {
           if (response.id === "console") {
