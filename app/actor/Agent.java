@@ -235,6 +235,7 @@ public class Agent extends AbstractActor {
         calendar.add(Calendar.DATE, this.intervalDays);
         Date currentEnd = calendar.getTime();
         long totalDays = (this.end.getTime() - this.start.getTime()) / (24 * 3600 * 1000);
+        List<Double> randIndexes = new ArrayList<>();
         while (currentStart.before(this.end)) {
 
             long progress = (currentEnd.getTime() - this.start.getTime()) / (24 * 3600 * 1000);
@@ -285,6 +286,7 @@ public class Agent extends AbstractActor {
                 int zoom = Integer.valueOf(analysis.arguments[2]);
 
                 double randIndex = randIndex(clusterKey1, clusterKey2, zoom);
+                randIndexes.add(randIndex);
 
                 response = Json.toJson(_request);
                 ((ObjectNode) response).put("type", "analysis");
@@ -301,6 +303,19 @@ public class Agent extends AbstractActor {
             calendar.setTime(currentStart);
             calendar.add(Calendar.DATE, this.intervalDays);
             currentEnd = calendar.getTime();
+        }
+
+        // finally output the sequence of rand index values in one response
+        if (_request.analysis != null) {
+            JsonNode response = Json.toJson(_request);
+            ((ObjectNode) response).put("type", "analysis");
+            ((ObjectNode) response).put("id", "console");
+            ArrayNode result = ((ObjectNode) response).putArray("result");
+            for (Double randIndex : randIndexes) {
+                result.add(randIndex);
+            }
+            ((ObjectNode) response).put("status", "done");
+            respond(response);
         }
     }
 
