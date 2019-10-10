@@ -10,13 +10,13 @@ import java.util.List;
 
 public class SuperCluster {
     // Dimension
-    private static final int K = 2;
+    static final int K = 2;
 
     int minZoom = 0; // min zoom to generate clusters on
     int maxZoom = 17; // max zoom level to cluster the points on
     int radius = 60; // cluster radius in pixels
     int extent = 256;  // tile extent (radius is calculated relative to it)
-    Double[][] points;
+    int totalNumberOfPoints = 0;
     KDTree<Double>[] trees;
     Cluster[][] clusters;
 
@@ -26,7 +26,7 @@ public class SuperCluster {
     }
 
     public void load(Double[][] points) {
-        this.points = points;
+        this.totalNumberOfPoints = points.length;
         // generate a cluster object for each point and index input points into a KD-tree
         Cluster[] clusters = new Cluster[points.length];
         for (int i = 0; i < points.length; i ++) {
@@ -48,7 +48,7 @@ public class SuperCluster {
         }
     }
 
-    private Cluster[] _clusters(Cluster[] points, int zoom) {
+    protected Cluster[] _clusters(Cluster[] points, int zoom) {
         List<Cluster> clusters = new ArrayList<Cluster>();
 
         double r = radius / (extent * Math.pow(2, zoom));
@@ -133,7 +133,7 @@ public class SuperCluster {
         return clusters.toArray(new Cluster[clusters.size()]);
     }
 
-    private Cluster createPointCluster(Double[] values, int id) {
+    protected Cluster createPointCluster(Double[] values, int id) {
         Cluster c = new Cluster(K);
         c.setDimensionValue(0, lngX(values[0]));
         c.setDimensionValue(1, latY(values[1]));
@@ -141,7 +141,7 @@ public class SuperCluster {
         return c;
     }
 
-    private Cluster createCluster(double x, double y, int id, int numPoints) {
+    protected Cluster createCluster(double x, double y, int id, int numPoints) {
         Cluster c = new Cluster(K);
         c.setDimensionValue(0, x);
         c.setDimensionValue(1, y);
@@ -150,7 +150,7 @@ public class SuperCluster {
         return c;
     }
 
-    private Point createPoint(double x, double y) {
+    protected Point createPoint(double x, double y) {
         Point p = new Point(K);
         p.setDimensionValue(0, lngX(x));
         p.setDimensionValue(1, latY(y));
@@ -229,7 +229,7 @@ public class SuperCluster {
         if (zoom < minZoom || zoom  > maxZoom + 1) {
             return null;
         }
-        int[] labels = new int[points.length];
+        int[] labels = new int[totalNumberOfPoints];
         Cluster[] clusters = getClusters(zoom);
         for (int i = 0; i < clusters.length; i ++) {
             Cluster cluster = clusters[i];
@@ -287,7 +287,7 @@ public class SuperCluster {
         return radius / (extent * Math.pow(2, zoom));
     }
 
-    private Cluster[] concat(Cluster[] a, Cluster[] b) {
+    protected Cluster[] concat(Cluster[] a, Cluster[] b) {
         int length = a.length + b.length;
         Cluster[] result = new Cluster[length];
         System.arraycopy(a, 0, result, 0, a.length);
@@ -295,7 +295,7 @@ public class SuperCluster {
         return result;
     }
 
-    private int _limitZoom(int zoom) {
+    protected int _limitZoom(int zoom) {
         return Math.max(minZoom, Math.min(zoom, maxZoom + 1));
     }
 

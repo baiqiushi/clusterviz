@@ -62,22 +62,6 @@ public class Agent extends AbstractActor {
     private int intervalDays;
 
     @Inject
-    public Agent() {
-        this.out = null;
-        this.config = null;
-        this.superClusters = new HashMap<>();
-        this.superClustersHits = new HashMap<>();
-        this.orderMaps = new HashMap<>();
-        try {
-            this.start = sdf.parse("2015-11-17 21:33:26");
-            this.end = sdf.parse("2017-01-09 18:00:55");
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-        this.intervalDays = 30;
-    }
-
-    @Inject
     public Agent(ActorRef out, Config config) {
         this.out = out;
         this.config = config;
@@ -175,12 +159,11 @@ public class Agent extends AbstractActor {
         // handle progressive query
         if (query.progressive) {
             handleQueryProgressively(_request);
-            return;
         }
-
-        // if given cluster key does NOT exists, do the loadData and clusterData first,
-        if (!superClusters.containsKey(clusterKey)) {
-            if (query.progressive != true) {
+        // handle non-progressive query
+        else {
+            // if given cluster key does NOT exists, do the loadData and clusterData first,
+            if (!superClusters.containsKey(clusterKey)) {
                 if (_request.keyword == null) {
                     // TODO - exception
                 }
@@ -195,31 +178,31 @@ public class Agent extends AbstractActor {
                     // TODO - exception
                 }
             }
+
+            // Add hit to querying super cluster
+            superClustersHits.put(clusterKey, superClustersHits.get(clusterKey) + 1);
+
+            // query the cluster
+            SuperCluster cluster = superClusters.get(clusterKey);
+
+            Cluster[] clusters;
+            if (query.bbox == null) {
+                clusters = cluster.getClusters(query.zoom);
+            } else {
+                clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom);
+            }
+
+            JsonNode response = Json.toJson(_request);
+
+            ObjectNode result = JsonNodeFactory.instance.objectNode();
+            ArrayNode data = result.putArray("data");
+
+            buildGeoJsonArrayCluster(clusters, data);
+
+            ((ObjectNode) response).put("status", "done");
+            ((ObjectNode) response).set("result", result);
+            respond(response);
         }
-
-        // Add hit to querying super cluster
-        superClustersHits.put(clusterKey, superClustersHits.get(clusterKey) + 1);
-
-        // query the cluster
-        SuperCluster cluster = superClusters.get(clusterKey);
-
-        Cluster[] clusters;
-        if (query.bbox == null) {
-            clusters = cluster.getClusters(query.zoom);
-        } else {
-            clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom);
-        }
-
-        JsonNode response = Json.toJson(_request);
-
-        ObjectNode result = JsonNodeFactory.instance.objectNode();
-        ArrayNode data = result.putArray("data");
-
-        buildGeoJsonArrayCluster(clusters, data);
-
-        ((ObjectNode) response).put("status", "done");
-        ((ObjectNode) response).set("result", result);
-        respond(response);
     }
 
     private void handleQueryProgressively(Request _request) {
