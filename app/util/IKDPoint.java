@@ -1,22 +1,20 @@
 package util;
 
-public interface IKDPoint<T extends Number & Comparable<? super T>> {
+public interface IKDPoint {
 
-    public int getId();
+    int getId();
 
-    public void setId(int id);
+    void setId(int id);
 
-    public void init(T[] values);
+    double getDimensionValue(int i);
 
-    public T getDimensionValue(int i);
+    void setDimensionValue(int i, double value);
 
-    public void setDimensionValue(int i, T value);
+    boolean equalsTo(IKDPoint y);
 
-    public boolean equalsTo(IKDPoint y);
+    double distanceTo(IKDPoint y);
 
-    public T distanceTo(IKDPoint y);
+    boolean leftTo(IKDPoint y);
 
-    public boolean leftTo(IKDPoint y);
-
-    public boolean rightTo(IKDPoint y);
+    boolean rightTo(IKDPoint y);
 }

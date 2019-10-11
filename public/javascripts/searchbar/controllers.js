@@ -11,7 +11,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                     alert("Your query only contains stopwords. Please re-enter your query.");
                 } else {
                     moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD,
-                        {keyword: keywords[0], order: $scope.order, progressive: $scope.progressive, zoom: $scope.zoom});
+                        {keyword: keywords[0], order: $scope.order, algorithm: $scope.algorithm, zoom: $scope.zoom});
                 }
             }
         };
@@ -21,6 +21,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         });
 
         $scope.orders = ["original", "reverse", "spatial", "spatial-reverse"];
+        $scope.algorithms = ["SuperCluster", "SuperClusterInBatch", "iSuperCluster"];
         $scope.zooms = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
     })
     .directive("searchBar", function () {
@@ -40,9 +41,9 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                 '    <div id="myBar"></div>',
                 '  </div>',
                 '</form>',
-                '<select ng-model="order" ng-options="x for x in orders" ng-init="order = orders[0]"></select>',
-                '<input id="progressive" type="checkbox" ng-model="progressive" ng-init="progressive = false"/><label for="progressive">Progressive</label>',
-                '<select ng-model="zoom" ng-options="x for x in zooms" ng-init="zoom = zooms[0]"></select>'
+                '<label for="order">Order</label><select id="order" ng-model="order" ng-options="x for x in orders" ng-init="order = orders[0]"></select>',
+                '<label for="algorithm">Algorithm</label><select id="algorithm" ng-model="algorithm" ng-options="x for x in algorithms" ng-init="algorithm = algorithms[0]"></select>',
+                '<label for="zoom">Zoom</label><select id="zoom" ng-model="zoom" ng-options="x for x in zooms" ng-init="zoom = zooms[0]"></select>'
             ].join('')
         };
     });

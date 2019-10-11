@@ -3,27 +3,21 @@ package model;
 
 import util.IKDPoint;
 
-public class Point implements IKDPoint<Double> {
+public class Point implements IKDPoint {
     int k;
-    Double[] values;
+    double[] values;
     public int id;
 
     public Point(int k) {
         this.k = k;
-        this.values = new Double[k];
+        this.values = new double[k];
     }
 
-    public void init(Double[] values) {
-        for (int i = 0; i < this.k; i ++) {
-            this.values[i] = values[i];
-        }
-    }
-
-    public Double getDimensionValue(int i) {
+    public double getDimensionValue(int i) {
         return values[i];
     }
 
-    public void setDimensionValue(int i, Double value) {
+    public void setDimensionValue(int i, double value) {
         this.values[i] = value;
     }
 
@@ -31,7 +25,7 @@ public class Point implements IKDPoint<Double> {
         Point py = (Point) y;
         boolean equal = true;
         for (int i = 0; i < this.k; i ++) {
-            if (!this.values[i].equals(py.getDimensionValue(i))) {
+            if (this.values[i] != py.getDimensionValue(i)) {
                 equal = false;
                 break;
             }
@@ -39,8 +33,8 @@ public class Point implements IKDPoint<Double> {
         return equal;
     }
 
-    public Double distanceTo(IKDPoint y) {
-        Double distance = 0.0;
+    public double distanceTo(IKDPoint y) {
+        double distance = 0.0;
         Point py = (Point) y;
         for (int i = 0; i < this.k; i ++) {
             distance += Math.pow(this.values[i] - py.getDimensionValue(i), 2);
@@ -54,7 +48,7 @@ public class Point implements IKDPoint<Double> {
         Point py = (Point) y;
         boolean left = true;
         for (int i = 0; i < this.k; i ++) {
-            if (this.values[i].compareTo(py.getDimensionValue(i)) >= 0) {
+            if (this.values[i] >= py.getDimensionValue(i)) {
                 left = false;
                 break;
             }
@@ -66,7 +60,7 @@ public class Point implements IKDPoint<Double> {
         Point py = (Point) y;
         boolean right = true;
         for (int i = 0; i < this.k; i ++) {
-            if (this.values[i].compareTo(py.getDimensionValue(i)) <= 0) {
+            if (this.values[i] <= py.getDimensionValue(i)) {
                 right = false;
                 break;
             }

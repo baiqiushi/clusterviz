@@ -4,6 +4,7 @@ import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
 import clustering.SuperCluster;
+import clustering.iSuperCluster;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -156,12 +157,10 @@ public class Agent extends AbstractActor {
         }
         String clusterKey = query.cluster;
 
-        // handle progressive query
-        if (query.progressive) {
-            handleQueryProgressively(_request);
-        }
+
         // handle non-progressive query
-        else {
+        if (query.algorithm == null || query.algorithm.equalsIgnoreCase("SuperCluster") || query.algorithm.equalsIgnoreCase("sc")) {
+
             // if given cluster key does NOT exists, do the loadData and clusterData first,
             if (!superClusters.containsKey(clusterKey)) {
                 if (_request.keyword == null) {
@@ -173,7 +172,7 @@ public class Agent extends AbstractActor {
                 }
 
                 String clusterOrder = query.order == null ? "original" : query.order;
-                success = clusterData(clusterKey, clusterOrder);
+                success = clusterData(clusterKey, clusterOrder, SuperCluster.class);
                 if (!success) {
                     // TODO - exception
                 }
@@ -203,6 +202,10 @@ public class Agent extends AbstractActor {
             ((ObjectNode) response).set("result", result);
             respond(response);
         }
+        // handle progressive query
+        else {
+            handleQueryProgressively(_request);
+        }
     }
 
     private void handleQueryProgressively(Request _request) {
@@ -224,13 +227,18 @@ public class Agent extends AbstractActor {
             long progress = (currentEnd.getTime() - this.start.getTime()) / (24 * 3600 * 1000);
             progress = 100 * progress / totalDays;
 
-            boolean success = loadNewData(_request.keyword, currentStart, currentEnd);
+            boolean append = true;
+            if (query.algorithm.equalsIgnoreCase("iSuperCluster") || query.algorithm.equalsIgnoreCase("isc")) {
+                append = false;
+            }
+            boolean success = loadNewData(_request.keyword, currentStart, currentEnd, append);
             if (!success) {
                 // TODO - exception
             }
 
             String clusterOrder = query.order == null ? "original" : query.order;
-            success = clusterData(clusterKey, clusterOrder);
+            Class<? extends SuperCluster> algorithm = getAlgorithmClass(query.algorithm);
+            success = clusterData(clusterKey, clusterOrder, algorithm);
             if (!success) {
                 // TODO - exception
             }
@@ -347,7 +355,7 @@ public class Agent extends AbstractActor {
      *
      * @return
      */
-    private boolean loadNewData(String keyword, Date start, Date end) {
+    private boolean loadNewData(String keyword, Date start, Date end, boolean append) {
         if (this.keyword != null && this.keyword.equals(keyword)) {
             return true;
         }
@@ -361,7 +369,7 @@ public class Agent extends AbstractActor {
         for (int i = 0; i < deltaPointTuples.length; i ++) {
             deltaPointTuples[i].id = i;
         }
-        if (pointTuples == null) {
+        if (pointTuples == null || !append) {
             pointTuples = deltaPointTuples;
         }
         else {
@@ -379,8 +387,8 @@ public class Agent extends AbstractActor {
      * @param clusterOrder
      * @return
      */
-    private boolean clusterData(String clusterKey, String clusterOrder) {
-        Double[][] points = orderPoints(clusterKey, clusterOrder);
+    private boolean clusterData(String clusterKey, String clusterOrder, Class<? extends SuperCluster> algorithm) {
+        double[][] points = orderPoints(clusterKey, clusterOrder);
         if (points == null) {
             return false;
         }
@@ -404,11 +412,17 @@ public class Agent extends AbstractActor {
                         superClusters.remove(leastUsedClusterKey);
                     }
                 }
-                cluster = new SuperCluster();
+                try {
+                    cluster = algorithm.newInstance();
+                } catch (InstantiationException | IllegalAccessException e) {
+                    // TODO - exception
+                    e.printStackTrace();
+                    cluster = new SuperCluster();
+                }
                 superClusters.put(clusterKey, cluster);
                 superClustersHits.put(clusterKey, 0);
             }
-            cluster.load(points);
+            algorithm.cast(cluster).load(points);
         }
         return true;
     }
@@ -434,7 +448,7 @@ public class Agent extends AbstractActor {
                 else {
                     String clusterKey = _cmd.arguments[0];
                     String clusterOrder = _cmd.arguments[1];
-                    success = clusterData(clusterKey, clusterOrder);
+                    success = clusterData(clusterKey, clusterOrder, SuperCluster.class);
                     if (success) {
                         respond(buildCmdResponse(_request, _cmd.action, "cluster built for key = " + clusterKey + " order = " + clusterOrder, "done"));
                     }
@@ -451,8 +465,8 @@ public class Agent extends AbstractActor {
         return true;
     }
 
-    private Double[][] orderPoints(String _key, String _order) {
-        Double[][] points = new Double[pointTuples.length][2];
+    private double[][] orderPoints(String _key, String _order) {
+        double[][] points = new double[pointTuples.length][2];
         Long[] orderMap = new Long[points.length];
         switch (_order) {
             case "original":
@@ -672,6 +686,18 @@ public class Agent extends AbstractActor {
                 ((ObjectNode) response).put("message", "this request type is unknown");
                 respond(response);
         }
+    }
+
+    private Class<? extends SuperCluster> getAlgorithmClass(String algorithm) {
+        switch (algorithm.toLowerCase()) {
+            case "superclusterinbatch":
+            case "scib":
+                return SuperCluster.class;
+            case "isupercluster":
+            case "isc":
+                return iSuperCluster.class;
+        }
+        return SuperCluster.class;
     }
 
     private void respond(JsonNode _response) {

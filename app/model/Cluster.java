@@ -8,7 +8,7 @@ public class Cluster extends Point {
     public int expansionZoom = Integer.MAX_VALUE;
     public int parentId = -1;
     public int numPoints = 0;
-    public List<Cluster> children = new ArrayList<Cluster>();
+    public List<Cluster> children = new ArrayList<>();
 
     public Cluster(int k) {
         super(k);

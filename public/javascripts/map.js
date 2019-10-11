@@ -33,7 +33,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         query: {
           cluster: $scope.keyword + "-" + $scope.order + (e.progressive? "-progressive": ""),
           order: $scope.order,
-          progressive: e.progressive,
+          algorithm: e.algorithm,
           zoom: $scope.map.getZoom() + $scope.zoomshift,
           bbox: [$scope.map.getBounds().getWest(),
             $scope.map.getBounds().getSouth(),
@@ -42,7 +42,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         }
       };
 
-      if (e.progressive) {
+      if (e.algorithm.toLowerCase() === "superclusterinbatch" || e.algorithm.toLowerCase() === "isupercluster") {
         query.analysis = {
           objective: "randindex",
           arguments: [
@@ -176,7 +176,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
         if (response.type === "query") {
           $scope.handleResult(response.result);
-          if (response.query.progressive) {
+          if (typeof response.status == "number") {
             document.getElementById("myBar").style.width = response.status + "%";
           }
           else {

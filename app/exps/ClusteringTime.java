@@ -34,7 +34,7 @@ public class ClusteringTime {
                 }
 
                 // 2) Compose the input points array
-                Double[][] points = new Double[length][2];
+                double[][] points = new double[length][2];
                 for (int i = 0; i < length; i++) {
                     points[i][0] = pointTuples[i].getDimensionValue(0);
                     points[i][1] = pointTuples[i].getDimensionValue(1);
@@ -75,7 +75,7 @@ public class ClusteringTime {
             }
 
             // 2) Compose the input points array
-            Double[][] points = new Double[length][2];
+            double[][] points = new double[length][2];
             for (int i = 0; i < length; i++) {
                 points[i][0] = pointTuples[i].getDimensionValue(0);
                 points[i][1] = pointTuples[i].getDimensionValue(1);

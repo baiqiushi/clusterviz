@@ -7,46 +7,46 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
 
-public class KDTree<T extends Number & Comparable<? super T>> {
+public class KDTree<PointType extends IKDPoint> {
 
     class Node {
-        private IKDPoint<T> point;
-        private List<IKDPoint<T>> duplicates;
+        private PointType point;
+        private List<PointType> duplicates;
         int align;
         int depth;
         Node left = null;
         Node right = null;
 
-        public Node(IKDPoint<T> point, int align, int depth) {
+        public Node(PointType point, int align, int depth) {
             this.point = point;
             this.align = align;
             this.depth = depth;
             this.duplicates = new LinkedList<>();
         }
 
-        public IKDPoint<T> getPoint() {
+        public PointType getPoint() {
             return this.point;
         }
 
-        public List<IKDPoint<T>> getDuplicates() {
+        public List<PointType> getDuplicates() {
             return this.duplicates;
         }
 
-        public void addDuplicate(IKDPoint<T> point) {
+        public void addDuplicate(PointType point) {
             this.duplicates.add(point);
         }
     }
 
-    Node root;
-    int k;
-    int height = 0;
+    private Node root;
+    private int k;
+    private int height = 0;
 
     public KDTree(int k) {
         this.k = k;
         this.root = null;
     }
 
-    public void insert(IKDPoint<T> point) {
+    public void insert(PointType point) {
 
         // empty tree
         if (root == null) {
@@ -57,82 +57,85 @@ public class KDTree<T extends Number & Comparable<? super T>> {
 
         // dimension index to align
         int align = 0;
-        Node p = root;
-        Node p0 = p;
+        Node currentNode = root;
+        Node parentNode = currentNode;
         boolean left = true;
         // find the position to insert
-        while (p != null) {
-            IKDPoint<T> pp = p.getPoint();
+        while (currentNode != null) {
+            PointType currentPoint = currentNode.getPoint();
             // duplicate
-            if (pp.equalsTo(point)) {
-                p.addDuplicate(point);
+            if (currentPoint.equalsTo(point)) {
+                currentNode.addDuplicate(point);
                 return;
             }
-            else if (point.getDimensionValue(align).compareTo(pp.getDimensionValue(align)) < 0) {
-                p0 = p;
-                p = p.left;
+            else if (point.getDimensionValue(align) < currentPoint.getDimensionValue(align)) {
+                parentNode = currentNode;
+                currentNode = currentNode.left;
                 left = true;
             }
             else {
-                p0 = p;
-                p = p.right;
+                parentNode = currentNode;
+                currentNode = currentNode.right;
                 left = false;
             }
             align = (align + 1) % this.k;
         }
-        // p0 points to the parent of new node
-        p = new Node(point, align, p0.depth + 1);
-        if (p.depth + 1 > height) {
-            height = p.depth + 1;
+        // parentNode points to the parent of new node
+        currentNode = new Node(point, align, parentNode.depth + 1);
+        if (currentNode.depth + 1 > height) {
+            height = currentNode.depth + 1;
         }
         if (left) {
-            p0.left = p;
+            parentNode.left = currentNode;
         }
         else {
-            p0.right = p;
+            parentNode.right = currentNode;
         }
     }
 
-    public void load(IKDPoint<T>[] points) {
+    public void load(PointType[] points) {
         for (int i = 0; i < points.length; i ++) {
             this.insert(points[i]);
         }
     }
 
-    public List<IKDPoint<T>> within(IKDPoint<T> point, T radius) {
-        List<IKDPoint<T>> result = new ArrayList<IKDPoint<T>>();
-        Queue<Node> queue = new LinkedList<Node>();
+    public List<PointType> within(IKDPoint point, double radius) {
+        List<PointType> result = new ArrayList<>();
+        if (root == null) {
+            return result;
+        }
+        Queue<Node> queue = new LinkedList<>();
         queue.add(root);
         while (queue.size() > 0) {
-            Node p = queue.poll();
-            int align = p.align;
-            IKDPoint<T> node = p.getPoint();
-            // if node within range, put it into result, and put both children to queue
-            if (node.distanceTo(point).compareTo(radius) <= 0) {
-                result.add(node);
-                // also add duplicates inside node p
-                for (IKDPoint<T> duplicate: p.getDuplicates()) {
+            Node currentNode = queue.poll();
+            int align = currentNode.align;
+            PointType currentPoint = currentNode.getPoint();
+            // if current node within range, put it into result, and put both children to queue
+            if (currentPoint.distanceTo(point) <= radius) {
+                result.add(currentPoint);
+                // also add duplicates inside current node
+                for (PointType duplicate: currentNode.getDuplicates()) {
                     result.add(duplicate);
                 }
-                if (p.left != null) {
-                    queue.add(p.left);
+                if (currentNode.left != null) {
+                    queue.add(currentNode.left);
                 }
-                if (p.right != null) {
-                    queue.add(p.right);
+                if (currentNode.right != null) {
+                    queue.add(currentNode.right);
                 }
             }
-            // else node outside range
+            // else current node outside range
             else {
-                // but if NOT (node.x + r) < point.x, left child still needs to be checked
-                if ((node.getDimensionValue(align).doubleValue() + radius.doubleValue()) >= point.getDimensionValue(align).doubleValue()) {
-                    if (p.left != null) {
-                        queue.add(p.left);
+                // but if NOT (currentNode.x + r) < point.x, left child still needs to be checked
+                if (currentPoint.getDimensionValue(align) + radius >= point.getDimensionValue(align)) {
+                    if (currentNode.left != null) {
+                        queue.add(currentNode.left);
                     }
                 }
-                // but if NOT point.x < (node.x - r), right child still needs to be checked
-                if ((point.getDimensionValue(align).doubleValue() >= (node.getDimensionValue(align).doubleValue() - radius.doubleValue()))) {
-                    if (p.right != null) {
-                        queue.add(p.right);
+                // but if NOT point.x < (currentNode.x - r), right child still needs to be checked
+                if (point.getDimensionValue(align) >= currentPoint.getDimensionValue(align) - radius) {
+                    if (currentNode.right != null) {
+                        queue.add(currentNode.right);
                     }
                 }
             }
@@ -140,47 +143,50 @@ public class KDTree<T extends Number & Comparable<? super T>> {
         return result;
     }
 
-    public List<IKDPoint<T>> range(IKDPoint<T> leftBottom, IKDPoint<T> rightTop) {
-        List<IKDPoint<T>> result = new ArrayList<IKDPoint<T>>();
-        Queue<Node> queue = new LinkedList<Node>();
+    public List<PointType> range(IKDPoint leftBottom, IKDPoint rightTop) {
+        List<PointType> result = new ArrayList<>();
+        if (root == null) {
+            return result;
+        }
+        Queue<Node> queue = new LinkedList<>();
         queue.add(root);
         while (queue.size() > 0) {
-            Node p = queue.poll();
-            int align = p.align;
-            IKDPoint<T> node = p.getPoint();
-            // if node within range, put it into result, and put both children to queue
-            if (node.rightTo(leftBottom) && node.leftTo(rightTop)) {
-                result.add(node);
-                // also add duplicates inside node p
-                for (IKDPoint<T> duplicate: p.getDuplicates()) {
+            Node currentNode = queue.poll();
+            int align = currentNode.align;
+            PointType currentPoint = currentNode.getPoint();
+            // if current node within range, put it into result, and put both children to queue
+            if (currentPoint.rightTo(leftBottom) && currentPoint.leftTo(rightTop)) {
+                result.add(currentPoint);
+                // also add duplicates inside current node
+                for (PointType duplicate: currentNode.getDuplicates()) {
                     result.add(duplicate);
                 }
-                if (p.left != null) {
-                    queue.add(p.left);
+                if (currentNode.left != null) {
+                    queue.add(currentNode.left);
                 }
-                if (p.right != null) {
-                    queue.add(p.right);
+                if (currentNode.right != null) {
+                    queue.add(currentNode.right);
                 }
             }
-            // else node outside range
+            // else current node outside range
             else {
-                if (rightTop.getDimensionValue(align).compareTo(node.getDimensionValue(align)) < 0) {
-                    if (p.left != null) {
-                        queue.add(p.left);
+                if (rightTop.getDimensionValue(align) < currentPoint.getDimensionValue(align)) {
+                    if (currentNode.left != null) {
+                        queue.add(currentNode.left);
                     }
                 }
-                else if (leftBottom.getDimensionValue(align).compareTo(node.getDimensionValue(align)) > 0) {
-                    if (p.right != null) {
-                        queue.add(p.right);
+                else if (leftBottom.getDimensionValue(align) > currentPoint.getDimensionValue(align)) {
+                    if (currentNode.right != null) {
+                        queue.add(currentNode.right);
                     }
                 }
                 // on the separation axis, node is between leftBottom and rightTop, both children need to be explored
                 else {
-                    if (p.left != null) {
-                        queue.add(p.left);
+                    if (currentNode.left != null) {
+                        queue.add(currentNode.left);
                     }
-                    if (p.right != null) {
-                        queue.add(p.right);
+                    if (currentNode.right != null) {
+                        queue.add(currentNode.right);
                     }
                 }
             }
@@ -190,31 +196,31 @@ public class KDTree<T extends Number & Comparable<? super T>> {
 
     public void print() {
         System.out.println("=================== KDTree ===================");
-        Queue<Pair<Integer, Node>> queue = new LinkedList<Pair<Integer, Node>>();
-        queue.add(new Pair<Integer, Node>(0, root));
+        Queue<Pair<Integer, Node>> queue = new LinkedList<>();
+        queue.add(new Pair<>(0, root));
         int currentLevel = -1;
         while (queue.size() > 0) {
-            Pair<Integer, Node> p = queue.poll();
-            int level = p.getKey();
-            Node node = p.getValue();
+            Pair<Integer, Node> currentEntry = queue.poll();
+            int level = currentEntry.getKey();
+            Node currentNode = currentEntry.getValue();
             if (level > currentLevel) {
                 System.out.println();
                 System.out.print("[" + level + "] ");
                 currentLevel = level;
             }
-            System.out.print(node.getPoint().getId());
-            if (!node.getDuplicates().isEmpty()) {
+            System.out.print(currentNode.getPoint().getId());
+            if (!currentNode.getDuplicates().isEmpty()) {
                 System.out.print("[");
-                for (IKDPoint<T> duplicate: node.getDuplicates()) {
+                for (PointType duplicate: currentNode.getDuplicates()) {
                     System.out.print(duplicate.getId() + ",");
                 }
             }
             System.out.print(", ");
-            if (node.left != null) {
-                queue.add(new Pair<Integer, Node>(level + 1, node.left));
+            if (currentNode.left != null) {
+                queue.add(new Pair<>(level + 1, currentNode.left));
             }
-            if (node.right != null) {
-                queue.add(new Pair<Integer, Node>(level + 1, node.right));
+            if (currentNode.right != null) {
+                queue.add(new Pair<>(level + 1, currentNode.right));
             }
         }
         System.out.println();
@@ -226,7 +232,7 @@ public class KDTree<T extends Number & Comparable<? super T>> {
     public void printGraphViz() {
         System.out.println("=================== KDTree ===================");
         System.out.println("digraph kdtree {");
-        Queue<Node> queue = new LinkedList<Node>();
+        Queue<Node> queue = new LinkedList<>();
         queue.add(root);
         while (queue.size() > 0) {
             Node node = queue.poll();

@@ -17,7 +17,7 @@ public class SuperCluster {
     int radius = 60; // cluster radius in pixels
     int extent = 256;  // tile extent (radius is calculated relative to it)
     int totalNumberOfPoints = 0;
-    KDTree<Double>[] trees;
+    KDTree<Cluster>[] trees;
     Cluster[][] clusters;
 
     public SuperCluster() {
@@ -25,14 +25,14 @@ public class SuperCluster {
         this.clusters = new Cluster[maxZoom + 2][];
     }
 
-    public void load(Double[][] points) {
+    public void load(double[][] points) {
         this.totalNumberOfPoints = points.length;
         // generate a cluster object for each point and index input points into a KD-tree
         Cluster[] clusters = new Cluster[points.length];
         for (int i = 0; i < points.length; i ++) {
             clusters[i] = createPointCluster(points[i], i);
         }
-        this.trees[maxZoom + 1] = new KDTree<Double>(K);
+        this.trees[maxZoom + 1] = new KDTree<>(K);
         this.trees[maxZoom + 1].load(clusters);
         this.clusters[maxZoom + 1] = clusters;
 
@@ -42,16 +42,16 @@ public class SuperCluster {
             // create a new set of clusters for the zoom and index them with a KD-tree
             clusters = this._clusters(clusters, z);
 
-            this.trees[z] = new KDTree<Double>(K);
+            this.trees[z] = new KDTree<>(K);
             this.trees[z].load(clusters);
             this.clusters[z] = clusters;
         }
     }
 
     protected Cluster[] _clusters(Cluster[] points, int zoom) {
-        List<Cluster> clusters = new ArrayList<Cluster>();
+        List<Cluster> clusters = new ArrayList<>();
 
-        double r = radius / (extent * Math.pow(2, zoom));
+        double r = getRadius(zoom);
 
         // loop through each point
         for (int i = 0; i < points.length; i ++) {
@@ -64,7 +64,7 @@ public class SuperCluster {
             p.zoom = zoom;
 
             // find all nearby points
-            KDTree tree = this.trees[zoom + 1];
+            KDTree<Cluster> tree = this.trees[zoom + 1];
             List<Cluster> neighbors = tree.within(p, r);
 
             int numPoints = p.numPoints == 0? 1: p.numPoints;
@@ -75,7 +75,7 @@ public class SuperCluster {
             int id = (i << 5) + (zoom + 1);
 
             // store all children Ids in parent cluster
-            List<Cluster> children = new ArrayList<Cluster>();
+            List<Cluster> children = new ArrayList<>();
 
             for (Cluster neighbor : neighbors) {
 
@@ -133,7 +133,7 @@ public class SuperCluster {
         return clusters.toArray(new Cluster[clusters.size()]);
     }
 
-    protected Cluster createPointCluster(Double[] values, int id) {
+    protected Cluster createPointCluster(double[] values, int id) {
         Cluster c = new Cluster(K);
         c.setDimensionValue(0, lngX(values[0]));
         c.setDimensionValue(1, latY(values[1]));
@@ -150,11 +150,11 @@ public class SuperCluster {
         return c;
     }
 
-    protected Point createPoint(double x, double y) {
-        Point p = new Point(K);
-        p.setDimensionValue(0, lngX(x));
-        p.setDimensionValue(1, latY(y));
-        return p;
+    protected Cluster createPointCluster(double x, double y) {
+        Cluster c = new Cluster(K);
+        c.setDimensionValue(0, lngX(x));
+        c.setDimensionValue(1, latY(y));
+        return c;
     }
 
     /**
@@ -182,14 +182,14 @@ public class SuperCluster {
             return concat(easternHem, westernHem);
         }
 
-        KDTree<Double> tree = this.trees[this._limitZoom(zoom)];
-        Point leftBottom = createPoint(minLng, maxLat);
-        Point rightTop = createPoint(maxLng, minLat);
-        List<IKDPoint<Double>> points = tree.range(leftBottom, rightTop);
+        KDTree<Cluster> tree = this.trees[this._limitZoom(zoom)];
+        Cluster leftBottom = createPointCluster(minLng, maxLat);
+        Cluster rightTop = createPointCluster(maxLng, minLat);
+        List<Cluster> points = tree.range(leftBottom, rightTop);
         Cluster[] clusters = new Cluster[points.size()];
         int i = 0;
-        for (IKDPoint<Double> point: points) {
-            Cluster cluster = ((Cluster) point).clone();
+        for (Cluster point: points) {
+            Cluster cluster = point.clone();
             cluster.setDimensionValue(0, xLng(cluster.getDimensionValue(0)));
             cluster.setDimensionValue(1, yLat(cluster.getDimensionValue(1)));
             clusters[i] = cluster;

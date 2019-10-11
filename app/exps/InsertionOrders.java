@@ -40,7 +40,7 @@ public class InsertionOrders {
         printPointTuples(pointTuples, 10);
 
         // 2) Run SuperCluster for original order (A)
-        Double[][] aPoints = new Double[length][2];
+        double[][] aPoints = new double[length][2];
         for (int i = 0; i < length; i ++) {
             aPoints[i][0] = pointTuples[i].getDimensionValue(0);
             aPoints[i][1] = pointTuples[i].getDimensionValue(1);
@@ -49,7 +49,7 @@ public class InsertionOrders {
         aSuperCluster.load(aPoints);
 
         // 3) Run SuperCluster for reversed order (B)
-        Double[][] bPoints = new Double[length][2];
+        double[][] bPoints = new double[length][2];
         for (int i = 0; i < length; i ++) {
             bPoints[length - 1 - i][0] = pointTuples[i].getDimensionValue(0);
             bPoints[length - 1 - i][1] = pointTuples[i].getDimensionValue(1);
@@ -61,7 +61,7 @@ public class InsertionOrders {
         List<PointTuple> pointTuplesList = Arrays.asList(pointTuples);
         Collections.sort(pointTuplesList, PointTuple.getSpatialComparator());
         PointTuple[] cPointTuples = pointTuplesList.toArray(new PointTuple[pointTuplesList.size()]);
-        Double[][] cPoints = new Double[length][2];
+        double[][] cPoints = new double[length][2];
         for (int i = 0; i < cPointTuples.length; i ++) {
             cPoints[i][0] = cPointTuples[i].getDimensionValue(0);
             cPoints[i][1] = cPointTuples[i].getDimensionValue(1);
