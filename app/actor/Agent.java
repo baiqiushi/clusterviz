@@ -178,34 +178,49 @@ public class Agent extends AbstractActor {
                 }
             }
 
-            // Add hit to querying super cluster
-            superClustersHits.put(clusterKey, superClustersHits.get(clusterKey) + 1);
-
-            // query the cluster
-            SuperCluster cluster = superClusters.get(clusterKey);
-
-            Cluster[] clusters;
-            if (query.bbox == null) {
-                clusters = cluster.getClusters(query.zoom);
-            } else {
-                clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom);
-            }
-
-            JsonNode response = Json.toJson(_request);
-
-            ObjectNode result = JsonNodeFactory.instance.objectNode();
-            ArrayNode data = result.putArray("data");
-
-            buildGeoJsonArrayCluster(clusters, data);
-
-            ((ObjectNode) response).put("status", "done");
-            ((ObjectNode) response).set("result", result);
-            respond(response);
+            answerClusterQuery(clusterKey, _request, "done", 100);
         }
         // handle progressive query
         else {
-            handleQueryProgressively(_request);
+            // if given cluster key does NOT exists, do the loadData and clusterData first,
+            if (!superClusters.containsKey(clusterKey)) {
+                handleQueryProgressively(_request);
+            }
+            // otherwise, answer the query directly
+            else {
+                answerClusterQuery(clusterKey, _request, "done", 100);
+            }
         }
+    }
+
+    private void answerClusterQuery(String clusterKey, Request _request, String status, int progress) {
+        Query query = _request.query;
+
+        // Add hit to querying super cluster
+        superClustersHits.put(clusterKey, superClustersHits.get(clusterKey) + 1);
+
+        // query the cluster
+        SuperCluster cluster = superClusters.get(clusterKey);
+
+        Cluster[] clusters;
+        if (query.bbox == null) {
+            clusters = cluster.getClusters(query.zoom);
+        } else {
+            clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom);
+        }
+
+        // construct the response Json and return
+        JsonNode response = Json.toJson(_request);
+
+        ObjectNode result = JsonNodeFactory.instance.objectNode();
+        ArrayNode data = result.putArray("data");
+
+        buildGeoJsonArrayCluster(clusters, data);
+
+        ((ObjectNode) response).put("status", status);
+        ((ObjectNode) response).put("progress", progress);
+        ((ObjectNode) response).set("result", result);
+        respond(response);
     }
 
     private void handleQueryProgressively(Request _request) {
@@ -243,29 +258,7 @@ public class Agent extends AbstractActor {
                 // TODO - exception
             }
 
-            // Add hit to querying super cluster
-            superClustersHits.put(clusterKey, superClustersHits.get(clusterKey) + 1);
-
-            // query the cluster
-            SuperCluster cluster = superClusters.get(clusterKey);
-
-            Cluster[] clusters;
-            if (query.bbox == null) {
-                clusters = cluster.getClusters(query.zoom);
-            } else {
-                clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom);
-            }
-
-            JsonNode response = Json.toJson(_request);
-
-            ObjectNode result = JsonNodeFactory.instance.objectNode();
-            ArrayNode data = result.putArray("data");
-
-            buildGeoJsonArrayCluster(clusters, data);
-
-            ((ObjectNode) response).put("status", progress);
-            ((ObjectNode) response).set("result", result);
-            respond(response);
+            answerClusterQuery(clusterKey, _request, "in-progress", (int) progress);
 
             if (_request.analysis != null) {
                 Analysis analysis = _request.analysis;
@@ -279,10 +272,11 @@ public class Agent extends AbstractActor {
                 double randIndex = randIndex(clusterKey1, clusterKey2, zoom);
                 randIndexes.add(randIndex);
 
+                JsonNode response = Json.toJson(_request);
                 response = Json.toJson(_request);
                 ((ObjectNode) response).put("type", "analysis");
                 ((ObjectNode) response).put("id", "console");
-                result = JsonNodeFactory.instance.objectNode();
+                ObjectNode result = JsonNodeFactory.instance.objectNode();
                 result.put("randIndex", randIndex);
                 ((ObjectNode) response).put("status", "done");
                 ((ObjectNode) response).set("result", result);

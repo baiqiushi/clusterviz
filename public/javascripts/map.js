@@ -3,8 +3,13 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
     $scope.zoomshift = 0;
 
-    $scope.keyword = "";
-    $scope.resultCount = 0;
+    $scope.query = {
+      cluster: "",
+      order: "",
+      algorithm: "",
+      zoom: 0,
+      bbox: []
+    };
 
     $scope.ws = new WebSocket("ws://" + location.host + "/ws");
     $scope.pinmapMapResul = [];
@@ -12,53 +17,58 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.sendQuery = function(e) {
       console.log("e = " + e);
 
-      $scope.resultCount = 0;
-
       if (e.keyword) {
-        $scope.keyword = e.keyword;
-      }
-
-      if (!$scope.keyword) {
-        return;
+        $scope.query.keyword = e.keyword;
       }
 
       if (e.order) {
-        $scope.order = e.order;
+        $scope.query.order = e.order;
       }
 
-      let query = {
-        type: "query",
-        id: $scope.keyword,
-        keyword: $scope.keyword,
-        query: {
-          cluster: $scope.keyword + "-" + $scope.order + (e.progressive? "-progressive": ""),
-          order: $scope.order,
-          algorithm: e.algorithm,
-          zoom: $scope.map.getZoom() + $scope.zoomshift,
-          bbox: [$scope.map.getBounds().getWest(),
-            $scope.map.getBounds().getSouth(),
-            $scope.map.getBounds().getEast(),
-            $scope.map.getBounds().getNorth()]
-        }
-      };
+      if ($scope.map) {
+        $scope.query.zoom = $scope.map.getZoom() + $scope.zoomshift;
+        $scope.query.bbox = [
+          $scope.map.getBounds().getWest(),
+          $scope.map.getBounds().getSouth(),
+          $scope.map.getBounds().getEast(),
+          $scope.map.getBounds().getNorth()
+        ];
+      }
 
-      if (e.algorithm.toLowerCase() === "superclusterinbatch" || e.algorithm.toLowerCase() === "isupercluster") {
-        query.analysis = {
-          objective: "randindex",
-          arguments: [
-            $scope.keyword + "-" + $scope.order,
-            $scope.keyword + "-" + $scope.order + "-progressive",
-            e.zoom? e.zoom: $scope.map.getZoom() + $scope.zoomshift
-          ]
+      if (e.algorithm) {
+        $scope.query.algorithm = e.algorithm;
+      }
+
+      // only send query when comprised query has enough information, i.e. keyword, order, algorithm
+      if ($scope.query.keyword && $scope.query.order && $scope.query.algorithm) {
+        $scope.query.cluster = $scope.query.keyword + "-" + $scope.query.order + "-" + $scope.query.algorithm;
+
+        let request = {
+          type: "query",
+          id: $scope.query.keyword,
+          keyword: $scope.query.keyword,
+          query: $scope.query
         };
+
+        // by default, comparing the given algorithm with SuperCluster
+        if (request.query.algorithm.toLowerCase() === "superclusterinbatch" || request.query.algorithm.toLowerCase() === "isupercluster") {
+          request.query.analysis = {
+            objective: "randindex",
+            arguments: [
+              request.query.keyword + "-" + request.query.order + "-SuperCluster",
+              request.query.cluster,
+              request.query.zoom
+            ]
+          };
+        }
+
+        console.log("sending query:");
+        console.log(JSON.stringify(request));
+
+        $scope.ws.send(JSON.stringify(request));
+
+        document.getElementById("myBar").style.width = "0%";
       }
-
-      console.log("sending query:");
-      console.log(JSON.stringify(query));
-
-      $scope.ws.send(JSON.stringify(query));
-
-      document.getElementById("myBar").style.width = "0%";
     };
 
     $scope.sendCmd = function(id, keyword, commands) {
@@ -161,8 +171,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
     $scope.handleResult = function(result) {
       if(result.data.length > 0) {
-        $scope.resultCount = result.data.length;
-        moduleManager.publishEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, {resultCount: $scope.resultCount});
+        let resultCount = result.data.length;
+        moduleManager.publishEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, {resultCount: resultCount});
         $scope.drawClusterMap(result.data);
       }
     };
@@ -176,13 +186,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
         if (response.type === "query") {
           $scope.handleResult(response.result);
-          if (typeof response.status == "number") {
-            document.getElementById("myBar").style.width = response.status + "%";
-          }
-          else {
-            if (response.status === "done") {
-              document.getElementById("myBar").style.width = "100%";
-            }
+          if (typeof response.progress == "number") {
+            document.getElementById("myBar").style.width = response.progress + "%";
           }
         }
         else {

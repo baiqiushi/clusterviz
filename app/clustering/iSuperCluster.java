@@ -31,13 +31,6 @@ public class iSuperCluster extends SuperCluster {
             mergePoint(createPointCluster(points[i], this.pointIdSeq ++));
         }
 
-        //-DEBUG-//
-        System.out.println("After loading " + points.length + " points, clusters size = " + this.maxZoomClusters.size());
-        for (int i = 0; i < this.maxZoomClusters.size(); i ++) {
-            System.out.println(this.maxZoomClusters.get(i));
-        }
-        //-DEBUG-//
-
         // then re-cluster all the levels above maxZoom level
         Cluster[] clusters = this.maxZoomClusters.toArray(new Cluster[this.maxZoomClusters.size()]);
         for (int i = 0; i < clusters.length; i ++) {
