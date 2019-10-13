@@ -23,7 +23,21 @@ public class iSuperCluster extends SuperCluster {
         this.advocatorSeq = 0;
     }
 
+    public iSuperCluster(int _minZoom, int _maxZoom) {
+        this.minZoom = _minZoom;
+        this.maxZoom = _maxZoom;
+        this.trees = new KDTree[maxZoom + 1];
+        this.clusters = new Cluster[maxZoom][];
+        this.maxZoomClusters = new ArrayList<>();
+        this.advocatorsTree = new KDTree<>(K);
+        this.pointIdSeq = 0;
+        this.advocatorSeq = 0;
+    }
+
     public void load(double[][] points) {
+        System.out.println("incremental SuperCluster loading " + points.length + " points ... ...");
+        long start = System.nanoTime();
+
         this.totalNumberOfPoints += points.length;
 
         // merge all points into the maxZoom level clusters
@@ -48,6 +62,11 @@ public class iSuperCluster extends SuperCluster {
             this.trees[z].load(clusters);
             this.clusters[z] = clusters;
         }
+
+        long end = System.nanoTime();
+        System.out.println("incremental SuperCluster loading is done!");
+        System.out.println("Takes time: " + (double) (end - start) / 1000000000.0 + " seconds.");
+        System.out.println("Max zoom level clusters # = " + this.maxZoomClusters.size());
     }
 
     private void mergePoint(Cluster c) {
@@ -60,6 +79,8 @@ public class iSuperCluster extends SuperCluster {
             Advocator newAdvocator = new Advocator(K);
             newAdvocator.seq = advocatorSeq ++;
             newAdvocator.cluster = c;
+            newAdvocator.setDimensionValue(0, c.getDimensionValue(0));
+            newAdvocator.setDimensionValue(1, c.getDimensionValue(1));
             advocatorsTree.insert(newAdvocator);
             c.id = (c.id << 5) + (maxZoom + 1);
             c.expansionZoom = maxZoom + 1;

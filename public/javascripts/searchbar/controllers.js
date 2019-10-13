@@ -4,15 +4,12 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
 
         $scope.search = function () {
             if ($scope.keyword && $scope.keyword.trim().length > 0) {
-                //Splits out all individual words in the query keyword.
-                var keywords = $scope.keyword.trim().split(/\s+/);
-
-                if (keywords.length === 0) {
-                    alert("Your query only contains stopwords. Please re-enter your query.");
-                } else {
-                    moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD,
-                        {keyword: keywords[0], order: $scope.order, algorithm: $scope.algorithm, zoom: $scope.zoom});
-                }
+                moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD,
+                    {keyword: $scope.keyword, order: $scope.order, algorithm: $scope.algorithm, zoom: $scope.zoom});
+            }
+            else {
+              moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD,
+                {keyword: "%", order: $scope.order, algorithm: $scope.algorithm, zoom: $scope.zoom});
             }
         };
 

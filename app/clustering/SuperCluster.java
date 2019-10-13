@@ -1,8 +1,6 @@
 package clustering;
 
 import model.Cluster;
-import model.Point;
-import util.IKDPoint;
 import util.KDTree;
 
 import java.util.ArrayList;
@@ -25,7 +23,16 @@ public class SuperCluster {
         this.clusters = new Cluster[maxZoom + 2][];
     }
 
+    public SuperCluster(int _minZoom, int _maxZoom) {
+        this.minZoom = _minZoom;
+        this.maxZoom = _maxZoom;
+        this.trees = new KDTree[maxZoom + 2];
+        this.clusters = new Cluster[maxZoom + 2][];
+    }
+
     public void load(double[][] points) {
+        System.out.println("SuperCluster loading " + points.length + " points ... ...");
+        long start = System.nanoTime();
         this.totalNumberOfPoints = points.length;
         // generate a cluster object for each point and index input points into a KD-tree
         Cluster[] clusters = new Cluster[points.length];
@@ -46,6 +53,15 @@ public class SuperCluster {
             this.trees[z].load(clusters);
             this.clusters[z] = clusters;
         }
+
+        // abandon the tree and array storing the raw data, to be fair with iSuperCluster
+        this.trees[maxZoom + 1] = null;
+        this.clusters[maxZoom + 1] = null;
+
+        long end = System.nanoTime();
+        System.out.println("SuperCluster loading is done!");
+        System.out.println("Takes time: " + (double) (end - start) / 1000000000.0 + " seconds.");
+        System.out.println("Max zoom level clusters # = " + this.clusters[maxZoom].length);
     }
 
     protected Cluster[] _clusters(Cluster[] points, int zoom) {
@@ -296,7 +312,9 @@ public class SuperCluster {
     }
 
     protected int _limitZoom(int zoom) {
-        return Math.max(minZoom, Math.min(zoom, maxZoom + 1));
+        //return Math.max(minZoom, Math.min(zoom, maxZoom + 1));
+        // do not support query for the raw data level anymore
+        return Math.max(minZoom, Math.min(zoom, maxZoom));
     }
 
     // longitude to spherical mercator in [0..1] range

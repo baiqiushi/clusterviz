@@ -117,6 +117,46 @@ public class PostgreSQL {
         return result.toArray(new PointTuple[result.size()]);
     }
 
+    public PointTuple[] queryPointTuplesForTime(Date sd, Date ed) {
+
+        if (this.conn == null) {
+            if(!this.connectDB()) {
+                return null;
+            }
+        }
+
+        System.out.println("Querying PostgreSQL with time [" + sd + ", " + ed + "]... ...");
+        List<PointTuple> result = new ArrayList<PointTuple>();
+        String sql = "SELECT create_at, x, y, id FROM tweets WHERE create_at between ? and ?";
+        long start = System.nanoTime();
+        try {
+            PreparedStatement statement = conn.prepareStatement(sql);
+            statement.setTimestamp(1, new Timestamp(sd.getTime()));
+            statement.setTimestamp(2, new Timestamp(ed.getTime()));
+            System.out.println("SQL: " + statement);
+            ResultSet rs = statement.executeQuery();
+            while (rs.next()) {
+                Timestamp create_at = rs.getTimestamp(1);
+                Double x = rs.getDouble(2);
+                Double y = rs.getDouble(3);
+                long tid = rs.getLong(4);
+                PointTuple pt = new PointTuple(2);
+                pt.timestamp = create_at;
+                pt.setDimensionValue(0, x);
+                pt.setDimensionValue(1, y);
+                pt.tid = tid;
+                result.add(pt);
+            }
+        } catch (SQLException e) {
+            System.err.println(e.getMessage());
+        }
+        long end = System.nanoTime();
+        System.out.println("Querying PostgreSQL with time [" + sd + ", " + ed +  "] is done! ");
+        System.out.println("Takes time: " + TimeUnit.SECONDS.convert(end - start, TimeUnit.NANOSECONDS) + " seconds");
+        System.out.println("Result size: " + result.size());
+        return result.toArray(new PointTuple[result.size()]);
+    }
+
     public PointTuple[] queryPointTuplesForLimit(int limit) {
         if (this.conn == null) {
             if(!this.connectDB()) {
