@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.typesafe.config.Config;
 import model.*;
 import play.libs.Json;
+import util.MyTimer;
 import util.MyLogger;
 import util.PostgreSQL;
 import util.RandIndex;
@@ -230,6 +231,10 @@ public class Agent extends AbstractActor {
     }
 
     private void handleQueryProgressively(Request _request) {
+
+        // for experiments analysis
+        MyTimer.progressTimer.clear();
+
         Query query = _request.query;
         String clusterKey = query.cluster;
         if (_request.keyword == null) {
@@ -258,7 +263,10 @@ public class Agent extends AbstractActor {
             }
 
             String clusterOrder = query.order == null ? "original" : query.order;
+            MyTimer.startTimer();
             success = clusterData(clusterKey, clusterOrder, query.algorithm);
+            MyTimer.stopTimer();
+            MyTimer.progressTimer.add(MyTimer.durationSeconds());
             if (!success) {
                 // TODO - exception
             }
@@ -307,6 +315,17 @@ public class Agent extends AbstractActor {
             ((ObjectNode) response).put("status", "done");
             respond(response);
         }
+
+        // for experiments analysis
+        System.out.println("========== Experiment Analysis ==========");
+        System.out.println("Progressive Query: ");
+        System.out.println("keyword: " + _request.keyword);
+        System.out.println("algorithm: " + _request.query.algorithm);
+        System.out.println("clustering time for each batch: ");
+        for (double time: MyTimer.progressTimer) {
+            System.out.println(time);
+        }
+        System.out.println("========== =================== ==========");
     }
 
     private void handleCmds(Request _request) {

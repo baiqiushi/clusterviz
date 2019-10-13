@@ -60,7 +60,7 @@ public class SuperCluster {
 
         long end = System.nanoTime();
         System.out.println("SuperCluster loading is done!");
-        System.out.println("Takes time: " + (double) (end - start) / 1000000000.0 + " seconds.");
+        System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
         System.out.println("Max zoom level clusters # = " + this.clusters[maxZoom].length);
     }
 

@@ -152,7 +152,7 @@ public class PostgreSQL {
         }
         long end = System.nanoTime();
         System.out.println("Querying PostgreSQL with time [" + sd + ", " + ed +  "] is done! ");
-        System.out.println("Takes time: " + TimeUnit.SECONDS.convert(end - start, TimeUnit.NANOSECONDS) + " seconds");
+        System.out.println("Database time: " + TimeUnit.SECONDS.convert(end - start, TimeUnit.NANOSECONDS) + " seconds");
         System.out.println("Result size: " + result.size());
         return result.toArray(new PointTuple[result.size()]);
     }

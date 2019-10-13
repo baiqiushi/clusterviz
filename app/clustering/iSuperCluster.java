@@ -65,7 +65,7 @@ public class iSuperCluster extends SuperCluster {
 
         long end = System.nanoTime();
         System.out.println("incremental SuperCluster loading is done!");
-        System.out.println("Takes time: " + (double) (end - start) / 1000000000.0 + " seconds.");
+        System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
         System.out.println("Max zoom level clusters # = " + this.maxZoomClusters.size());
     }
 
