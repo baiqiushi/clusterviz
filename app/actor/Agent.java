@@ -325,6 +325,12 @@ public class Agent extends AbstractActor {
         for (double time: MyTimer.progressTimer) {
             System.out.println(time);
         }
+        if (_request.analysis != null) {
+            System.out.println("Rand index values for each batch: ");
+            for (double randIndex : randIndexes) {
+                System.out.println(randIndex);
+            }
+        }
         System.out.println("========== =================== ==========");
     }
 

@@ -1,7 +1,7 @@
 angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
   .controller("MapCtrl", function($scope, $timeout, leafletData, moduleManager) {
 
-    $scope.zoomshift = 0;
+    $scope.zoomshift = 1;
 
     $scope.query = {
       cluster: "",
@@ -51,8 +51,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         };
 
         // by default, comparing the given algorithm with SuperCluster
-        if (request.query.algorithm.toLowerCase() === "superclusterinbatch" || request.query.algorithm.toLowerCase() === "isupercluster") {
-          request.query.analysis = {
+        if (request.query.algorithm.toLowerCase() === "superclusterinbatch") {
+          request.analysis = {
             objective: "randindex",
             arguments: [
               request.query.keyword + "-" + request.query.order + "-SuperCluster",
