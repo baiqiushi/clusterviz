@@ -172,7 +172,11 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.handleResult = function(result) {
       if(result.data.length > 0) {
         let resultCount = result.data.length;
-        moduleManager.publishEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, {resultCount: resultCount});
+        let pointsCount = 0;
+        for (let i = 0; i < resultCount; i ++) {
+          pointsCount += result.data[i].properties.point_count;
+        }
+        moduleManager.publishEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, {resultCount: resultCount, pointsCount: pointsCount});
         $scope.drawClusterMap(result.data);
       }
     };
@@ -305,10 +309,10 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
 angular.module("clustermap.map")
   .controller('CountCtrl', function($scope, moduleManager) {
-    $scope.resultCount = 0;
+    $scope.resultCount = "";
 
     moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, function(e) {
-      $scope.resultCount = e.resultCount;
+      $scope.resultCount = e.resultCount + ": " + e.pointsCount;
     })
   });
 
