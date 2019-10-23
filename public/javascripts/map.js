@@ -261,16 +261,18 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     };
 
     $scope.createClusterIcon = function(feature, latlng) {
-      if (feature.properties.point_count === 0) return L.marker(latlng);
+      if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 3, color: '#3498DB', fillColor: '#3498DB'});
 
       const count = feature.properties.point_count;
       const size =
         count < 100 ? 'small' :
           count < 1000 ? 'medium' : 'large';
+      //const iconSize = Math.max(10, count / 100);
       const icon = L.divIcon({
-        html: `<div><span>${  feature.properties.point_count_abbreviated  }</span></div>`,
-        className: `marker-cluster marker-cluster-${  size}`,
+        html: `<div><span>${feature.properties.point_count_abbreviated}</span></div>`,
+        className: `marker-cluster marker-cluster-${size}`,
         iconSize: L.point(40, 40)
+        //iconSize: L.point(iconSize, iconSize)
       });
 
       return L.marker(latlng, {icon: icon, title: feature.properties.id, alt: feature.properties.id});
