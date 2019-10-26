@@ -553,8 +553,6 @@ public class Agent extends AbstractActor {
             orderMap = base.toArray(new Long[base.size()]);
         }
         orderMaps.put(_key, orderMap);
-        //-DEBUG-//
-        //System.out.println("order map for [" + _key + "] : " + Arrays.toString(orderMap));
         return points;
     }
 

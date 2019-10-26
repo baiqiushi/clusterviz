@@ -3,11 +3,15 @@ package clustering;
 import model.Advocator;
 import model.Cluster;
 import util.KDTree;
+import util.MyLogger;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class AiSuperCluster extends SuperCluster {
+
+    static final boolean keepLabels = true;
+    ArrayList<int[]> labels = new ArrayList<>();
 
     KDTree<Advocator>[] advocatorsTrees;
     List<Cluster>[] advocatorClusters;
@@ -48,6 +52,9 @@ public class AiSuperCluster extends SuperCluster {
 
         // insert points to max zoom level one by one
         for (int i = 0; i < points.length; i ++) {
+            if (keepLabels) {
+                this.labels.add(new int[maxZoom + 1]);
+            }
             insert(createPointCluster(points[i], this.pointIdSeq ++), maxZoom);
         }
 
@@ -75,6 +82,10 @@ public class AiSuperCluster extends SuperCluster {
             c.expansionZoom = zoom + 1;
             c.numPoints = 0;
             this.advocatorClusters[zoom].add(c);
+
+            if (keepLabels) {
+                this.labels.get(c.id)[zoom] = c.id;
+            }
         }
         // if earlier advocators' groups could be merged into
         else {
@@ -101,6 +112,10 @@ public class AiSuperCluster extends SuperCluster {
             cluster.numPoints = cluster.numPoints + 1;
             cluster.setDimensionValue(0, wx / cluster.numPoints);
             cluster.setDimensionValue(1, wy / cluster.numPoints);
+
+            if (keepLabels) {
+                this.labels.get(c.id)[zoom] = cluster.id;
+            }
         }
 
         // insert this cluster into lower level
@@ -149,5 +164,30 @@ public class AiSuperCluster extends SuperCluster {
             i ++;
         }
         return clusters;
+    }
+
+    /**
+     * Get the clustering labels of given zoom level for all points loaded,
+     * in the same order as when points array was loaded.
+     *
+     * @param zoom
+     * @return
+     */
+    public int[] getClusteringLabels(int zoom) {
+        if (zoom < minZoom || zoom  > maxZoom + 1) {
+            MyLogger.error(this.getClass(), "zoom level [" + zoom + "] exceeds the range [" + minZoom + "~" + maxZoom + "]");
+            return null;
+        }
+        if (!keepLabels) {
+            MyLogger.error(this.getClass(), "keepLabels turned off, cannot get clustering labels!");
+            return null;
+        }
+        int[] labels = new int[totalNumberOfPoints];
+
+        for (int i = 0; i < this.labels.size(); i ++) {
+            labels[i] = this.labels.get(i)[zoom];
+        }
+
+        return labels;
     }
 }
