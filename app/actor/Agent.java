@@ -3,6 +3,7 @@ package actor;
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
+import clustering.AiSuperCluster;
 import clustering.SuperCluster;
 import clustering.iSuperCluster;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -177,7 +178,7 @@ public class Agent extends AbstractActor {
                 }
 
                 String clusterOrder = query.order == null ? "original" : query.order;
-                success = clusterData(clusterKey, clusterOrder, "SuperCluster");
+                success = clusterData(clusterKey, clusterOrder, "SuperCluster", false);
                 if (!success) {
                     // TODO - exception
                 }
@@ -253,18 +254,20 @@ public class Agent extends AbstractActor {
             long progress = (currentEnd.getTime() - this.start.getTime()) / (24 * 3600 * 1000);
             progress = 100 * progress / totalDays;
 
-            boolean append = true;
-            if (query.algorithm.equalsIgnoreCase("iSuperCluster") || query.algorithm.equalsIgnoreCase("isc")) {
-                append = false;
+            // true - if pointTuples only keep delta data, false - otherwise
+            boolean deltaOnly = true;
+            if (query.algorithm.equalsIgnoreCase("SuperCluster") || query.algorithm.equalsIgnoreCase("sc")
+                    || query.algorithm.equalsIgnoreCase("SuperClusterInBatch") || query.algorithm.equalsIgnoreCase("scib")) {
+                deltaOnly = false;
             }
-            boolean success = loadNewData(_request.keyword, currentStart, currentEnd, append);
+            boolean success = loadNewData(_request.keyword, currentStart, currentEnd, deltaOnly);
             if (!success) {
                 // TODO - exception
             }
 
             String clusterOrder = query.order == null ? "original" : query.order;
             MyTimer.startTimer();
-            success = clusterData(clusterKey, clusterOrder, query.algorithm);
+            success = clusterData(clusterKey, clusterOrder, query.algorithm, deltaOnly);
             MyTimer.stopTimer();
             MyTimer.progressTimer.add(MyTimer.durationSeconds());
             if (!success) {
@@ -375,11 +378,12 @@ public class Agent extends AbstractActor {
     }
 
     /**
-     * load new data for given keyword and time range, and append to the end of this.pointTuples
+     * load new data for given keyword and time range
      *
+     * @param deltaOnly - true - keep delta only in this.pointTuples, false - append to the end of this.pointTuples
      * @return
      */
-    private boolean loadNewData(String keyword, Date start, Date end, boolean append) {
+    private boolean loadNewData(String keyword, Date start, Date end, boolean deltaOnly) {
         if (postgreSQL == null) {
             postgreSQL = new PostgreSQL();
         }
@@ -396,7 +400,7 @@ public class Agent extends AbstractActor {
         for (int i = 0; i < deltaPointTuples.length; i ++) {
             deltaPointTuples[i].id = i;
         }
-        if (pointTuples == null || !append) {
+        if (pointTuples == null || deltaOnly) {
             pointTuples = deltaPointTuples;
         }
         else {
@@ -412,10 +416,11 @@ public class Agent extends AbstractActor {
      *
      * @param clusterKey
      * @param clusterOrder
+     * @param deltaOnly - valid only for progressive queries, true - if pointTuples only keep delta data, false - otherwise
      * @return
      */
-    private boolean clusterData(String clusterKey, String clusterOrder, String algorithm) {
-        double[][] points = orderPoints(clusterKey, clusterOrder);
+    private boolean clusterData(String clusterKey, String clusterOrder, String algorithm, boolean deltaOnly) {
+        double[][] points = orderPoints(clusterKey, clusterOrder, deltaOnly);
         if (points == null) {
             return false;
         }
@@ -444,6 +449,10 @@ public class Agent extends AbstractActor {
                     case "isupercluster":
                     case "isc":
                         cluster = new iSuperCluster(this.minZoom, this.maxZoom);
+                        break;
+                    case "aisupercluster":
+                    case "aisc":
+                        cluster = new AiSuperCluster(this.minZoom, this.maxZoom);
                         break;
                     default:
                         cluster = new SuperCluster(this.minZoom, this.maxZoom);
@@ -477,7 +486,7 @@ public class Agent extends AbstractActor {
                 else {
                     String clusterKey = _cmd.arguments[0];
                     String clusterOrder = _cmd.arguments[1];
-                    success = clusterData(clusterKey, clusterOrder, "SuperCluster");
+                    success = clusterData(clusterKey, clusterOrder, "SuperCluster", false);
                     if (success) {
                         respond(buildCmdResponse(_request, _cmd.action, "cluster built for key = " + clusterKey + " order = " + clusterOrder, "done"));
                     }
@@ -494,7 +503,7 @@ public class Agent extends AbstractActor {
         return true;
     }
 
-    private double[][] orderPoints(String _key, String _order) {
+    private double[][] orderPoints(String _key, String _order, boolean deltaOnly) {
         double[][] points = new double[pointTuples.length][2];
         Long[] orderMap = new Long[points.length];
         switch (_order) {
@@ -535,7 +544,17 @@ public class Agent extends AbstractActor {
             default:
                 return null;
         }
+        // if already has order maps for this cluster key and this.pointTuples in deltaOnly mode
+        // append the orderMap to existing orderMap
+        if (orderMaps.containsKey(_key) && deltaOnly) {
+            Long[] curOrderMap = orderMaps.get(_key);
+            List<Long> base = new ArrayList(Arrays.asList(curOrderMap));
+            base.addAll(Arrays.asList(orderMap));
+            orderMap = base.toArray(new Long[base.size()]);
+        }
         orderMaps.put(_key, orderMap);
+        //-DEBUG-//
+        //System.out.println("order map for [" + _key + "] : " + Arrays.toString(orderMap));
         return points;
     }
 
@@ -556,6 +575,10 @@ public class Agent extends AbstractActor {
 
         int[] labels1 = superClusters.get(clusterKey1).getClusteringLabels(zoom);
         int[] labels2 = superClusters.get(clusterKey2).getClusteringLabels(zoom);
+
+        //-DEBUG-//
+//        System.out.println("labels1 [" + labels1.length + "] = " + Arrays.toString(labels1));
+//        System.out.println("labels2 [" + labels2.length + "] = " + Arrays.toString(labels2));
 
         // one cluster only has partial data,
         // make labels1/clusterKey1 always point to the smaller one,

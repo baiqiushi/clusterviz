@@ -18,8 +18,8 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         });
 
         $scope.orders = ["original", "reverse", "spatial", "spatial-reverse"];
-        $scope.algorithms = ["SuperCluster", "SuperClusterInBatch", "iSuperCluster"];
-        $scope.zooms = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18];
+        $scope.algorithms = ["SuperCluster", "SuperClusterInBatch", "iSuperCluster", "AiSuperCluster"];
+        $scope.zooms = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
     })
     .directive("searchBar", function () {
         return {
@@ -38,9 +38,9 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                 '    <div id="myBar"></div>',
                 '  </div>',
                 '</form>',
-                '<label for="order">Order</label><select id="order" ng-model="order" ng-options="x for x in orders" ng-init="order = orders[0]"></select>',
-                '<label for="algorithm">Algorithm</label><select id="algorithm" ng-model="algorithm" ng-options="x for x in algorithms" ng-init="algorithm = algorithms[0]"></select>',
-                '<label for="zoom">Zoom</label><select id="zoom" ng-model="zoom" ng-options="x for x in zooms" ng-init="zoom = zooms[0]"></select>'
+                '<label for="order">Order</label>&nbsp;<select id="order" ng-model="order" ng-options="x for x in orders" ng-init="order = orders[0]"></select>&nbsp;',
+                '<label for="algorithm">Algorithm</label>&nbsp;<select id="algorithm" ng-model="algorithm" ng-options="x for x in algorithms" ng-init="algorithm = algorithms[0]"></select>&nbsp;',
+                '<label for="zoom">Zoom</label>&nbsp;<select id="zoom" ng-model="zoom" ng-options="x for x in zooms" ng-init="zoom = zooms[0]"></select>&nbsp;'
             ].join('')
         };
     });

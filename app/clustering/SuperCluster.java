@@ -247,6 +247,19 @@ public class SuperCluster {
         }
         int[] labels = new int[totalNumberOfPoints];
         Cluster[] clusters = getClusters(zoom);
+        //-DEBUG-//
+//        System.out.println("[getClusteringLabels] clusters size = " + clusters.length);
+//        for (int i = 0; i < clusters.length; i ++) {
+//            System.out.print(clusters[i].id);
+//            if (!clusters[i].children.isEmpty()) {
+//                System.out.print("-->");
+//                for (Cluster child: clusters[i].children) {
+//                    System.out.print(child.id + ",");
+//                }
+//            }
+//            System.out.println();
+//        }
+        //-DEBUG-//
         for (int i = 0; i < clusters.length; i ++) {
             Cluster cluster = clusters[i];
             if (cluster.numPoints == 0) {

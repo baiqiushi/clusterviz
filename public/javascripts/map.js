@@ -1,7 +1,7 @@
 angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
   .controller("MapCtrl", function($scope, $timeout, leafletData, moduleManager) {
 
-    $scope.zoomshift = 1;
+    $scope.zoomShift = 0;
 
     $scope.query = {
       cluster: "",
@@ -15,7 +15,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.pinmapMapResul = [];
 
     $scope.sendQuery = function(e) {
-      console.log("e = " + e);
+      console.log("e = " + JSON.stringify(e));
 
       if (e.keyword) {
         $scope.query.keyword = e.keyword;
@@ -26,7 +26,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       }
 
       if ($scope.map) {
-        $scope.query.zoom = $scope.map.getZoom() + $scope.zoomshift;
+        $scope.query.zoom = $scope.map.getZoom() + $scope.zoomShift;
         $scope.query.bbox = [
           $scope.map.getBounds().getWest(),
           $scope.map.getBounds().getSouth(),
@@ -51,7 +51,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         };
 
         // by default, comparing the given algorithm with SuperCluster
-        if (request.query.algorithm.toLowerCase() === "superclusterinbatch") {
+        if (request.query.algorithm.toLowerCase() !== "supercluster") {
           request.analysis = {
             objective: "randindex",
             arguments: [
@@ -99,6 +99,11 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         });
 
         moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_ZOOM_LEVEL, function(e) {
+          $scope.sendQuery(e);
+        });
+
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_ZOOM_SHIFT, function(e) {
+          $scope.zoomShift = parseInt(e.zoomShift);
           $scope.sendQuery(e);
         });
 
@@ -156,14 +161,32 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       button.appendChild(text);
       button.title = "Reset";
       button.href = "#";
-      button.style.position = 'inherit';
-      button.style.top = '10%';
-      button.style.left = '1%';
+      button.style.position = 'fixed';
+      button.style.top = '70px';
+      button.style.left = '8px';
       button.style.fontSize = '14px';
       var body = document.body;
       body.appendChild(button);
       button.addEventListener("click", function () {
         $scope.map.setView([$scope.lat, $scope.lng], 4);
+      });
+
+      //Zoom Shift Select
+      $scope.selectZoomShift = document.createElement("select");
+      $scope.selectZoomShift.title = "zoomShift";
+      $scope.selectZoomShift.style.position = 'fixed';
+      $scope.selectZoomShift.style.top = '90px';
+      $scope.selectZoomShift.style.left = '8px';
+      for (let i = 0; i <= 10; i ++) {
+        let option = document.createElement("option");
+        option.text = ""+ i;
+        $scope.selectZoomShift.add(option);
+      }
+      body = document.body;
+      body.appendChild($scope.selectZoomShift);
+      $scope.selectZoomShift.addEventListener("change", function () {
+        moduleManager.publishEvent(moduleManager.EVENT.CHANGE_ZOOM_SHIFT,
+          {zoomShift: $scope.selectZoomShift.value});
       });
 
       $scope.waitForWS();
@@ -315,5 +338,3 @@ angular.module("clustermap.map")
       $scope.resultCount = e.resultCount + ": " + e.pointsCount;
     })
   });
-
-console.log(L.version);

@@ -40,6 +40,7 @@ public class KDTree<PointType extends IKDPoint> {
     private Node root;
     private int k;
     private int height = 0;
+    private int size = 0;
 
     public KDTree(int k) {
         this.k = k;
@@ -47,6 +48,7 @@ public class KDTree<PointType extends IKDPoint> {
     }
 
     public void insert(PointType point) {
+        size ++;
 
         // empty tree
         if (root == null) {
@@ -246,5 +248,9 @@ public class KDTree<PointType extends IKDPoint> {
             }
         }
         System.out.println("}");
+    }
+
+    public int size() {
+        return this.size;
     }
 }
