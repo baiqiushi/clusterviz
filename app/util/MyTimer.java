@@ -1,22 +1,24 @@
 package util;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class MyTimer {
     public static List<Double> progressTimer = new ArrayList<>();
-    private static long startTime = 0;
-    private static long endTime = 0;
+    private static Stack<Long> startTimes = new Stack<>();
+    private static Queue<Double> durations = new LinkedList<>();
 
     public static void startTimer() {
-        startTime = System.nanoTime();
+        long startTime = System.nanoTime();
+        startTimes.push(startTime);
     }
 
     public static void stopTimer() {
-        endTime = System.nanoTime();
+        long endTime = System.nanoTime();
+        long startTime = startTimes.pop();
+        durations.add((double) (endTime - startTime) / 1000000000.0);
     }
 
     public static double durationSeconds() {
-        return (double) (endTime - startTime) / 1000000000.0;
+        return durations.poll();
     }
 }

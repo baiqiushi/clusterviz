@@ -18,9 +18,19 @@ public class SuperCluster {
     KDTree<Cluster>[] trees;
     Cluster[][] clusters;
 
+    private double[] radiuses; // store computed radius of each zoom level
+
+    private void initRadiuses() {
+        this.radiuses = new double[maxZoom - minZoom + 1];
+        for (int i = 0; i < this.radiuses.length; i ++) {
+            this.radiuses[i] = radius / (extent * Math.pow(2, i));
+        }
+    }
+
     public SuperCluster() {
         this.trees = new KDTree[maxZoom + 2];
         this.clusters = new Cluster[maxZoom + 2][];
+        this.initRadiuses();
     }
 
     public SuperCluster(int _minZoom, int _maxZoom) {
@@ -28,6 +38,7 @@ public class SuperCluster {
         this.maxZoom = _maxZoom;
         this.trees = new KDTree[maxZoom + 2];
         this.clusters = new Cluster[maxZoom + 2][];
+        this.initRadiuses();
     }
 
     public void load(double[][] points) {
@@ -313,7 +324,7 @@ public class SuperCluster {
      * @return
      */
     public double getRadius(int zoom) {
-        return radius / (extent * Math.pow(2, zoom));
+        return this.radiuses[zoom];
     }
 
     protected Cluster[] concat(Cluster[] a, Cluster[] b) {

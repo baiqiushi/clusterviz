@@ -11,6 +11,8 @@ public class Cluster extends Point {
     // all data points belong to this cluster
     public List<Cluster> children = new ArrayList<>();
 
+    public Cluster parent = null;
+
     public Cluster(int k) {
         super(k);
     }

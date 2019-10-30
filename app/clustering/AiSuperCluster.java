@@ -4,19 +4,29 @@ import model.Advocator;
 import model.Cluster;
 import util.KDTree;
 import util.MyLogger;
+import util.MyTimer;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AiSuperCluster extends SuperCluster {
 
-    static final boolean keepLabels = true;
+    //-Rand-index-//
+    static final boolean keepLabels = false;
     ArrayList<int[]> labels = new ArrayList<>();
+    //-Rand-index-//
 
     KDTree<Advocator>[] advocatorsTrees;
     List<Cluster>[] advocatorClusters;
     int pointIdSeq;
     int advocatorSeq;
+
+    //-Timing-//
+    static final boolean keepTiming = true;
+    Map<String, Double> timing = new HashMap<>();
+    //-Timing-//
 
     public AiSuperCluster() {
         this.advocatorsTrees = new KDTree[maxZoom + 1];
@@ -45,7 +55,7 @@ public class AiSuperCluster extends SuperCluster {
     }
 
     public void load(double[][] points) {
-        System.out.println("Advocator incremental SuperCluster loading " + points.length + " points ... ...");
+        System.out.println("Approximate incremental SuperCluster loading " + points.length + " points ... ...");
         long start = System.nanoTime();
 
         this.totalNumberOfPoints += points.length;
@@ -59,36 +69,82 @@ public class AiSuperCluster extends SuperCluster {
         }
 
         long end = System.nanoTime();
-        System.out.println("incremental SuperCluster loading is done!");
+        System.out.println("Approximate incremental SuperCluster loading is done!");
         System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
         System.out.println("Max zoom level clusters # = " + this.advocatorClusters[maxZoom].size());
+        if (keepTiming) this.printTiming();
     }
 
     public void insert(Cluster c, int zoom) {
+        if (keepTiming) MyTimer.startTimer();
         double radius = getRadius(zoom);
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) {
+            if (timing.containsKey("getRadius")) {
+                timing.put("getRadius", timing.get("getRadius") + MyTimer.durationSeconds());
+            } else {
+                timing.put("getRadius", MyTimer.durationSeconds());
+            }
+        }
 
+        if (keepTiming) MyTimer.startTimer();
         // Find all earlier advocators c can merge into
         KDTree<Advocator> advocatorsTree = this.advocatorsTrees[zoom];
         List<Advocator> advocators = advocatorsTree.within(c, radius);
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) {
+            if (timing.containsKey("rangeSearch")) {
+                timing.put("rangeSearch", timing.get("rangeSearch") + MyTimer.durationSeconds());
+            } else {
+                timing.put("rangeSearch", MyTimer.durationSeconds());
+            }
+        }
 
         // if no group could be merged into, become a new Advocator itself
         if (advocators.isEmpty()) {
+            if (keepTiming) MyTimer.startTimer();
             Advocator newAdvocator = new Advocator(K);
             newAdvocator.seq = advocatorSeq ++;
             newAdvocator.cluster = c;
             newAdvocator.setDimensionValue(0, c.getDimensionValue(0));
             newAdvocator.setDimensionValue(1, c.getDimensionValue(1));
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("createAdvocator")) {
+                    timing.put("createAdvocator", timing.get("createAdvocator") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("createAdvocator", MyTimer.durationSeconds());
+                }
+            }
+            if (keepTiming) MyTimer.startTimer();
             advocatorsTree.insert(newAdvocator);
-            c.expansionZoom = zoom + 1;
-            c.numPoints = 0;
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("insertTree")) {
+                    timing.put("insertTree", timing.get("insertTree") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("insertTree", MyTimer.durationSeconds());
+                }
+            }
             this.advocatorClusters[zoom].add(c);
 
             if (keepLabels) {
                 this.labels.get(c.id)[zoom] = c.id;
             }
+
+            // insert this cluster into lower level
+            if (zoom >= 1) {
+                Cluster parent = createCluster(c.getDimensionValue(0), c.getDimensionValue(1), c.id, 0);
+                c.parentId = parent.id;
+                c.parent = parent;
+                /** in AiSuperCluster Class, use Cluster.children to store direct descendants pointers */
+                parent.children.add(c);
+                insert(parent, zoom - 1);
+            }
         }
         // if earlier advocators' groups could be merged into
         else {
+            if (keepTiming) MyTimer.startTimer();
             // find the earliest advocator
             Advocator earliestAdvocator = null;
             for (Advocator advocator: advocators) {
@@ -99,11 +155,21 @@ public class AiSuperCluster extends SuperCluster {
                     earliestAdvocator = advocator;
                 }
             }
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("findEarliest")) {
+                    timing.put("findEarliest", timing.get("findEarliest") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("findEarliest", MyTimer.durationSeconds());
+                }
+            }
 
+            if (keepTiming) MyTimer.startTimer();
             // merge into earliest advocator's group
             Cluster cluster = earliestAdvocator.cluster;
             if (cluster.numPoints == 0) {
                 cluster.numPoints = 1;
+                cluster.id = (cluster.id << 5) + (maxZoom + 1);
             }
             double wx = cluster.getDimensionValue(0) * cluster.numPoints;
             double wy = cluster.getDimensionValue(1) * cluster.numPoints;
@@ -112,16 +178,48 @@ public class AiSuperCluster extends SuperCluster {
             cluster.numPoints = cluster.numPoints + 1;
             cluster.setDimensionValue(0, wx / cluster.numPoints);
             cluster.setDimensionValue(1, wy / cluster.numPoints);
+            // merge c's children into cluster's children too
+            if (zoom < maxZoom) {
+                cluster.children.addAll(c.children);
+                for (Cluster child: c.children) {
+                    child.parentId = cluster.id;
+                    child.parent = cluster;
+                }
+            }
+
+            // update all cluster's ascendants to merge this new c
+            while (cluster.parent != null) {
+                cluster = cluster.parent;
+                merge(cluster, c);
+            }
+
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("mergeCluster")) {
+                    timing.put("mergeCluster", timing.get("mergeCluster") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("mergeCluster", MyTimer.durationSeconds());
+                }
+            }
 
             if (keepLabels) {
                 this.labels.get(c.id)[zoom] = cluster.id;
             }
         }
+    }
 
-        // insert this cluster into lower level
-        if (zoom >= 1) {
-            insert(createCluster(c.getDimensionValue(0), c.getDimensionValue(1), c.id, 0), zoom - 1);
+    private void merge(Cluster c1, Cluster c2) {
+        if (c1.numPoints == 0) {
+            c1.numPoints = 1;
+            c1.id = (c1.id << 5) + (maxZoom + 1);
         }
+        double wx = c1.getDimensionValue(0) * c1.numPoints;
+        double wy = c1.getDimensionValue(1) * c1.numPoints;
+        wx += c2.getDimensionValue(0);
+        wy += c2.getDimensionValue(1);
+        c1.numPoints = c1.numPoints + 1;
+        c1.setDimensionValue(0, wx / c1.numPoints);
+        c1.setDimensionValue(1, wy / c1.numPoints);
     }
 
     /**
@@ -189,5 +287,15 @@ public class AiSuperCluster extends SuperCluster {
         }
 
         return labels;
+    }
+
+    public void printTiming() {
+        System.out.println("Timing distribution:");
+        System.out.println("[get radius] " + timing.get("getRadius") + " seconds");
+        System.out.println("[range search] " + timing.get("rangeSearch") + " seconds");
+        System.out.println("[create advocator] " + timing.get("createAdvocator") + " seconds");
+        System.out.println("[insert tree] " + timing.get("insertTree") + " seconds");
+        System.out.println("[find earliest] " + timing.get("findEarliest") + " seconds");
+        System.out.println("[merge cluster] " + timing.get("mergeCluster") + " seconds");
     }
 }
