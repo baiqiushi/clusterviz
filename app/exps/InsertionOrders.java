@@ -1,7 +1,6 @@
 package exps;
 
 import clustering.SuperCluster;
-import model.Cluster;
 import model.PointTuple;
 import smile.clustering.KMeans;
 import util.PostgreSQL;
@@ -113,15 +112,15 @@ public class InsertionOrders {
         // - DEBUG - //
 
         // 3-1) Compute the rand index of A-B, C-D for SuperCluster
-        System.out.println("==================== RandIndex of different orders ====================");
+        System.out.println("==================== RandIndex/AdjustedRandIndex of different orders ====================");
         System.out.println("==    A - original order");
         System.out.println("==    B - reversed order");
         System.out.println("==    C - spatial (left-bottom to right-top) order");
         System.out.println("==    D - reversed spatial (right-top to left-bottom) order");
-        System.out.println("=======================================================================");
+        System.out.println("=========================================================================================");
         System.out.println(keyword + ",    " + length);
         System.out.println("==================== [SuperCluster] ====================");
-        System.out.println("zoom,    k,    ri(A-B),    ri(C-D),    ri(A-D),    ri(B-C)");
+        System.out.println("zoom,    k,    ri(A-B),    ri(C-D),    ari(A-B),    ari(C-D)");
         for (int z = minZoom; z <= maxZoom; z ++) {
             int k = aSuperCluster.getClusters(z).length;
 
@@ -156,13 +155,13 @@ public class InsertionOrders {
                     ",    " + k +
                     ",    " + RandIndex.randIndex(aLabels, bLabels) +
                     ",    " + RandIndex.randIndex(cLabels, dLabels) +
-                    ",    " + RandIndex.randIndex(aLabels, dLabels) +
-                    ",    " + RandIndex.randIndex(bLabels, cLabels));
+                    ",    " + RandIndex.adjustedRandIndex(aLabels, bLabels) +
+                    ",    " + RandIndex.adjustedRandIndex(cLabels, dLabels));
         }
 
         // 3-2) Compute the rand index of A-B, C-D for KMeans
         System.out.println("==================== [KMeans] ====================");
-        System.out.println("zoom,    k,    ri(A-B),    ri(C-D),    ri(A-D),    ri(B-C)");
+        System.out.println("zoom,    k,    ri(A-B),    ri(C-D),    ari(A-B),    ari(C-D)");
         for (int z = minZoom; z <= maxZoom; z ++) {
             int k = aSuperCluster.getClusters(z).length;
 
@@ -201,8 +200,8 @@ public class InsertionOrders {
                     ",    " + k +
                     ",    " + RandIndex.randIndex(aLabels, bLabels) +
                     ",    " + RandIndex.randIndex(cLabels, dLabels) +
-                    ",    " + RandIndex.randIndex(aLabels, dLabels) +
-                    ",    " + RandIndex.randIndex(bLabels, cLabels));
+                    ",    " + RandIndex.adjustedRandIndex(aLabels, bLabels) +
+                    ",    " + RandIndex.adjustedRandIndex(cLabels, dLabels));
         }
 
 
