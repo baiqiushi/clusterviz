@@ -16,6 +16,7 @@ public class KDTree<PointType extends IKDPoint> {
         int depth;
         Node left = null;
         Node right = null;
+        boolean deleted = false;
 
         public Node(PointType point, int align, int depth) {
             this.point = point;
@@ -67,7 +68,13 @@ public class KDTree<PointType extends IKDPoint> {
             PointType currentPoint = currentNode.getPoint();
             // duplicate
             if (currentPoint.equalsTo(point)) {
-                currentNode.addDuplicate(point);
+                if (currentNode.deleted) {
+                    currentNode.deleted = false;
+                    currentNode.point = point;
+                }
+                else {
+                    currentNode.addDuplicate(point);
+                }
                 return;
             }
             else if (point.getDimensionValue(align) < currentPoint.getDimensionValue(align)) {
@@ -101,6 +108,42 @@ public class KDTree<PointType extends IKDPoint> {
         }
     }
 
+    public void delete(PointType point) {
+        // dimension index to align
+        int align = 0;
+        Node currentNode = root;
+
+        // find the point
+        while (currentNode != null) {
+            PointType currentPoint = currentNode.getPoint();
+            // hit
+            if (currentPoint.equalsTo(point)) {
+                // if hit the node's point
+                if (currentPoint.getId() == point.getId() && !currentNode.deleted) {
+                    currentNode.deleted = true;
+                }
+                // else hit the node's duplicate point
+                else {
+                    for (PointType p: currentNode.duplicates) {
+                        if (p.getId() == point.getId()) {
+                            currentNode.duplicates.remove(p);
+                        }
+                    }
+                }
+                size --;
+                return;
+            }
+            else if (point.getDimensionValue(align) < currentPoint.getDimensionValue(align)) {
+                currentNode = currentNode.left;
+            }
+            else {
+                currentNode = currentNode.right;
+            }
+            align = (align + 1) % this.k;
+        }
+        // didn't find the point
+    }
+
     public List<PointType> within(IKDPoint point, double radius) {
         List<PointType> result = new ArrayList<>();
         if (root == null) {
@@ -114,7 +157,9 @@ public class KDTree<PointType extends IKDPoint> {
             PointType currentPoint = currentNode.getPoint();
             // if current node within range, put it into result, and put both children to queue
             if (currentPoint.distanceTo(point) <= radius) {
-                result.add(currentPoint);
+                if (!currentNode.deleted) {
+                    result.add(currentPoint);
+                }
                 // also add duplicates inside current node
                 for (PointType duplicate: currentNode.getDuplicates()) {
                     result.add(duplicate);
@@ -158,7 +203,9 @@ public class KDTree<PointType extends IKDPoint> {
             PointType currentPoint = currentNode.getPoint();
             // if current node within range, put it into result, and put both children to queue
             if (currentPoint.rightTo(leftBottom) && currentPoint.leftTo(rightTop)) {
-                result.add(currentPoint);
+                if (!currentNode.deleted) {
+                    result.add(currentPoint);
+                }
                 // also add duplicates inside current node
                 for (PointType duplicate: currentNode.getDuplicates()) {
                     result.add(duplicate);

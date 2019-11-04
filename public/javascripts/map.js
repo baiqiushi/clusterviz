@@ -197,7 +197,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         let resultCount = result.data.length;
         let pointsCount = 0;
         for (let i = 0; i < resultCount; i ++) {
-          pointsCount += result.data[i].properties.point_count;
+          pointsCount += (result.data[i].properties.point_count===0?1:result.data[i].properties.point_count);
         }
         moduleManager.publishEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, {resultCount: resultCount, pointsCount: pointsCount});
         $scope.drawClusterMap(result.data);

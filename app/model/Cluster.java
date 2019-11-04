@@ -12,6 +12,8 @@ public class Cluster extends Point {
     public List<Cluster> children = new ArrayList<>();
 
     public Cluster parent = null;
+    public Advocator advocator = null;
+    public Cluster advocatorCluster = null;
 
     public Cluster(int k) {
         super(k);
@@ -27,6 +29,15 @@ public class Cluster extends Point {
                 ", coordinates: ");
         sb.append(super.toString());
         sb.append(", childrenSize: " + children.size());
+        if (parent != null) {
+            sb.append(", parent: " + parent.id);
+        }
+        if (advocator != null) {
+            sb.append(", advocator: " + advocator.id);
+        }
+        if (advocatorCluster != null) {
+            sb.append(", advocatorCluster: " + advocatorCluster.id);
+        }
         sb.append("}");
         return sb.toString();
     }
