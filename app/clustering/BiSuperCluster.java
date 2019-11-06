@@ -232,9 +232,9 @@ public class BiSuperCluster extends SuperCluster {
     }
 
     private void shift(Cluster c, Advocator from, int zoom) {
-        System.out.println("shift Cluster c (" + zoom + "-" + c.getId() + ") from (" + from.getId() + ") [" + from.getDimensionValue(0) + ", " + from.getDimensionValue(1) + "] to [" + c.getDimensionValue(0) + ", " + c.getDimensionValue(1) + "]...");
+        //System.out.println("shift Cluster c (" + zoom + "-" + c.getId() + ") from (" + from.getId() + ") [" + from.getDimensionValue(0) + ", " + from.getDimensionValue(1) + "] to [" + c.getDimensionValue(0) + ", " + c.getDimensionValue(1) + "]...");
         if (isAdvocatorOfParent(c)) {
-            System.out.println("--> c is advocator of parent");
+            //System.out.println("--> c is advocator of parent");
             // Find list of clusters that should merge into c.parent
             List<Cluster> toMerge = toMerge(c, zoom);
             //-DEBUG-//
@@ -280,7 +280,7 @@ public class BiSuperCluster extends SuperCluster {
             }
         }
         else {
-            System.out.println("==> c is NOT advocator of parent");
+            //System.out.println("==> c is NOT advocator of parent");
             split(c.parent, c, zoom - 1);
             Cluster parent = createCluster(c.getDimensionValue(0), c.getDimensionValue(1), c.id, c.numPoints);
             c.parentId = parent.id;
