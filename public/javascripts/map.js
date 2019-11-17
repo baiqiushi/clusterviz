@@ -119,7 +119,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       }
     };
 
-    setting default map styles, zoom level, etc.
+    // setting default map styles, zoom level, etc.
     angular.extend($scope, {
       tiles: {
         name: 'Mapbox',
