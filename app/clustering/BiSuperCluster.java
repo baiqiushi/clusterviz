@@ -16,7 +16,7 @@ public class BiSuperCluster extends SuperCluster {
     int advocatorSeq;
     int totalShiftCount = 0;
 
-    double miu = 0.5;
+    double miu = 0.0;
 
     public BiSuperCluster(int _minZoom, int _maxZoom) {
         this.minZoom = _minZoom;
