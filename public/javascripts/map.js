@@ -1,6 +1,7 @@
 angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
   .controller("MapCtrl", function($scope, $timeout, leafletData, moduleManager) {
 
+    $scope.radius = 40; // cluster radius in pixels
     $scope.zoomShift = 0;
 
     $scope.query = {
@@ -177,7 +178,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       $scope.selectZoomShift.style.position = 'fixed';
       $scope.selectZoomShift.style.top = '90px';
       $scope.selectZoomShift.style.left = '8px';
-      for (let i = 0; i <= 10; i ++) {
+      for (let i = 0; i <= 2; i ++) {
         let option = document.createElement("option");
         option.text = ""+ i;
         $scope.selectZoomShift.add(option);
@@ -287,20 +288,40 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       return 0;
     };
 
+    /** Backup rendering different sizes for different counts*/
+    // $scope.createClusterIcon = function(feature, latlng) {
+    //   if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 2, fillColor: 'blue'});
+    //
+    //   const count = feature.properties.point_count;
+    //   const size =
+    //     count < 20 ? 'point' :
+    //       count < 100 ? 'small' :
+    //         count < 1000 ? 'medium' : 'large';
+    //   //const iconSize = Math.max(10, count / 100);
+    //   const icon = L.divIcon({
+    //     html: `<div><span>${feature.properties.point_count_abbreviated}</span></div>`,
+    //     className: `marker-cluster marker-cluster-${size}`,
+    //     iconSize: L.point(40, 40)
+    //     //iconSize: L.point(iconSize, iconSize)
+    //   });
+    //
+    //   return L.marker(latlng, {icon: icon, title: feature.properties.id, alt: feature.properties.id});
+    // };
+
     $scope.createClusterIcon = function(feature, latlng) {
       if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 2, fillColor: 'blue'});
 
+      const zoom_shift = $scope.zoomShift;
+      const iconSize = $scope.radius / Math.pow(2, $scope.zoomShift);
       const count = feature.properties.point_count;
       const size =
-        count < 20 ? 'point' :
-          count < 100 ? 'small' :
-            count < 1000 ? 'medium' : 'large';
-      //const iconSize = Math.max(10, count / 100);
+        count < 100 ? 'small' :
+          count < 1000 ? 'medium' : 'large';
       const icon = L.divIcon({
         html: `<div><span>${feature.properties.point_count_abbreviated}</span></div>`,
-        className: `marker-cluster marker-cluster-${size}`,
-        iconSize: L.point(40, 40)
-        //iconSize: L.point(iconSize, iconSize)
+        className: `marker-cluster-${zoom_shift} marker-cluster-${size}`,
+        //iconSize: L.point(40, 40)
+        iconSize: L.point(iconSize, iconSize)
       });
 
       return L.marker(latlng, {icon: icon, title: feature.properties.id, alt: feature.properties.id});

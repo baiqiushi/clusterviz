@@ -2,10 +2,7 @@ package util;
 
 import javafx.util.Pair;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
 
 public class KDTree<PointType extends IKDPoint> {
 
@@ -124,9 +121,10 @@ public class KDTree<PointType extends IKDPoint> {
                 }
                 // else hit the node's duplicate point
                 else {
-                    for (PointType p: currentNode.duplicates) {
+                    for (Iterator<PointType> iter = currentNode.duplicates.iterator(); iter.hasNext();) {
+                        PointType p = iter.next();
                         if (p.getId() == point.getId()) {
-                            currentNode.duplicates.remove(p);
+                            iter.remove();
                         }
                     }
                 }
