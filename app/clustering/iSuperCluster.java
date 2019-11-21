@@ -128,7 +128,7 @@ public class iSuperCluster extends SuperCluster {
         if (advocators.isEmpty()) {
             if (keepTiming) MyTimer.startTimer();
             Advocator newAdvocator = new Advocator(K);
-            newAdvocator.seq = advocatorSeq ++;
+            newAdvocator.id = advocatorSeq ++;
             newAdvocator.cluster = c;
             newAdvocator.setDimensionValue(0, c.getDimensionValue(0));
             newAdvocator.setDimensionValue(1, c.getDimensionValue(1));
@@ -162,7 +162,7 @@ public class iSuperCluster extends SuperCluster {
                 if (earliestAdvocator == null) {
                     earliestAdvocator = advocator;
                 }
-                else if (earliestAdvocator.seq > advocator.seq) {
+                else if (earliestAdvocator.id > advocator.id) {
                     earliestAdvocator = advocator;
                 }
             }

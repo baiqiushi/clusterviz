@@ -52,6 +52,9 @@ public class Cluster extends Point {
         to.parentId = this.parentId;
         to.zoom = this.zoom;
         to.expansionZoom = this.expansionZoom;
+        to.parent = this.parent;
+        to.advocator = this.advocator;
+        to.advocatorCluster = this.advocatorCluster;
         return to;
     }
 }

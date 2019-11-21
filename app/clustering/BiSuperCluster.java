@@ -3,14 +3,18 @@ package clustering;
 import model.Advocator;
 import model.Cluster;
 import util.KDTree;
+import util.MyLinkedList;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 public class BiSuperCluster extends SuperCluster {
+    // advocators at each level
     KDTree<Advocator>[] advocatorsTrees;
-    List<Advocator>[] advocatorsList;
-    List<Cluster>[] advocatorClusters;
+    // clusters at each level
+    MyLinkedList<Cluster>[] advocatorClusters;
+    // temporary tree for current shifting level of clusters
     KDTree<Cluster> clustersTree;
     int pointIdSeq;
     int advocatorSeq;
@@ -22,15 +26,13 @@ public class BiSuperCluster extends SuperCluster {
         this.minZoom = _minZoom;
         this.maxZoom = _maxZoom;
         this.advocatorsTrees = new KDTree[maxZoom + 1];
-        this.advocatorsList = new List[maxZoom + 1];
-        this.advocatorClusters = new List[maxZoom + 1];
+        this.advocatorClusters = new MyLinkedList[maxZoom + 1];
         this.pointIdSeq = 0;
         this.advocatorSeq = 0;
 
         for (int i = 0; i <= maxZoom; i ++) {
             this.advocatorsTrees[i] = new KDTree<>(K);
-            this.advocatorsList[i] = new ArrayList<>();
-            this.advocatorClusters[i] = new ArrayList<>();
+            this.advocatorClusters[i] = new MyLinkedList<>();
         }
     }
 
@@ -48,17 +50,27 @@ public class BiSuperCluster extends SuperCluster {
         int shiftCount = 0;
         // shift clusters with significant relocation bottom-up
         for (int z = maxZoom; z > minZoom; z --) {
-            double r = getRadius(z);
+            // shifting at level z affects clustering results of level (z-1)
+            double r = getRadius(z - 1);
             // build KD-Tree for current level's clusters, to prepare for toMerge and toSplit functions
             // TODO - use a index structure that supports update operation for clusters
             this.clustersTree = new KDTree<>(K);
-            this.clustersTree.load(this.advocatorClusters[z].toArray(new Cluster[this.advocatorClusters[z].size()]));
+            // initialize this level's KD-Tree of clusters
+            this.advocatorClusters[z].startLoop();
+            Cluster x;
+            while ((x = this.advocatorClusters[z].next()) != null) {
+                this.clustersTree.insert(x);
+            }
             System.out.println("this.clustersTree load advocatorClusters done...");
+            // for current level, shift clusters one by one
             int shiftCountLevel = 0;
-            for (int i = 0; i < advocatorClusters[z].size(); i ++) {
-                if (advocatorsList[z].get(i).distanceTo(advocatorClusters[z].get(i)) > miu * r) {
+            this.advocatorClusters[z].startLoop();
+            Cluster cluster;
+            while ((cluster = this.advocatorClusters[z].next()) != null) {
+                Advocator advocator = cluster.advocator;
+                if (cluster.distanceTo(advocator) > miu * r) {
                     shiftCountLevel ++;
-                    shift(advocatorClusters[z].get(i), advocatorsList[z].get(i), z);
+                    shift(cluster, advocator, z);
                 }
             }
             System.out.println("zoom level [" + z + "] shifted " + shiftCountLevel + " clusters.");
@@ -82,20 +94,16 @@ public class BiSuperCluster extends SuperCluster {
         KDTree<Advocator> advocatorsTree = this.advocatorsTrees[zoom];
         List<Advocator> advocators = advocatorsTree.within(c, radius);
 
-
         // if no group could be merged into, become a new Advocator itself
         if (advocators.isEmpty()) {
-
             Advocator newAdvocator = new Advocator(K);
-            newAdvocator.seq = advocatorSeq ++;
-            newAdvocator.id = newAdvocator.seq;
+            newAdvocator.id = advocatorSeq ++;
             newAdvocator.cluster = c;
             c.advocator = newAdvocator;
             newAdvocator.setDimensionValue(0, c.getDimensionValue(0));
             newAdvocator.setDimensionValue(1, c.getDimensionValue(1));
             advocatorsTree.insert(newAdvocator);
             this.advocatorClusters[zoom].add(c);
-            this.advocatorsList[zoom].add(newAdvocator);
 
             // insert this cluster into lower level
             if (zoom >= 1) {
@@ -116,7 +124,7 @@ public class BiSuperCluster extends SuperCluster {
                 if (earliestAdvocator == null) {
                     earliestAdvocator = advocator;
                 }
-                else if (earliestAdvocator.seq > advocator.seq) {
+                else if (earliestAdvocator.id > advocator.id) {
                     earliestAdvocator = advocator;
                 }
             }
@@ -132,11 +140,6 @@ public class BiSuperCluster extends SuperCluster {
             wx += c.getDimensionValue(0) * (c.numPoints==0?1:c.numPoints);
             wy += c.getDimensionValue(1) * (c.numPoints==0?1:c.numPoints);
             cluster.numPoints = cluster.numPoints + (c.numPoints==0?1:c.numPoints);
-            //-DEBUG-//
-//            if (cluster.numPoints == 0) {
-//                System.err.println("[split] merging c = " + c + " into cluster = " + cluster + ", and got cluster.numPoints == 0!!!");
-//            }
-            //-DEBUG-//
             cluster.setDimensionValue(0, wx / cluster.numPoints);
             cluster.setDimensionValue(1, wy / cluster.numPoints);
             // merge c's children into cluster's children too
@@ -170,11 +173,6 @@ public class BiSuperCluster extends SuperCluster {
         wx += c2.getDimensionValue(0) * (c2.numPoints==0?1:c2.numPoints);
         wy += c2.getDimensionValue(1) * (c2.numPoints==0?1:c2.numPoints);
         c1.numPoints = c1.numPoints + (c2.numPoints==0?1:c2.numPoints);
-        //-DEBUG-//
-//        if (c1.numPoints == 0) {
-//            System.err.println("[split] merging c2 = " + c2 + " into c1 = " + c1 + ", and got c1.numPoints == 0!!!");
-//        }
-        //-DEBUG-//
         c1.setDimensionValue(0, wx / c1.numPoints);
         c1.setDimensionValue(1, wy / c1.numPoints);
         merge(c1.parent, c2);
@@ -232,9 +230,7 @@ public class BiSuperCluster extends SuperCluster {
     }
 
     private void shift(Cluster c, Advocator from, int zoom) {
-        //System.out.println("shift Cluster c (" + zoom + "-" + c.getId() + ") from (" + from.getId() + ") [" + from.getDimensionValue(0) + ", " + from.getDimensionValue(1) + "] to [" + c.getDimensionValue(0) + ", " + c.getDimensionValue(1) + "]...");
         if (isAdvocatorOfParent(c)) {
-            //System.out.println("--> c is advocator of parent");
             // Find list of clusters that should merge into c.parent
             List<Cluster> toMerge = toMerge(c, zoom);
             //-DEBUG-//
@@ -256,11 +252,14 @@ public class BiSuperCluster extends SuperCluster {
 //            }
             //-DEBUG-//
 
-            //TODO update advocator from to be the real location of cluster c
+            // shift the advocator "from"'s location to the centroid of cluster c
+            //TODO - use a index structure that support update location to handle the position shift
             this.advocatorsTrees[zoom].delete(from);
-            from.setDimensionValue(0, c.getDimensionValue(0));
-            from.setDimensionValue(1, c.getDimensionValue(1));
-            this.advocatorsTrees[zoom].insert(from);
+            Advocator to = from.clone();
+            to.setDimensionValue(0, c.getDimensionValue(0));
+            to.setDimensionValue(1, c.getDimensionValue(1));
+            c.advocator = to;
+            this.advocatorsTrees[zoom].insert(to);
 
             for (Cluster m: toMerge) {
                 split(m.parent, m, zoom - 1);
@@ -280,7 +279,6 @@ public class BiSuperCluster extends SuperCluster {
             }
         }
         else {
-            //System.out.println("==> c is NOT advocator of parent");
             split(c.parent, c, zoom - 1);
             Cluster parent = createCluster(c.getDimensionValue(0), c.getDimensionValue(1), c.id, c.numPoints);
             c.parentId = parent.id;
@@ -311,9 +309,22 @@ public class BiSuperCluster extends SuperCluster {
      * @return
      */
     private List<Cluster> toMerge(Cluster c, int zoom) {
-        double r = getRadius(zoom);
+        // shifting at level zoom affects clustering results of level (zoom-1)
+        double r = getRadius(zoom - 1);
         List<Cluster> clusters = this.clustersTree.within(c, r);
         clusters.removeAll(c.parent.children);
+        // remove those already has a parent with smaller id of advocator than c.parent
+        for (Iterator<Cluster> iter = clusters.iterator(); iter.hasNext(); ) {
+            Cluster curr = iter.next();
+            if (curr.parent != null) {
+                Cluster currParent = curr.parent;
+                if (currParent.advocator != null) {
+                    if (currParent.advocator.id <= c.parent.advocator.id) {
+                        iter.remove();
+                    }
+                }
+            }
+        }
         return clusters;
     }
 
@@ -325,7 +336,8 @@ public class BiSuperCluster extends SuperCluster {
      * @return
      */
     private List<Cluster> toSplit(Cluster c, int zoom) {
-        double r = getRadius(zoom);
+        // shifting at level zoom affects clustering results of level (zoom-1)
+        double r = getRadius(zoom - 1);
         List<Cluster> clusters = this.clustersTree.within(c, r);
         //-DEBUG-//
 //        System.out.println("The following " + clusters.size() + " clusters are covered by " + c + " within radius = " + r);
@@ -357,7 +369,6 @@ public class BiSuperCluster extends SuperCluster {
         // if c2 is c1's only child, delete c1 directly
         if (c1.children.size() == 1 && c1.children.contains(c2)) {
             this.advocatorsTrees[zoom].delete(c1.advocator);
-            this.advocatorsList[zoom].remove(c1.advocator);
             this.advocatorClusters[zoom].remove(c1);
             split(c1.parent, c1, zoom - 1);
         }
@@ -368,11 +379,6 @@ public class BiSuperCluster extends SuperCluster {
             wx -= c2.getDimensionValue(0) * (c2.numPoints == 0 ? 1 : c2.numPoints);
             wy -= c2.getDimensionValue(1) * (c2.numPoints == 0 ? 1 : c2.numPoints);
             c1.numPoints = c1.numPoints - (c2.numPoints == 0 ? 1 : c2.numPoints);
-            //-DEBUG-//
-//            if (c1.numPoints == 0) {
-//                System.err.println("[split] splitting c2 = " + c2 + " from c1 = " + c1 + ", and got c1.numPoints == 0!!!");
-//            }
-            //-DEBUG-//
             c1.setDimensionValue(0, wx / c1.numPoints);
             c1.setDimensionValue(1, wy / c1.numPoints);
             c1.children.remove(c2);
