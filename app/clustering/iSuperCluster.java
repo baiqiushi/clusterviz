@@ -14,7 +14,7 @@ public class iSuperCluster extends SuperCluster {
 
     // switch of keeping data points or not,
     // turn it on when we need to return the labels for all data points
-    public static final boolean keepPoints = false;
+    public boolean keepPoints = false;
 
     List<Cluster> maxZoomClusters;
     KDTree<Advocator> advocatorsTree;
@@ -35,7 +35,7 @@ public class iSuperCluster extends SuperCluster {
         this.advocatorSeq = 0;
     }
 
-    public iSuperCluster(int _minZoom, int _maxZoom) {
+    public iSuperCluster(int _minZoom, int _maxZoom, boolean _analysis) {
         this.minZoom = _minZoom;
         this.maxZoom = _maxZoom;
         this.trees = new KDTree[maxZoom + 1];
@@ -44,6 +44,7 @@ public class iSuperCluster extends SuperCluster {
         this.advocatorsTree = new KDTree<>(K);
         this.pointIdSeq = 0;
         this.advocatorSeq = 0;
+        this.keepPoints = _analysis;
     }
 
     public void load(double[][] points) {

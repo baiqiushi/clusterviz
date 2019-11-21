@@ -51,14 +51,14 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           query: $scope.query
         };
 
-        // by default, comparing the given algorithm with SuperCluster
-        if (request.query.algorithm.toLowerCase() !== "supercluster") {
+        // if e.analysis is not "", comparing the given algorithm with SuperCluster using e.analysis indicated function
+        if (e.analysis.toString() !== "" && request.query.algorithm.toLowerCase() !== "supercluster") {
           request.analysis = {
-            objective: "randindex",
+            objective: e.analysis,
             arguments: [
               request.query.keyword + "-" + request.query.order + "-SuperCluster",
               request.query.cluster,
-              request.query.zoom
+              e.zoom
             ]
           };
         }
@@ -115,7 +115,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         });
 
         $scope.map.on('moveend', function() {
-          moduleManager.publishEvent(moduleManager.EVENT.CHANGE_ZOOM_LEVEL, {});
+          moduleManager.publishEvent(moduleManager.EVENT.CHANGE_ZOOM_LEVEL, {zoom: $scope.map.getZoom()});
         });
       }
     };

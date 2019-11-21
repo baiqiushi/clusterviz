@@ -22,7 +22,7 @@ public class BiSuperCluster extends SuperCluster {
 
     double miu = 0.0;
 
-    public BiSuperCluster(int _minZoom, int _maxZoom) {
+    public BiSuperCluster(int _minZoom, int _maxZoom, boolean _analysis) {
         this.minZoom = _minZoom;
         this.maxZoom = _maxZoom;
         this.advocatorsTrees = new KDTree[maxZoom + 1];

@@ -14,7 +14,7 @@ import java.util.Map;
 public class AiSuperCluster extends SuperCluster {
 
     //-Rand-index-//
-    static final boolean keepLabels = false;
+    public boolean keepLabels = false;
     ArrayList<int[]> labels = new ArrayList<>();
     //-Rand-index-//
 
@@ -40,13 +40,14 @@ public class AiSuperCluster extends SuperCluster {
         }
     }
 
-    public AiSuperCluster(int _minZoom, int _maxZoom) {
+    public AiSuperCluster(int _minZoom, int _maxZoom, boolean _analysis) {
         this.minZoom = _minZoom;
         this.maxZoom = _maxZoom;
         this.advocatorsTrees = new KDTree[maxZoom + 1];
         this.advocatorClusters = new List[maxZoom + 1];
         this.pointIdSeq = 0;
         this.advocatorSeq = 0;
+        this.keepLabels = _analysis;
 
         for (int i = 0; i <= maxZoom; i ++) {
             this.advocatorsTrees[i] = new KDTree<>(K);
@@ -291,11 +292,11 @@ public class AiSuperCluster extends SuperCluster {
 
     public void printTiming() {
         System.out.println("Timing distribution:");
-        System.out.println("[get radius] " + timing.get("getRadius") + " seconds");
-        System.out.println("[range search] " + timing.get("rangeSearch") + " seconds");
-        System.out.println("[create advocator] " + timing.get("createAdvocator") + " seconds");
-        System.out.println("[insert tree] " + timing.get("insertTree") + " seconds");
-        System.out.println("[find earliest] " + timing.get("findEarliest") + " seconds");
-        System.out.println("[merge cluster] " + timing.get("mergeCluster") + " seconds");
+        System.out.println("    [get radius] " + timing.get("getRadius") + " seconds");
+        System.out.println("    [range search] " + timing.get("rangeSearch") + " seconds");
+        System.out.println("    [create advocator] " + timing.get("createAdvocator") + " seconds");
+        System.out.println("    [insert tree] " + timing.get("insertTree") + " seconds");
+        System.out.println("    [find earliest] " + timing.get("findEarliest") + " seconds");
+        System.out.println("    [merge cluster] " + timing.get("mergeCluster") + " seconds");
     }
 }

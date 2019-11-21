@@ -5,11 +5,11 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.search = function () {
             if ($scope.keyword && $scope.keyword.trim().length > 0) {
                 moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD,
-                    {keyword: $scope.keyword, order: $scope.order, algorithm: $scope.algorithm, zoom: $scope.zoom});
+                    {keyword: $scope.keyword, order: $scope.order, algorithm: $scope.algorithm, zoom: $scope.zoom, analysis: $scope.analysis});
             }
             else {
               moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD,
-                {keyword: "%", order: $scope.order, algorithm: $scope.algorithm, zoom: $scope.zoom});
+                {keyword: "%", order: $scope.order, algorithm: $scope.algorithm, zoom: $scope.zoom, analysis: $scope.analysis});
             }
         };
 
@@ -20,6 +20,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.orders = ["original", "reverse", "spatial", "spatial-reverse"];
         $scope.algorithms = ["SuperCluster", "SuperClusterInBatch", "iSuperCluster", "AiSuperCluster", "BiSuperCluster"];
         $scope.zooms = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+        $scope.analysises = ["", "rand-index", "adjusted-rand-index"];
     })
     .directive("searchBar", function () {
         return {
@@ -40,7 +41,8 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                 '</form>',
                 '<label for="order">Order</label>&nbsp;<select id="order" ng-model="order" ng-options="x for x in orders" ng-init="order = orders[0]"></select>&nbsp;',
                 '<label for="algorithm">Algorithm</label>&nbsp;<select id="algorithm" ng-model="algorithm" ng-options="x for x in algorithms" ng-init="algorithm = algorithms[0]"></select>&nbsp;',
-                '<label for="zoom">Zoom</label>&nbsp;<select id="zoom" ng-model="zoom" ng-options="x for x in zooms" ng-init="zoom = zooms[0]"></select>&nbsp;'
+                '<label for="zoom">Zoom</label>&nbsp;<select id="zoom" ng-model="zoom" ng-options="x for x in zooms" ng-init="zoom = zooms[0]"></select>&nbsp;',
+                '<label for="analysis">Analysis</label>&nbsp;<select id="analysis" ng-model="analysis" ng-options="x for x in analysises" ng-init="analysis = analysises[0]"></select>&nbsp;'
             ].join('')
         };
     });

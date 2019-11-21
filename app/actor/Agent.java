@@ -179,7 +179,7 @@ public class Agent extends AbstractActor {
                 }
 
                 String clusterOrder = query.order == null ? "original" : query.order;
-                success = clusterData(clusterKey, clusterOrder, "SuperCluster", false);
+                success = clusterData(clusterKey, clusterOrder, "SuperCluster", false, false);
                 if (!success) {
                     // TODO - exception
                 }
@@ -268,7 +268,7 @@ public class Agent extends AbstractActor {
 
             String clusterOrder = query.order == null ? "original" : query.order;
             MyTimer.startTimer();
-            success = clusterData(clusterKey, clusterOrder, query.algorithm, deltaOnly);
+            success = clusterData(clusterKey, clusterOrder, query.algorithm, deltaOnly, _request.analysis != null);
             MyTimer.stopTimer();
             MyTimer.progressTimer.add(MyTimer.durationSeconds());
             if (!success) {
@@ -286,7 +286,8 @@ public class Agent extends AbstractActor {
                 String clusterKey2 = analysis.arguments[1];
                 int zoom = Integer.valueOf(analysis.arguments[2]);
 
-                double randIndex = randIndex(clusterKey1, clusterKey2, zoom);
+                boolean adjusted = analysis.objective.equalsIgnoreCase("adjusted-rand-index")? true: false;
+                double randIndex = randIndex(clusterKey1, clusterKey2, zoom, adjusted);
                 randIndexes.add(randIndex);
 
                 JsonNode response = Json.toJson(_request);
@@ -418,9 +419,10 @@ public class Agent extends AbstractActor {
      * @param clusterKey
      * @param clusterOrder
      * @param deltaOnly - valid only for progressive queries, true - if pointTuples only keep delta data, false - otherwise
+     * @param analysis - true - if we need to analysis the rand-index of clustering results, false - otherwise
      * @return
      */
-    private boolean clusterData(String clusterKey, String clusterOrder, String algorithm, boolean deltaOnly) {
+    private boolean clusterData(String clusterKey, String clusterOrder, String algorithm, boolean deltaOnly, boolean analysis) {
         double[][] points = orderPoints(clusterKey, clusterOrder, deltaOnly);
         if (points == null) {
             return false;
@@ -449,15 +451,15 @@ public class Agent extends AbstractActor {
                 switch (algorithm.toLowerCase()) {
                     case "isupercluster":
                     case "isc":
-                        cluster = new iSuperCluster(this.minZoom, this.maxZoom);
+                        cluster = new iSuperCluster(this.minZoom, this.maxZoom, analysis);
                         break;
                     case "aisupercluster":
                     case "aisc":
-                        cluster = new AiSuperCluster(this.minZoom, this.maxZoom);
+                        cluster = new AiSuperCluster(this.minZoom, this.maxZoom, analysis);
                         break;
                     case "bisupercluster":
                     case "bisc":
-                        cluster = new BiSuperCluster(this.minZoom, this.maxZoom);
+                        cluster = new BiSuperCluster(this.minZoom, this.maxZoom, analysis);
                         break;
                     default:
                         cluster = new SuperCluster(this.minZoom, this.maxZoom);
@@ -491,7 +493,7 @@ public class Agent extends AbstractActor {
                 else {
                     String clusterKey = _cmd.arguments[0];
                     String clusterOrder = _cmd.arguments[1];
-                    success = clusterData(clusterKey, clusterOrder, "SuperCluster", false);
+                    success = clusterData(clusterKey, clusterOrder, "SuperCluster", false, false);
                     if (success) {
                         respond(buildCmdResponse(_request, _cmd.action, "cluster built for key = " + clusterKey + " order = " + clusterOrder, "done"));
                     }
@@ -570,7 +572,7 @@ public class Agent extends AbstractActor {
      * @param zoom
      * @return
      */
-    private double randIndex(String clusterKey1, String clusterKey2, int zoom) {
+    private double randIndex(String clusterKey1, String clusterKey2, int zoom, boolean adjusted) {
         if (!superClusters.containsKey(clusterKey1) || !superClusters.containsKey(clusterKey2)) {
             // TODO - exception
             return 0.0;
@@ -615,7 +617,12 @@ public class Agent extends AbstractActor {
         }
         labels2 = newLabels2;
 
-        return RandIndex.randIndex(labels1, labels2);
+        if (adjusted) {
+            return RandIndex.adjustedRandIndex(labels1, labels2);
+        }
+        else {
+            return RandIndex.randIndex(labels1, labels2);
+        }
     }
 
     private JsonNode buildCmdResponse(Request _request, String _cursor, String _msg, String _status) {
@@ -689,7 +696,7 @@ public class Agent extends AbstractActor {
                 ((ObjectNode) response).set("result", result);
                 respond(response);
                 break;
-            case "randindex":
+            case "rand-index":
                 if (_request.analysis == null) {
                     // TODO - exception
                 }
@@ -701,7 +708,7 @@ public class Agent extends AbstractActor {
                 String clusterKey2 = analysis.arguments[1];
                 zoom = Integer.valueOf(analysis.arguments[2]);
 
-                double randIndex = randIndex(clusterKey1, clusterKey2, zoom);
+                double randIndex = randIndex(clusterKey1, clusterKey2, zoom, false);
 
                 response = Json.toJson(_request);
                 result = JsonNodeFactory.instance.objectNode();

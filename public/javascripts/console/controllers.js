@@ -32,7 +32,8 @@ angular.module("clustermap.console", ["clustermap.common", "vtortola.ng-terminal
     });
 
     $scope.showHelp = function() {
-      // TODO - show help information to terminal-output
+      $scope.showHelpForCmd("default");
+      $scope.showHelpForAnalysis("default");
     };
 
     moduleManager.subscribeEvent(moduleManager.EVENT.CONSOLE_OUTPUT, function(response) {
@@ -63,7 +64,7 @@ angular.module("clustermap.console", ["clustermap.common", "vtortola.ng-terminal
           // put "analysis" to the beginning of tokens
           tokens.unshift("analysis");
           return $scope.validate_analysis(tokens);
-        case "randindex":
+        case "rand-index":
           // put "analysis" to the beginning of tokens
           tokens.unshift("analysis");
           return $scope.validate_analysis(tokens);
@@ -184,11 +185,11 @@ angular.module("clustermap.console", ["clustermap.common", "vtortola.ng-terminal
             ]
           });
           break;
-        case "randindex":
+        case "rand-index":
           $scope.$broadcast('terminal-output', {
             output: true,
             text: [
-              "randindex [clusterKey1] [clusterKey2] [zoom]",
+              "rand-index [clusterKey1] [clusterKey2] [zoom]",
               "  calculate rand index of given cluster1 and cluster2 under zoom level",
               "  - clusterKey1: String, name/key of cluster1",
               "  - clusterKey2: String, name/key of cluster2",
@@ -206,7 +207,7 @@ angular.module("clustermap.console", ["clustermap.common", "vtortola.ng-terminal
               "  - zoom: int",
               "  - point1_id: int",
               "  - point2_id: int",
-              "randindex [clusterKey1] [clusterKey2] [zoom]",
+              "rand-index [clusterKey1] [clusterKey2] [zoom]",
               "  calculate rand index of given cluster1 and cluster2 under zoom level",
               "  - clusterKey1: String, name/key of cluster1",
               "  - clusterKey2: String, name/key of cluster2",
@@ -231,7 +232,7 @@ angular.module("clustermap.console", ["clustermap.common", "vtortola.ng-terminal
             keyword: null,
             analysis: {objective: objective, arguments: [tokens[2], tokens[3], tokens[4], tokens[5]]}
           };
-        case "randindex":
+        case "rand-index":
           if (tokens.length !== 5) {
             $scope.showHelpForAnalysis(objective);
             return null;
