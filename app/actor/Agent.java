@@ -144,6 +144,16 @@ public class Agent extends AbstractActor {
         }
     }
 
+    private void buildDataArrayPoint(Point[] points, ArrayNode dataArray) {
+        for (int i = 0; i < points.length; i ++) {
+            ArrayNode pointTuple = JsonNodeFactory.instance.arrayNode();
+            pointTuple.add(points[i].getDimensionValue(0));
+            pointTuple.add(points[i].getDimensionValue(1));
+            pointTuple.add(points[i].getId());
+            dataArray.add(pointTuple);
+        }
+    }
+
     /**
      * handle query request
      *  - if given cluster key does NOT exists,
@@ -657,6 +667,47 @@ public class Agent extends AbstractActor {
         respond(result);
     }
 
+    private void handleProgressTransfer(Request _request) {
+        if (_request.keyword == null) {
+            // TODO - exception
+        }
+
+        this.pointTuples = null;
+        Date currentStart = new Date(this.start.getTime());
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(currentStart);
+        calendar.add(Calendar.DATE, this.intervalDays);
+        Date currentEnd = calendar.getTime();
+        long totalDays = (this.end.getTime() - this.start.getTime()) / (24 * 3600 * 1000);
+
+        while (currentStart.before(this.end)) {
+
+            long progress = (currentEnd.getTime() - this.start.getTime()) / (24 * 3600 * 1000);
+            progress = 100 * progress / totalDays;
+
+            // query delta data, pointTuples only keep delta data
+            boolean success = loadNewData(_request.keyword, currentStart, currentEnd, true);
+            if (!success) {
+                // TODO - exception
+            }
+
+            // construct the response Json and return
+            JsonNode response = Json.toJson(_request);
+            ObjectNode result = JsonNodeFactory.instance.objectNode();
+            ArrayNode data = result.putArray("data");
+            buildDataArrayPoint(pointTuples, data);
+            ((ObjectNode) response).put("progress", progress);
+            ((ObjectNode) response).set("result", result);
+            respond(response);
+
+            currentStart = currentEnd;
+            calendar = Calendar.getInstance();
+            calendar.setTime(currentStart);
+            calendar.add(Calendar.DATE, this.intervalDays);
+            currentEnd = calendar.getTime();
+        }
+    }
+
     private void handleAnalysis(Request _request) {
         if (_request.analysis.objective == null) {
             // TODO - exception
@@ -736,6 +787,10 @@ public class Agent extends AbstractActor {
             case "transfer":
                 MyLogger.info(this.getClass(), "request is a Transfer");
                 handleTransfer(request);
+                break;
+            case "progress-transfer":
+                MyLogger.info(this.getClass(), "request is a Progress-Transfer");
+                handleProgressTransfer(request);
                 break;
             case "analysis":
                 MyLogger.info(this.getClass(), "request is a Analysis");

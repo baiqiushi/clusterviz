@@ -5,4 +5,5 @@ if (window.console) {
 var app = angular.module("clustermap", ["clustermap.map", "clustermap.searchbar", "clustermap.console"]);
 
 app.controller("AppCtrl", function ($scope) {
+  console.log("Leaflet version = " + L.version);
 });

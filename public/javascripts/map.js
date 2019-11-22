@@ -3,7 +3,14 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
     $scope.radius = 40; // cluster radius in pixels
     $scope.zoomShift = 0;
+    $scope.mode = "middleware";
 
+    // store total pointsCount for "frontend" mode
+    $scope.pointsCount = 0;
+    // timing for "frontend" mode
+    $scope.timings = [];
+
+    // store query object for "middleware" mode
     $scope.query = {
       cluster: "",
       order: "",
@@ -15,6 +22,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.ws = new WebSocket("ws://" + location.host + "/ws");
     $scope.pinmapMapResul = [];
 
+    /** middleware mode */
     $scope.sendQuery = function(e) {
       console.log("e = " + JSON.stringify(e));
 
@@ -52,7 +60,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         };
 
         // if e.analysis is not "", comparing the given algorithm with SuperCluster using e.analysis indicated function
-        if (e.analysis.toString() !== "" && request.query.algorithm.toLowerCase() !== "supercluster") {
+        if (e.analysis !== "" && request.query.algorithm.toLowerCase() !== "supercluster") {
           request.analysis = {
             objective: e.analysis,
             arguments: [
@@ -70,6 +78,30 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
         document.getElementById("myBar").style.width = "0%";
       }
+    };
+
+    /** frontend mode */
+    $scope.sendProgressTransfer = function(e) {
+      console.log("e = " + JSON.stringify(e));
+
+      let request = {
+        type: "progress-transfer",
+        id: "progress-transfer-" + e.keyword,
+        keyword: e.keyword
+      };
+
+      if (e.keyword) {
+        $scope.query.keyword = e.keyword;
+      }
+
+      console.log("sending progress-transfer:");
+      console.log(JSON.stringify(request));
+
+      $scope.ws.send(JSON.stringify(request));
+
+      document.getElementById("myBar").style.width = "0%";
+      $scope.pointsCount = 0;
+      $scope.timings = [];
     };
 
     $scope.sendCmd = function(id, keyword, commands) {
@@ -95,17 +127,37 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         moduleManager.publishEvent(moduleManager.EVENT.WS_READY, {});
 
         moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD, function(e) {
-          $scope.cleanClusterMap();
-          $scope.sendQuery(e);
+          switch ($scope.mode) {
+            case "frontend":
+              $scope.cleanMarkersLayer();
+              $scope.sendProgressTransfer(e);
+              break;
+            case "middleware":
+              $scope.cleanClusterMap();
+              $scope.sendQuery(e);
+              break;
+          }
         });
 
         moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_ZOOM_LEVEL, function(e) {
-          $scope.sendQuery(e);
+          switch ($scope.mode) {
+            case "frontend":
+              break;
+            case "middleware":
+              $scope.sendQuery(e);
+              break;
+          }
         });
 
         moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_ZOOM_SHIFT, function(e) {
-          $scope.zoomShift = parseInt(e.zoomShift);
-          $scope.sendQuery(e);
+          switch ($scope.mode) {
+            case "frontend":
+              break;
+            case "middleware":
+              $scope.zoomShift = parseInt(e.zoomShift);
+              $scope.sendQuery(e);
+              break;
+          }
         });
 
         moduleManager.subscribeEvent(moduleManager.EVENT.CONSOLE_INPUT, function(e) {
@@ -190,9 +242,15 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           {zoomShift: $scope.selectZoomShift.value});
       });
 
+      moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_MODE, function(e) {
+        $scope.mode = e.mode;
+        console.log("switch mode to '" + $scope.mode + "'");
+      });
+
       $scope.waitForWS();
     };
 
+    /** middleware mode */
     $scope.handleResult = function(result) {
       if(result.data.length > 0) {
         let resultCount = result.data.length;
@@ -205,6 +263,15 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       }
     };
 
+    /** frontend mode */
+    $scope.handleProgressTransfer = function(result) {
+      if(result.data.length > 0) {
+        $scope.pointsCount += result.data.length;
+        moduleManager.publishEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, {pointsCount: $scope.pointsCount});
+        $scope.appendPointsToClusters(result.data);
+      }
+    };
+
     $scope.ws.onmessage = function(event) {
       $timeout(function() {
         const response = JSON.parse(event.data);
@@ -212,20 +279,41 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         console.log("===== websocket response =====");
         console.log(JSON.stringify(response));
 
-        if (response.type === "query") {
-          $scope.handleResult(response.result);
-          if (typeof response.progress == "number") {
-            document.getElementById("myBar").style.width = response.progress + "%";
-          }
+        switch (response.type) {
+          case "query":
+            $scope.handleResult(response.result);
+            if (typeof response.progress == "number") {
+              document.getElementById("myBar").style.width = response.progress + "%";
+            }
+            break;
+          case "cmd":
+            if (response.id === "console") {
+              moduleManager.publishEvent(moduleManager.EVENT.CONSOLE_OUTPUT, response);
+            }
+            break;
+          case "progress-transfer":
+            $scope.handleProgressTransfer(response.result);
+            if (typeof response.progress == "number") {
+              document.getElementById("myBar").style.width = response.progress + "%";
+            }
+            break;
         }
-        else {
-          if (response.id === "console") {
-            moduleManager.publishEvent(moduleManager.EVENT.CONSOLE_OUTPUT, response);
-          }
-        }
+        /** Backup */
+        // if (response.type === "query") {
+        //   $scope.handleResult(response.result);
+        //   if (typeof response.progress == "number") {
+        //     document.getElementById("myBar").style.width = response.progress + "%";
+        //   }
+        // }
+        // else {
+        //   if (response.id === "console") {
+        //     moduleManager.publishEvent(moduleManager.EVENT.CONSOLE_OUTPUT, response);
+        //   }
+        // }
       });
     };
 
+    /** middleware mode */
     // function for drawing clustermap
     $scope.drawClusterMap = function(data) {
 
@@ -308,6 +396,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     //   return L.marker(latlng, {icon: icon, title: feature.properties.id, alt: feature.properties.id});
     // };
 
+    /** middleware mode */
     $scope.createClusterIcon = function(feature, latlng) {
       if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 2, fillColor: 'blue'});
 
@@ -327,12 +416,51 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       return L.marker(latlng, {icon: icon, title: feature.properties.id, alt: feature.properties.id});
     };
 
+    /** middleware mode */
     $scope.cleanClusterMap = function() {
       $scope.points = [];
       if($scope.pointsLayer != null) {
         $scope.pointsLayer.clearLayers();
         $scope.map.removeLayer($scope.pointsLayer);
         $scope.pointsLayer = null;
+      }
+    };
+
+    /** frontend mode */
+    $scope.cleanMarkersLayer = function() {
+      $scope.points = [];
+      if($scope.markersLayer != null) {
+        $scope.markersLayer.clearLayers();
+        $scope.map.removeLayer($scope.markersLayer);
+        $scope.markersLayer = null;
+      }
+    };
+
+    /** frontend mode */
+    $scope.appendPointsToClusters = function (data) {
+      // initialize the markers layer
+      if (!$scope.markersLayer) {
+        $scope.markersLayer = L.markerClusterGroup({ chunkedLoading: true });
+      }
+
+      // update the makers layer
+      if (data.length > 0) {
+        console.log("[marker-cluster] drawing points size = " + $scope.points.length);
+        let markersList = [];
+        let start = performance.now();
+        for (let i = 0; i < data.length; i ++) {
+          let p = data[i];
+          let title = "" + p[2];
+          let marker = L.marker(L.latLng(p[1], p[0]), { title: title });
+          markersList.push(marker);
+        }
+        $scope.markersLayer.addLayers(markersList);
+        let end = performance.now();
+        $scope.timings.push((end - start) / 1000.0);
+        console.log("Until now, the clustering timings of [marker-cluster] for keyword \"" + $scope.query.keyword + "\" are: ");
+        console.log($scope.timings);
+        $scope.map.removeLayer($scope.markersLayer);
+        $scope.map.addLayer($scope.markersLayer);
       }
     };
   })
@@ -357,6 +485,11 @@ angular.module("clustermap.map")
     $scope.resultCount = "";
 
     moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, function(e) {
-      $scope.resultCount = e.resultCount + ": " + e.pointsCount;
+      if (e.resultCount) {
+        $scope.resultCount = e.resultCount + ": " + e.pointsCount;
+      }
+      else {
+        $scope.resultCount = e.pointsCount;
+      }
     })
   });

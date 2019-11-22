@@ -14,10 +14,13 @@ public class Request {
      * - transfer
      *   - Transfer raw data of given keyword in GeoJson format
      *
+     * - progress-transfer
+     *   - Transfer raw data of given keyword in GeoJson format progressively
+     *
      * - analysis
      *   - Query statistics of clusters for given keyword
      */
-    public String type; // "query"/"cmd"/"transfer"/"analysis"
+    public String type; // "query"/"cmd"/"transfer"/"progress-transfer"/"analysis"
     public String id;
     public String keyword;
     public Query query;
