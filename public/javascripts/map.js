@@ -235,6 +235,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         option.text = ""+ i;
         $scope.selectZoomShift.add(option);
       }
+      $scope.selectZoomShift.value = "0";
       body = document.body;
       body.appendChild($scope.selectZoomShift);
       $scope.selectZoomShift.addEventListener("change", function () {
@@ -243,8 +244,16 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       });
 
       moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_MODE, function(e) {
-        $scope.mode = e.mode;
-        console.log("switch mode to '" + $scope.mode + "'");
+        if ($scope.mode !== e.mode) {
+          if ($scope.mode === "middleware") {
+            $scope.cleanClusterMap();
+          }
+          else if ($scope.mode === "frontend") {
+            $scope.cleanMarkersLayer();
+          }
+          $scope.mode = e.mode;
+          console.log("switch mode to '" + $scope.mode + "'");
+        }
       });
 
       $scope.waitForWS();
