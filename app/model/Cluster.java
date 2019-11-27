@@ -13,7 +13,10 @@ public class Cluster extends Point {
 
     public Cluster parent = null;
     public Advocator advocator = null;
+    // its advocator cluster in one of its children
     public Cluster advocatorCluster = null;
+    // flag is true when this cluster has been deleted from its level's tree
+    public boolean dirty = false;
 
     public Cluster(int k) {
         super(k);

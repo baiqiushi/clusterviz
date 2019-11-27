@@ -3,7 +3,6 @@ package clustering;
 import model.Advocator;
 import model.Cluster;
 import util.KDTree;
-import util.MyLinkedList;
 import util.MyTimer;
 
 import java.util.*;
@@ -12,9 +11,12 @@ public class BiSuperCluster extends SuperCluster {
     // advocators at each level
     KDTree<Advocator>[] advocatorsTrees;
     // clusters at each level
-    MyLinkedList<Cluster>[] advocatorClusters;
-    // temporary tree for current shifting level of clusters
-    KDTree<Cluster> clustersTree;
+    List<Cluster>[] advocatorClusters;
+    // clusters at each level as a tree
+    KDTree<Cluster>[] clustersTrees;
+    // clusters at each level that are pending for insert into tree
+    Queue<Cluster>[] pendingClusters;
+
     int pointIdSeq;
     int advocatorSeq;
     int totalShiftCount = 0;
@@ -23,21 +25,24 @@ public class BiSuperCluster extends SuperCluster {
 
     //-Timing-//
     static final boolean keepTiming = true;
-    Map<String, Double> insertTiming = new HashMap<>();
-    Map<String, Double> shiftTiming = new HashMap<>();
+    Map<String, Double> timing = new HashMap<>();
     //-Timing-//
 
     public BiSuperCluster(int _minZoom, int _maxZoom, boolean _analysis) {
         this.minZoom = _minZoom;
         this.maxZoom = _maxZoom;
         this.advocatorsTrees = new KDTree[maxZoom + 1];
-        this.advocatorClusters = new MyLinkedList[maxZoom + 1];
+        this.advocatorClusters = new List[maxZoom + 1];
+        this.clustersTrees = new KDTree[maxZoom + 1];
+        this.pendingClusters = new Queue[maxZoom + 1];
         this.pointIdSeq = 0;
         this.advocatorSeq = 0;
 
         for (int i = 0; i <= maxZoom; i ++) {
             this.advocatorsTrees[i] = new KDTree<>(K);
-            this.advocatorClusters[i] = new MyLinkedList<>();
+            this.advocatorClusters[i] = new ArrayList<>();
+            this.clustersTrees[i] = new KDTree<>(K);
+            this.pendingClusters[i] = new LinkedList<>();
         }
     }
 
@@ -47,62 +52,45 @@ public class BiSuperCluster extends SuperCluster {
 
         this.totalNumberOfPoints += points.length;
 
-        if (keepTiming) MyTimer.startTimer();
         // insert points to max zoom level one by one
         for (int i = 0; i < points.length; i ++) {
             insert(createPointCluster(points[i], this.pointIdSeq ++), maxZoom);
         }
-        if (keepTiming) MyTimer.stopTimer();
-        if (keepTiming) {
-            if (insertTiming.containsKey("total")) {
-                insertTiming.put("total", insertTiming.get("total") + MyTimer.durationSeconds());
-            } else {
-                insertTiming.put("total", MyTimer.durationSeconds());
-            }
-        }
 
-        if (keepTiming) MyTimer.startTimer();
         int shiftCount = 0;
         // shift clusters with significant relocation bottom-up
         for (int z = maxZoom; z > minZoom; z --) {
+
+            if (keepTiming) MyTimer.startTimer();
+            // update clustersTree for level z
+            Cluster pending;
+            while ((pending = this.pendingClusters[z].poll()) != null) {
+                this.clustersTrees[z].insert(pending);
+            }
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("maintainClusterTree")) {
+                    timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("maintainClusterTree", MyTimer.durationSeconds());
+                }
+            }
+
             if (keepTiming) MyTimer.startTimer();
             // shifting at level z affects clustering results of level (z-1)
             double r = getRadius(z - 1);
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
-                if (shiftTiming.containsKey("getRadius")) {
-                    shiftTiming.put("getRadius", shiftTiming.get("getRadius") + MyTimer.durationSeconds());
+                if (timing.containsKey("getRadius")) {
+                    timing.put("getRadius", timing.get("getRadius") + MyTimer.durationSeconds());
                 } else {
-                    shiftTiming.put("getRadius", MyTimer.durationSeconds());
+                    timing.put("getRadius", MyTimer.durationSeconds());
                 }
             }
 
-            if (keepTiming) MyTimer.startTimer();
-            // build KD-Tree for current level's clusters, to prepare for toMerge and toSplit functions
-            // TODO - use a index structure that supports update operation for clusters
-            this.clustersTree = new KDTree<>(K);
-            // initialize this level's KD-Tree of clusters
-            this.advocatorClusters[z].startLoop();
-            Cluster x;
-            while ((x = this.advocatorClusters[z].next()) != null) {
-                this.clustersTree.insert(x);
-            }
-            System.out.println("this.clustersTree load advocatorClusters done...");
-            if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) {
-                if (shiftTiming.containsKey("buildKDTree")) {
-                    shiftTiming.put("buildKDTree", shiftTiming.get("buildKDTree") + MyTimer.durationSeconds());
-                } else {
-                    shiftTiming.put("buildKDTree", MyTimer.durationSeconds());
-                }
-            }
-
-            if (keepTiming) MyTimer.startTimer();
             // for current level, shift clusters one by one
             int shiftCountLevel = 0;
-            this.advocatorClusters[z].startLoop();
-            Cluster cluster;
-            while ((cluster = this.advocatorClusters[z].next()) != null) {
+            for (Cluster cluster: this.advocatorClusters[z]) {
                 Advocator advocator = cluster.advocator;
                 if (cluster.distanceTo(advocator) > miu * r) {
                     shiftCountLevel ++;
@@ -111,24 +99,8 @@ public class BiSuperCluster extends SuperCluster {
             }
             System.out.println("zoom level [" + z + "] shifted " + shiftCountLevel + " clusters.");
             shiftCount += shiftCountLevel;
-            if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) {
-                if (shiftTiming.containsKey("shift")) {
-                    shiftTiming.put("shift", shiftTiming.get("shift") + MyTimer.durationSeconds());
-                } else {
-                    shiftTiming.put("shift", MyTimer.durationSeconds());
-                }
-            }
         }
         this.totalShiftCount += shiftCount;
-        if (keepTiming) MyTimer.stopTimer();
-        if (keepTiming) {
-            if (shiftTiming.containsKey("total")) {
-                shiftTiming.put("total", shiftTiming.get("total") + MyTimer.durationSeconds());
-            } else {
-                shiftTiming.put("total", MyTimer.durationSeconds());
-            }
-        }
 
         long end = System.nanoTime();
         System.out.println("Batch incremental SuperCluster loading is done!");
@@ -144,10 +116,10 @@ public class BiSuperCluster extends SuperCluster {
         double radius = getRadius(zoom);
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) {
-            if (insertTiming.containsKey("getRadius")) {
-                insertTiming.put("getRadius", insertTiming.get("getRadius") + MyTimer.durationSeconds());
+            if (timing.containsKey("getRadius")) {
+                timing.put("getRadius", timing.get("getRadius") + MyTimer.durationSeconds());
             } else {
-                insertTiming.put("getRadius", MyTimer.durationSeconds());
+                timing.put("getRadius", MyTimer.durationSeconds());
             }
         }
 
@@ -157,41 +129,44 @@ public class BiSuperCluster extends SuperCluster {
         List<Advocator> advocators = advocatorsTree.within(c, radius);
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) {
-            if (insertTiming.containsKey("rangeSearch")) {
-                insertTiming.put("rangeSearch", insertTiming.get("rangeSearch") + MyTimer.durationSeconds());
+            if (timing.containsKey("insert-rangeSearch")) {
+                timing.put("insert-rangeSearch", timing.get("insert-rangeSearch") + MyTimer.durationSeconds());
             } else {
-                insertTiming.put("rangeSearch", MyTimer.durationSeconds());
+                timing.put("insert-rangeSearch", MyTimer.durationSeconds());
             }
         }
 
         // if no group could be merged into, become a new Advocator itself
         if (advocators.isEmpty()) {
-            if (keepTiming) MyTimer.startTimer();
             Advocator newAdvocator = new Advocator(K);
             newAdvocator.id = advocatorSeq ++;
             newAdvocator.cluster = c;
             c.advocator = newAdvocator;
             newAdvocator.setDimensionValue(0, c.getDimensionValue(0));
             newAdvocator.setDimensionValue(1, c.getDimensionValue(1));
-            if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) {
-                if (insertTiming.containsKey("createAdvocator")) {
-                    insertTiming.put("createAdvocator", insertTiming.get("createAdvocator") + MyTimer.durationSeconds());
-                } else {
-                    insertTiming.put("createAdvocator", MyTimer.durationSeconds());
-                }
-            }
+
             if (keepTiming) MyTimer.startTimer();
             advocatorsTree.insert(newAdvocator);
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
-                if (insertTiming.containsKey("insertTree")) {
-                    insertTiming.put("insertTree", insertTiming.get("insertTree") + MyTimer.durationSeconds());
+                if (timing.containsKey("maintainAdvocatorTree")) {
+                    timing.put("maintainAdvocatorTree", timing.get("maintainAdvocatorTree") + MyTimer.durationSeconds());
                 } else {
-                    insertTiming.put("insertTree", MyTimer.durationSeconds());
+                    timing.put("maintainAdvocatorTree", MyTimer.durationSeconds());
                 }
             }
             this.advocatorClusters[zoom].add(c);
+
+            if (keepTiming) MyTimer.startTimer();
+            this.clustersTrees[zoom].insert(c);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("maintainClusterTree")) {
+                    timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("maintainClusterTree", MyTimer.durationSeconds());
+                }
+            }
 
             // insert this cluster into lower level
             if (zoom >= 1) {
@@ -219,16 +194,31 @@ public class BiSuperCluster extends SuperCluster {
             }
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
-                if (insertTiming.containsKey("findEarliest")) {
-                    insertTiming.put("findEarliest", insertTiming.get("findEarliest") + MyTimer.durationSeconds());
+                if (timing.containsKey("findEarliest")) {
+                    timing.put("findEarliest", timing.get("findEarliest") + MyTimer.durationSeconds());
                 } else {
-                    insertTiming.put("findEarliest", MyTimer.durationSeconds());
+                    timing.put("findEarliest", MyTimer.durationSeconds());
+                }
+            }
+
+            // merge into earliest advocator's group
+            Cluster cluster = earliestAdvocator.cluster;
+
+            if (keepTiming) MyTimer.startTimer();
+            // delete cluster from clustersTree
+            if (!cluster.dirty) {
+                this.clustersTrees[zoom].delete(cluster);
+            }
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("maintainClusterTree")) {
+                    timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("maintainClusterTree", MyTimer.durationSeconds());
                 }
             }
 
             if (keepTiming) MyTimer.startTimer();
-            // merge into earliest advocator's group
-            Cluster cluster = earliestAdvocator.cluster;
             if (cluster.numPoints == 0) {
                 cluster.numPoints = 1;
                 cluster.id = (cluster.id << 5) + (maxZoom + 1);
@@ -248,18 +238,23 @@ public class BiSuperCluster extends SuperCluster {
                     child.parent = cluster;
                 }
             }
-
-            // merge c into cluster.parent recursively
-            merge(cluster.parent, c);
-
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
-                if (insertTiming.containsKey("mergeCluster")) {
-                    insertTiming.put("mergeCluster", insertTiming.get("mergeCluster") + MyTimer.durationSeconds());
+                if (timing.containsKey("mergeCalculation")) {
+                    timing.put("mergeCalculation", timing.get("mergeCalculation") + MyTimer.durationSeconds());
                 } else {
-                    insertTiming.put("mergeCluster", MyTimer.durationSeconds());
+                    timing.put("mergeCalculation", MyTimer.durationSeconds());
                 }
             }
+
+            // keep cluster in pendingClusters
+            if (!cluster.dirty) {
+                this.pendingClusters[zoom].add(cluster);
+                cluster.dirty = true;
+            }
+
+            // merge c into cluster.parent recursively
+            merge(cluster.parent, c, zoom - 1);
         }
     }
 
@@ -268,9 +263,26 @@ public class BiSuperCluster extends SuperCluster {
      *
      * @param c1
      * @param c2
+     * @param zoom
      */
-    private void merge(Cluster c1, Cluster c2) {
+    private void merge(Cluster c1, Cluster c2, int zoom) {
         if (c1 == null) return;
+
+        if (keepTiming) MyTimer.startTimer();
+        // delete c1 from clustersTree
+        if (!c1.dirty) {
+            this.clustersTrees[zoom].delete(c1);
+        }
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) {
+            if (timing.containsKey("maintainClusterTree")) {
+                timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
+            } else {
+                timing.put("maintainClusterTree", MyTimer.durationSeconds());
+            }
+        }
+
+        if (keepTiming) MyTimer.startTimer();
         if (c1.numPoints == 0) {
             c1.numPoints = 1;
             c1.id = (c1.id << 5) + (maxZoom + 1);
@@ -282,7 +294,22 @@ public class BiSuperCluster extends SuperCluster {
         c1.numPoints = c1.numPoints + (c2.numPoints==0?1:c2.numPoints);
         c1.setDimensionValue(0, wx / c1.numPoints);
         c1.setDimensionValue(1, wy / c1.numPoints);
-        merge(c1.parent, c2);
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) {
+            if (timing.containsKey("mergeCalculation")) {
+                timing.put("mergeCalculation", timing.get("mergeCalculation") + MyTimer.durationSeconds());
+            } else {
+                timing.put("mergeCalculation", MyTimer.durationSeconds());
+            }
+        }
+
+        // keep c1 in pendingClusters
+        if (!c1.dirty) {
+            this.pendingClusters[zoom].add(c1);
+            c1.dirty = true;
+        }
+
+        merge(c1.parent, c2, zoom - 1);
     }
 
     /**
@@ -368,51 +395,22 @@ public class BiSuperCluster extends SuperCluster {
             this.advocatorsTrees[zoom].insert(from);
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
-                if (shiftTiming.containsKey("updateKDTree")) {
-                    shiftTiming.put("updateKDTree", shiftTiming.get("updateKDTree") + MyTimer.durationSeconds());
+                if (timing.containsKey("maintainAdvocatorTree")) {
+                    timing.put("maintainAdvocatorTree", timing.get("maintainAdvocatorTree") + MyTimer.durationSeconds());
                 } else {
-                    shiftTiming.put("updateKDTree", MyTimer.durationSeconds());
+                    timing.put("maintainAdvocatorTree", MyTimer.durationSeconds());
                 }
             }
 
             for (Cluster m: toMerge) {
-                if (keepTiming) MyTimer.startTimer();
                 split(m.parent, m, zoom - 1);
-                if (keepTiming) MyTimer.stopTimer();
-                if (keepTiming) {
-                    if (shiftTiming.containsKey("splitCluster")) {
-                        shiftTiming.put("splitCluster", shiftTiming.get("splitCluster") + MyTimer.durationSeconds());
-                    } else {
-                        shiftTiming.put("splitCluster", MyTimer.durationSeconds());
-                    }
-                }
-
                 c.parent.children.add(m);
                 m.parent = c.parent;
-
-                if (keepTiming) MyTimer.startTimer();
-                merge(c.parent, m);
-                if (keepTiming) MyTimer.stopTimer();
-                if (keepTiming) {
-                    if (shiftTiming.containsKey("mergeCluster")) {
-                        shiftTiming.put("mergeCluster", shiftTiming.get("mergeCluster") + MyTimer.durationSeconds());
-                    } else {
-                        shiftTiming.put("mergeCluster", MyTimer.durationSeconds());
-                    }
-                }
+                merge(c.parent, m, zoom - 1);
             }
 
             for (Cluster s: toSplit) {
-                if (keepTiming) MyTimer.startTimer();
                 split(c.parent, s, zoom - 1);
-                if (keepTiming) MyTimer.stopTimer();
-                if (keepTiming) {
-                    if (shiftTiming.containsKey("splitCluster")) {
-                        shiftTiming.put("splitCluster", shiftTiming.get("splitCluster") + MyTimer.durationSeconds());
-                    } else {
-                        shiftTiming.put("splitCluster", MyTimer.durationSeconds());
-                    }
-                }
 
                 Cluster parent = createCluster(s.getDimensionValue(0), s.getDimensionValue(1), s.id, s.numPoints);
                 s.parentId = parent.id;
@@ -420,29 +418,11 @@ public class BiSuperCluster extends SuperCluster {
                 parent.children.add(s);
                 parent.advocatorCluster = s;
 
-                if (keepTiming) MyTimer.startTimer();
                 insert(parent, zoom - 1);
-                if (keepTiming) MyTimer.stopTimer();
-                if (keepTiming) {
-                    if (shiftTiming.containsKey("reInsert")) {
-                        shiftTiming.put("reInsert", shiftTiming.get("reInsert") + MyTimer.durationSeconds());
-                    } else {
-                        shiftTiming.put("reInsert", MyTimer.durationSeconds());
-                    }
-                }
             }
         }
         else {
-            if (keepTiming) MyTimer.startTimer();
             split(c.parent, c, zoom - 1);
-            if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) {
-                if (shiftTiming.containsKey("splitCluster")) {
-                    shiftTiming.put("splitCluster", shiftTiming.get("splitCluster") + MyTimer.durationSeconds());
-                } else {
-                    shiftTiming.put("splitCluster", MyTimer.durationSeconds());
-                }
-            }
 
             Cluster parent = createCluster(c.getDimensionValue(0), c.getDimensionValue(1), c.id, c.numPoints);
             c.parentId = parent.id;
@@ -450,16 +430,7 @@ public class BiSuperCluster extends SuperCluster {
             parent.children.add(c);
             parent.advocatorCluster = c;
 
-            if (keepTiming) MyTimer.startTimer();
             insert(parent, zoom - 1);
-            if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) {
-                if (shiftTiming.containsKey("reInsert")) {
-                    shiftTiming.put("reInsert", shiftTiming.get("reInsert") + MyTimer.durationSeconds());
-                } else {
-                    shiftTiming.put("reInsert", MyTimer.durationSeconds());
-                }
-            }
         }
     }
 
@@ -488,21 +459,21 @@ public class BiSuperCluster extends SuperCluster {
         double r = getRadius(zoom - 1);
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) {
-            if (shiftTiming.containsKey("getRadius")) {
-                shiftTiming.put("getRadius", shiftTiming.get("getRadius") + MyTimer.durationSeconds());
+            if (timing.containsKey("getRadius")) {
+                timing.put("getRadius", timing.get("getRadius") + MyTimer.durationSeconds());
             } else {
-                shiftTiming.put("getRadius", MyTimer.durationSeconds());
+                timing.put("getRadius", MyTimer.durationSeconds());
             }
         }
 
         if (keepTiming) MyTimer.startTimer();
-        List<Cluster> clusters = this.clustersTree.within(c, r);
+        List<Cluster> clusters = this.clustersTrees[zoom].within(c, r);
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) {
-            if (shiftTiming.containsKey("rangeSearch")) {
-                shiftTiming.put("rangeSearch", shiftTiming.get("rangeSearch") + MyTimer.durationSeconds());
+            if (timing.containsKey("shift-rangeSearch")) {
+                timing.put("shift-rangeSearch", timing.get("shift-rangeSearch") + MyTimer.durationSeconds());
             } else {
-                shiftTiming.put("rangeSearch", MyTimer.durationSeconds());
+                timing.put("shift-rangeSearch", MyTimer.durationSeconds());
             }
         }
 
@@ -535,21 +506,21 @@ public class BiSuperCluster extends SuperCluster {
         double r = getRadius(zoom - 1);
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) {
-            if (shiftTiming.containsKey("getRadius")) {
-                shiftTiming.put("getRadius", shiftTiming.get("getRadius") + MyTimer.durationSeconds());
+            if (timing.containsKey("getRadius")) {
+                timing.put("getRadius", timing.get("getRadius") + MyTimer.durationSeconds());
             } else {
-                shiftTiming.put("getRadius", MyTimer.durationSeconds());
+                timing.put("getRadius", MyTimer.durationSeconds());
             }
         }
 
         if (keepTiming) MyTimer.startTimer();
-        List<Cluster> clusters = this.clustersTree.within(c, r);
+        List<Cluster> clusters = this.clustersTrees[zoom].within(c, r);
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) {
-            if (shiftTiming.containsKey("rangeSearch")) {
-                shiftTiming.put("rangeSearch", shiftTiming.get("rangeSearch") + MyTimer.durationSeconds());
+            if (timing.containsKey("shift-rangeSearch")) {
+                timing.put("shift-rangeSearch", timing.get("shift-rangeSearch") + MyTimer.durationSeconds());
             } else {
-                shiftTiming.put("rangeSearch", MyTimer.durationSeconds());
+                timing.put("shift-rangeSearch", MyTimer.durationSeconds());
             }
         }
 
@@ -582,12 +553,50 @@ public class BiSuperCluster extends SuperCluster {
         if (c1 == null) return;
         // if c2 is c1's only child, delete c1 directly
         if (c1.children.size() == 1 && c1.children.contains(c2)) {
+
+            if (keepTiming) MyTimer.startTimer();
             this.advocatorsTrees[zoom].delete(c1.advocator);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("maintainAdvocatorTree")) {
+                    timing.put("maintainAdvocatorTree", timing.get("maintainAdvocatorTree") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("maintainAdvocatorTree", MyTimer.durationSeconds());
+                }
+            }
+
             this.advocatorClusters[zoom].remove(c1);
+
+            if (keepTiming) MyTimer.startTimer();
+            this.clustersTrees[zoom].delete(c1);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("maintainClusterTree")) {
+                    timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("maintainClusterTree", MyTimer.durationSeconds());
+                }
+            }
+
             split(c1.parent, c1, zoom - 1);
         }
         // otherwise, subtract c2's weight from c1 and recurse
         else {
+            if (keepTiming) MyTimer.startTimer();
+            // delete c1 from clustersTree
+            if (!c1.dirty) {
+                this.clustersTrees[zoom].delete(c1);
+            }
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("maintainClusterTree")) {
+                    timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("maintainClusterTree", MyTimer.durationSeconds());
+                }
+            }
+
+            if (keepTiming) MyTimer.startTimer();
             double wx = c1.getDimensionValue(0) * c1.numPoints;
             double wy = c1.getDimensionValue(1) * c1.numPoints;
             wx -= c2.getDimensionValue(0) * (c2.numPoints == 0 ? 1 : c2.numPoints);
@@ -596,27 +605,34 @@ public class BiSuperCluster extends SuperCluster {
             c1.setDimensionValue(0, wx / c1.numPoints);
             c1.setDimensionValue(1, wy / c1.numPoints);
             c1.children.remove(c2);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("splitCalculation")) {
+                    timing.put("splitCalculation", timing.get("splitCalculation") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("splitCalculation", MyTimer.durationSeconds());
+                }
+            }
+
+            // keep c1 in pendingClusters
+            if (!c1.dirty) {
+                this.pendingClusters[zoom].add(c1);
+                c1.dirty = true;
+            }
+
             split(c1.parent, c2, zoom - 1);
         }
     }
 
     public void printTiming() {
         System.out.println("Timing distribution:");
-        System.out.println("    [insert] " + insertTiming.get("total") + " seconds");
-        System.out.println("        [get radius] " + insertTiming.get("getRadius") + " seconds");
-        System.out.println("        [range search] " + insertTiming.get("rangeSearch") + " seconds");
-        System.out.println("        [create advocator] " + insertTiming.get("createAdvocator") + " seconds");
-        System.out.println("        [insert tree] " + insertTiming.get("insertTree") + " seconds");
-        System.out.println("        [find earliest] " + insertTiming.get("findEarliest") + " seconds");
-        System.out.println("        [merge cluster] " + insertTiming.get("mergeCluster") + " seconds");
-        System.out.println("    [shift] " + shiftTiming.get("total") + " seconds");
-        System.out.println("        [get radius] " + shiftTiming.get("getRadius") + " seconds");
-        System.out.println("        [build KDTree] " + shiftTiming.get("buildKDTree") + " seconds");
-        System.out.println("        [shift] " + shiftTiming.get("shift") + " seconds");
-        System.out.println("            [range search] " + shiftTiming.get("rangeSearch") + " seconds");
-        System.out.println("            [update KDTree] " + shiftTiming.get("updateKDTree") + " seconds");
-        System.out.println("            [split cluster] " + shiftTiming.get("splitCluster") + " seconds");
-        System.out.println("            [merge cluster] " + shiftTiming.get("mergeCluster") + " seconds");
-        System.out.println("            [re-insert] " + shiftTiming.get("reInsert") + " seconds");
+        System.out.println("    [get radius] " + timing.get("getRadius") + " seconds");
+        System.out.println("    [find earliest] " + timing.get("findEarliest") + " seconds");
+        System.out.println("    [insert range search] " + timing.get("insert-rangeSearch") + " seconds");
+        System.out.println("    [shift range search] " + timing.get("shift-rangeSearch") + " seconds");
+        System.out.println("    [merge calculation] " + timing.get("mergeCalculation") + " seconds");
+        System.out.println("    [split calculation] " + timing.get("splitCalculation") + " seconds");
+        System.out.println("    [maintain advocator tree] " + timing.get("maintainAdvocatorTree") + " seconds");
+        System.out.println("    [maintain cluster tree] " + timing.get("maintainClusterTree") + " seconds");
     }
 }
