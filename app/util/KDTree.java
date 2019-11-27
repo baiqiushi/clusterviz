@@ -117,6 +117,9 @@ public class KDTree<PointType extends IKDPoint> {
             if (currentPoint.equalsTo(point)) {
                 // if hit the node's point
                 if (currentPoint.getId() == point.getId() && !currentNode.deleted) {
+                    //clone currentPoint and make it a tombstone here
+                    PointType tombstone = (PointType) currentPoint.clone();
+                    currentNode.point = tombstone;
                     currentNode.deleted = true;
                 }
                 // else hit the node's duplicate point

@@ -68,6 +68,16 @@ public class Point implements IKDPoint {
         return right;
     }
 
+    @Override
+    public IKDPoint clone() {
+        IKDPoint copy = new Point(k);
+        copy.setId(id);
+        for (int i = 0; i < k; i ++) {
+            copy.setDimensionValue(i, this.getDimensionValue(i));
+        }
+        return copy;
+    }
+
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("[");

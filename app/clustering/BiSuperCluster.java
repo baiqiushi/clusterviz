@@ -363,11 +363,9 @@ public class BiSuperCluster extends SuperCluster {
             // shift the advocator "from"'s location to the centroid of cluster c
             //TODO - use a index structure that support update location to handle the position shift
             this.advocatorsTrees[zoom].delete(from);
-            Advocator to = from.clone();
-            to.setDimensionValue(0, c.getDimensionValue(0));
-            to.setDimensionValue(1, c.getDimensionValue(1));
-            c.advocator = to;
-            this.advocatorsTrees[zoom].insert(to);
+            from.setDimensionValue(0, c.getDimensionValue(0));
+            from.setDimensionValue(1, c.getDimensionValue(1));
+            this.advocatorsTrees[zoom].insert(from);
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
                 if (shiftTiming.containsKey("updateKDTree")) {

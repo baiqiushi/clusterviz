@@ -17,4 +17,6 @@ public interface IKDPoint {
     boolean leftTo(IKDPoint y);
 
     boolean rightTo(IKDPoint y);
+
+    IKDPoint clone();
 }
