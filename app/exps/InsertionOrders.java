@@ -37,7 +37,7 @@ public class InsertionOrders {
         PointTuple[] pointTuples = postgreSQL.queryPointTuplesForKeyword(keyword);
         int length = pointTuples.length;
         for (int i = 0; i < length; i ++) {
-            pointTuples[i].id = i;
+            pointTuples[i].setId(i);
         }
 
         printPointTuples(pointTuples, 10);
@@ -46,14 +46,14 @@ public class InsertionOrders {
         // A - original order (database order)
         double[][] aPoints = new double[length][2];
         for (int i = 0; i < length; i ++) {
-            aPoints[i][0] = pointTuples[i].getDimensionValue(0);
-            aPoints[i][1] = pointTuples[i].getDimensionValue(1);
+            aPoints[i][0] = pointTuples[i].getX();
+            aPoints[i][1] = pointTuples[i].getY();
         }
         // B - reversed order (reverse A)
         double[][] bPoints = new double[length][2];
         for (int i = 0; i < length; i ++) {
-            bPoints[length - 1 - i][0] = pointTuples[i].getDimensionValue(0);
-            bPoints[length - 1 - i][1] = pointTuples[i].getDimensionValue(1);
+            bPoints[length - 1 - i][0] = pointTuples[i].getX();
+            bPoints[length - 1 - i][1] = pointTuples[i].getY();
         }
         // C - spatial order (left-bottom to right-top)
         List<PointTuple> pointTuplesList = Arrays.asList(pointTuples);
@@ -61,16 +61,16 @@ public class InsertionOrders {
         PointTuple[] cPointTuples = pointTuplesList.toArray(new PointTuple[pointTuplesList.size()]);
         double[][] cPoints = new double[length][2];
         for (int i = 0; i < cPointTuples.length; i ++) {
-            cPoints[i][0] = cPointTuples[i].getDimensionValue(0);
-            cPoints[i][1] = cPointTuples[i].getDimensionValue(1);
+            cPoints[i][0] = cPointTuples[i].getX();
+            cPoints[i][1] = cPointTuples[i].getY();
         }
         // D - reversed spatial order (right-top to left-bottom)
         Collections.sort(pointTuplesList, PointTuple.getReverseSpatialComparator());
         PointTuple[] dPointTuples = pointTuplesList.toArray(new PointTuple[pointTuplesList.size()]);
         double[][] dPoints = new double[length][2];
         for (int i = 0; i < dPointTuples.length; i ++) {
-            dPoints[i][0] = dPointTuples[i].getDimensionValue(0);
-            dPoints[i][1] = dPointTuples[i].getDimensionValue(1);
+            dPoints[i][0] = dPointTuples[i].getX();
+            dPoints[i][1] = dPointTuples[i].getY();
         }
 
         // 2-1) Run SuperCluster for all different orders
@@ -140,7 +140,7 @@ public class InsertionOrders {
             int[] cLabels = new int[cLabelsStage.length];
             for (int i = 0; i < cLabelsStage.length; i ++) {
                 PointTuple labeledPointTuple = cPointTuples[i];
-                cLabels[labeledPointTuple.id] = cLabelsStage[i];
+                cLabels[labeledPointTuple.getId()] = cLabelsStage[i];
             }
 
             // labels for D
@@ -148,7 +148,7 @@ public class InsertionOrders {
             int[] dLabels = new int[dLabelsStage.length];
             for (int i = 0; i < dLabelsStage.length; i ++) {
                 PointTuple labeledPointTuple = dPointTuples[i];
-                dLabels[labeledPointTuple.id] = dLabelsStage[i];
+                dLabels[labeledPointTuple.getId()] = dLabelsStage[i];
             }
 
             System.out.println(z +
@@ -184,7 +184,7 @@ public class InsertionOrders {
             int[] cLabels = new int[cLabelsStage.length];
             for (int i = 0; i < cLabelsStage.length; i ++) {
                 PointTuple labeledPointTuple = cPointTuples[i];
-                cLabels[labeledPointTuple.id] = cLabelsStage[i];
+                cLabels[labeledPointTuple.getId()] = cLabelsStage[i];
             }
 
             // labels for D
@@ -193,7 +193,7 @@ public class InsertionOrders {
             int[] dLabels = new int[dLabelsStage.length];
             for (int i = 0; i < dLabelsStage.length; i ++) {
                 PointTuple labeledPointTuple = dPointTuples[i];
-                dLabels[labeledPointTuple.id] = dLabelsStage[i];
+                dLabels[labeledPointTuple.getId()] = dLabelsStage[i];
             }
 
             System.out.println(z +

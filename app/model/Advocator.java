@@ -4,8 +4,8 @@ public class Advocator extends Point {
 
     public Cluster cluster;
 
-    public Advocator(int k) {
-        super(k);
+    public Advocator(double _x, double _y, int _id) {
+        super(_x, _y, _id);
     }
 
     public String toString() {
@@ -19,11 +19,9 @@ public class Advocator extends Point {
     }
 
     public Advocator clone() {
-        Advocator to = new Advocator(this.k);
+        Advocator to = new Advocator(this.x, this.y, this.id);
+        // copy handle only
         to.cluster = this.cluster;
-        to.id = this.id;
-        to.values[0] = this.values[0];
-        to.values[1] = this.values[1];
         return to;
     }
 }

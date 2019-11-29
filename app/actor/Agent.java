@@ -110,14 +110,14 @@ public class Agent extends AbstractActor {
             ObjectNode properties = JsonNodeFactory.instance.objectNode();
             properties.put("point_count", clusters[i].numPoints);
             properties.put("point_count_abbreviated", clusters[i].numPoints);
-            properties.put("id", clusters[i].id);
+            properties.put("id", clusters[i].getId());
             properties.put("expansionZoom", clusters[i].expansionZoom);
             feature.set("properties", properties);
 
             ObjectNode geometry = JsonNodeFactory.instance.objectNode();
             ArrayNode coordinates = geometry.putArray("coordinates");
-            coordinates.add(clusters[i].getDimensionValue(0));
-            coordinates.add(clusters[i].getDimensionValue(1));
+            coordinates.add(clusters[i].getX());
+            coordinates.add(clusters[i].getY());
             geometry.put("type", "Point");
             feature.set("geometry", geometry);
 
@@ -135,8 +135,8 @@ public class Agent extends AbstractActor {
 
             ObjectNode geometry = JsonNodeFactory.instance.objectNode();
             ArrayNode coordinates = geometry.putArray("coordinates");
-            coordinates.add(points[i].getDimensionValue(0));
-            coordinates.add(points[i].getDimensionValue(1));
+            coordinates.add(points[i].getX());
+            coordinates.add(points[i].getY());
             geometry.put("type", "Point");
             feature.set("geometry", geometry);
 
@@ -147,8 +147,8 @@ public class Agent extends AbstractActor {
     private void buildDataArrayPoint(Point[] points, ArrayNode dataArray) {
         for (int i = 0; i < points.length; i ++) {
             ArrayNode pointTuple = JsonNodeFactory.instance.arrayNode();
-            pointTuple.add(points[i].getDimensionValue(0));
-            pointTuple.add(points[i].getDimensionValue(1));
+            pointTuple.add(points[i].getX());
+            pointTuple.add(points[i].getY());
             pointTuple.add(points[i].getId());
             dataArray.add(pointTuple);
         }
@@ -384,7 +384,7 @@ public class Agent extends AbstractActor {
             return false;
         }
         for (int i = 0; i < pointTuples.length; i ++) {
-            pointTuples[i].id = i;
+            pointTuples[i].setId(i);
         }
         return true;
     }
@@ -410,7 +410,7 @@ public class Agent extends AbstractActor {
             return false;
         }
         for (int i = 0; i < deltaPointTuples.length; i ++) {
-            deltaPointTuples[i].id = i;
+            deltaPointTuples[i].setId(i);
         }
         if (pointTuples == null || deltaOnly) {
             pointTuples = deltaPointTuples;
@@ -526,15 +526,15 @@ public class Agent extends AbstractActor {
         switch (_order) {
             case "original":
                 for (int i = 0; i < pointTuples.length; i ++) {
-                    points[i][0] = pointTuples[i].getDimensionValue(0);
-                    points[i][1] = pointTuples[i].getDimensionValue(1);
+                    points[i][0] = pointTuples[i].getX();
+                    points[i][1] = pointTuples[i].getY();
                     orderMap[i] = pointTuples[i].tid;
                 }
                 break;
             case "reverse":
                 for (int i = 0; i < pointTuples.length; i ++) {
-                    points[pointTuples.length - 1 - i][0] = pointTuples[i].getDimensionValue(0);
-                    points[pointTuples.length - 1 - i][1] = pointTuples[i].getDimensionValue(1);
+                    points[pointTuples.length - 1 - i][0] = pointTuples[i].getX();
+                    points[pointTuples.length - 1 - i][1] = pointTuples[i].getY();
                     orderMap[pointTuples.length - 1 - i] = pointTuples[i].tid;
                 }
                 break;
@@ -543,8 +543,8 @@ public class Agent extends AbstractActor {
                 Collections.sort(pointTuplesList, PointTuple.getSpatialComparator());
                 PointTuple[] cPointTuples = pointTuplesList.toArray(new PointTuple[pointTuplesList.size()]);
                 for (int i = 0; i < cPointTuples.length; i ++) {
-                    points[i][0] = cPointTuples[i].getDimensionValue(0);
-                    points[i][1] = cPointTuples[i].getDimensionValue(1);
+                    points[i][0] = cPointTuples[i].getX();
+                    points[i][1] = cPointTuples[i].getY();
                     orderMap[i] = cPointTuples[i].tid;
                 }
                 break;
@@ -553,8 +553,8 @@ public class Agent extends AbstractActor {
                 Collections.sort(pointTuplesList_, PointTuple.getReverseSpatialComparator());
                 PointTuple[] cPointTuples_ = pointTuplesList_.toArray(new PointTuple[pointTuplesList_.size()]);
                 for (int i = 0; i < cPointTuples_.length; i ++) {
-                    points[i][0] = cPointTuples_[i].getDimensionValue(0);
-                    points[i][1] = cPointTuples_[i].getDimensionValue(1);
+                    points[i][0] = cPointTuples_[i].getX();
+                    points[i][1] = cPointTuples_[i].getY();
                     orderMap[i] = cPointTuples_[i].tid;
                 }
                 break;
@@ -658,7 +658,7 @@ public class Agent extends AbstractActor {
             // TODO - exception
         }
         for (int i = 0; i < pointTuples.length; i ++) {
-            pointTuples[i].id = i;
+            pointTuples[i].setId(i);
         }
         ObjectNode result = JsonNodeFactory.instance.objectNode();
         result.put("type", "FeatureCollection");

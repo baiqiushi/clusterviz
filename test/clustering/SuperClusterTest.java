@@ -30,15 +30,15 @@ public class SuperClusterTest {
         PointTuple[] pointTuples = postgreSQL.queryPointTuplesForKeyword(keyword);
         int length = pointTuples.length;
         for (int i = 0; i < length; i ++) {
-            pointTuples[i].id = i;
+            pointTuples[i].setId(i);
         }
 
         printPointTuples(pointTuples, 10);
 
         double[][] points = new double[length][2];
         for (int i = 0; i < length; i ++) {
-            points[i][0] = pointTuples[i].getDimensionValue(0);
-            points[i][1] = pointTuples[i].getDimensionValue(1);
+            points[i][0] = pointTuples[i].getX();
+            points[i][1] = pointTuples[i].getY();
         }
 
         SuperCluster superCluster =  new SuperCluster(minZoom, maxZoom);

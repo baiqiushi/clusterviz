@@ -7,8 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SuperCluster {
-    // Dimension
-    static final int K = 2;
 
     int minZoom = 0; // min zoom to generate clusters on
     int maxZoom = 17; // max zoom level to cluster the points on
@@ -41,6 +39,10 @@ public class SuperCluster {
         this.initRadiuses();
     }
 
+    /**
+     * @param points, an array of coordinates,
+     *                at point[i] must be x = points[i][0], y = points[i][1]
+     */
     public void load(double[][] points) {
         System.out.println("SuperCluster loading " + points.length + " points ... ...");
         long start = System.nanoTime();
@@ -48,9 +50,9 @@ public class SuperCluster {
         // generate a cluster object for each point and index input points into a KD-tree
         Cluster[] clusters = new Cluster[points.length];
         for (int i = 0; i < points.length; i ++) {
-            clusters[i] = createPointCluster(points[i], i);
+            clusters[i] = createPointCluster(points[i][0], points[i][1], i);
         }
-        this.trees[maxZoom + 1] = new KDTree<>(K);
+        this.trees[maxZoom + 1] = new KDTree<>();
         this.trees[maxZoom + 1].load(clusters);
         this.clusters[maxZoom + 1] = clusters;
 
@@ -60,7 +62,7 @@ public class SuperCluster {
             // create a new set of clusters for the zoom and index them with a KD-tree
             clusters = this._clusters(clusters, z);
 
-            this.trees[z] = new KDTree<>(K);
+            this.trees[z] = new KDTree<>();
             this.trees[z].load(clusters);
             this.clusters[z] = clusters;
         }
@@ -95,8 +97,8 @@ public class SuperCluster {
             List<Cluster> neighbors = tree.within(p, r);
 
             int numPoints = p.numPoints == 0? 1: p.numPoints;
-            double wx = p.getDimensionValue(0) * numPoints;
-            double wy = p.getDimensionValue(1) * numPoints;
+            double wx = p.getX() * numPoints;
+            double wy = p.getY() * numPoints;
 
             // encode both zoom and point index on which the cluster originated
             int id = (i << 5) + (zoom + 1);
@@ -114,8 +116,8 @@ public class SuperCluster {
 
                 int numPoints2 = neighbor.numPoints == 0? 1: neighbor.numPoints;
                 // accumulate coordinates for calculating weighted center
-                wx += neighbor.getDimensionValue(0) * numPoints2;
-                wy += neighbor.getDimensionValue(1) * numPoints2;
+                wx += neighbor.getX() * numPoints2;
+                wy += neighbor.getY() * numPoints2;
 
                 numPoints += numPoints2;
                 neighbor.parentId = id;
@@ -160,27 +162,19 @@ public class SuperCluster {
         return clusters.toArray(new Cluster[clusters.size()]);
     }
 
-    protected Cluster createPointCluster(double[] values, int id) {
-        Cluster c = new Cluster(K);
-        c.setDimensionValue(0, lngX(values[0]));
-        c.setDimensionValue(1, latY(values[1]));
-        c.id = id;
+    protected Cluster createPointCluster(double _x, double _y, int _id) {
+        Cluster c = new Cluster(lngX(_x), latY(_y), _id);
         return c;
     }
 
-    protected Cluster createCluster(double x, double y, int id, int numPoints) {
-        Cluster c = new Cluster(K);
-        c.setDimensionValue(0, x);
-        c.setDimensionValue(1, y);
-        c.id = id;
-        c.numPoints = numPoints;
+    protected Cluster createCluster(double _x, double _y, int _id, int _numPoints) {
+        Cluster c = new Cluster(_x, _y, _id);
+        c.numPoints = _numPoints;
         return c;
     }
 
-    protected Cluster createPointCluster(double x, double y) {
-        Cluster c = new Cluster(K);
-        c.setDimensionValue(0, lngX(x));
-        c.setDimensionValue(1, latY(y));
+    protected Cluster createPointCluster(double _x, double _y) {
+        Cluster c = new Cluster(lngX(_x), latY(_y), -1);
         return c;
     }
 
@@ -217,8 +211,8 @@ public class SuperCluster {
         int i = 0;
         for (Cluster point: points) {
             Cluster cluster = point.clone();
-            cluster.setDimensionValue(0, xLng(cluster.getDimensionValue(0)));
-            cluster.setDimensionValue(1, yLat(cluster.getDimensionValue(1)));
+            cluster.setX(xLng(cluster.getX()));
+            cluster.setY(yLat(cluster.getY()));
             clusters[i] = cluster;
             i ++;
         }
@@ -238,8 +232,8 @@ public class SuperCluster {
         Cluster[] clusters = new Cluster[this.clusters[zoom].length];
         for (int i = 0; i < this.clusters[zoom].length; i ++) {
             Cluster cluster = this.clusters[zoom][i].clone();
-            cluster.setDimensionValue(0, xLng(cluster.getDimensionValue(0)));
-            cluster.setDimensionValue(1, yLat(cluster.getDimensionValue(1)));
+            cluster.setX(xLng(cluster.getX()));
+            cluster.setY(yLat(cluster.getY()));
             clusters[i] = cluster;
         }
         return clusters;
@@ -274,11 +268,11 @@ public class SuperCluster {
         for (int i = 0; i < clusters.length; i ++) {
             Cluster cluster = clusters[i];
             if (cluster.numPoints == 0) {
-                labels[cluster.id] = cluster.id;
+                labels[cluster.getId()] = cluster.getId();
             }
             else {
                 for (Cluster child : cluster.children) {
-                    labels[child.id] = cluster.id;
+                    labels[child.getId()] = cluster.getId();
                 }
             }
         }
@@ -301,10 +295,10 @@ public class SuperCluster {
         Cluster[] clusters = this.clusters[zoom];
         Cluster c1 = null, c2 = null;
         for (int i = 0; i < clusters.length; i ++) {
-            if (clusters[i].id == p1) {
+            if (clusters[i].getId() == p1) {
                 c1 = clusters[i];
             }
-            if (clusters[i].id == p2) {
+            if (clusters[i].getId() == p2) {
                 c2 = clusters[i];
             }
             if (c1 != null && c2 != null) {
