@@ -39,9 +39,9 @@ public class BiSuperCluster extends SuperCluster {
         this.advocatorSeq = 0;
 
         for (int i = 0; i <= maxZoom; i ++) {
-            this.advocatorsTrees[i] = new KDTree<>(K);
+            this.advocatorsTrees[i] = new KDTree<>();
             this.advocatorClusters[i] = new ArrayList<>();
-            this.clustersTrees[i] = new KDTree<>(K);
+            this.clustersTrees[i] = new KDTree<>();
             this.pendingClusters[i] = new LinkedList<>();
         }
     }
@@ -54,7 +54,7 @@ public class BiSuperCluster extends SuperCluster {
 
         // insert points to max zoom level one by one
         for (int i = 0; i < points.length; i ++) {
-            insert(createPointCluster(points[i], this.pointIdSeq ++), maxZoom);
+            insert(createPointCluster(points[i][0], points[i][1], this.pointIdSeq ++), maxZoom);
         }
 
         int shiftCount = 0;
@@ -138,12 +138,9 @@ public class BiSuperCluster extends SuperCluster {
 
         // if no group could be merged into, become a new Advocator itself
         if (advocators.isEmpty()) {
-            Advocator newAdvocator = new Advocator(K);
-            newAdvocator.id = advocatorSeq ++;
+            Advocator newAdvocator = new Advocator(c.getX(), c.getY(), advocatorSeq ++);
             newAdvocator.cluster = c;
             c.advocator = newAdvocator;
-            newAdvocator.setDimensionValue(0, c.getDimensionValue(0));
-            newAdvocator.setDimensionValue(1, c.getDimensionValue(1));
 
             if (keepTiming) MyTimer.startTimer();
             advocatorsTree.insert(newAdvocator);
@@ -170,8 +167,8 @@ public class BiSuperCluster extends SuperCluster {
 
             // insert this cluster into lower level
             if (zoom >= 1) {
-                Cluster parent = createCluster(c.getDimensionValue(0), c.getDimensionValue(1), c.id, c.numPoints);
-                c.parentId = parent.id;
+                Cluster parent = createCluster(c.getX(), c.getY(), c.getId(), c.numPoints);
+                c.parentId = parent.getId();
                 c.parent = parent;
                 /** in BiSuperCluster Class, use Cluster.children to store direct descendants pointers */
                 parent.children.add(c);
@@ -188,7 +185,7 @@ public class BiSuperCluster extends SuperCluster {
                 if (earliestAdvocator == null) {
                     earliestAdvocator = advocator;
                 }
-                else if (earliestAdvocator.id > advocator.id) {
+                else if (earliestAdvocator.getId() > advocator.getId()) {
                     earliestAdvocator = advocator;
                 }
             }
@@ -221,20 +218,20 @@ public class BiSuperCluster extends SuperCluster {
             if (keepTiming) MyTimer.startTimer();
             if (cluster.numPoints == 0) {
                 cluster.numPoints = 1;
-                cluster.id = (cluster.id << 5) + (maxZoom + 1);
+                cluster.setId((cluster.getId() << 5) + (maxZoom + 1));
             }
-            double wx = cluster.getDimensionValue(0) * cluster.numPoints;
-            double wy = cluster.getDimensionValue(1) * cluster.numPoints;
-            wx += c.getDimensionValue(0) * (c.numPoints==0?1:c.numPoints);
-            wy += c.getDimensionValue(1) * (c.numPoints==0?1:c.numPoints);
+            double wx = cluster.getX() * cluster.numPoints;
+            double wy = cluster.getY() * cluster.numPoints;
+            wx += c.getX() * (c.numPoints==0?1:c.numPoints);
+            wy += c.getY() * (c.numPoints==0?1:c.numPoints);
             cluster.numPoints = cluster.numPoints + (c.numPoints==0?1:c.numPoints);
-            cluster.setDimensionValue(0, wx / cluster.numPoints);
-            cluster.setDimensionValue(1, wy / cluster.numPoints);
+            cluster.setX(wx / cluster.numPoints);
+            cluster.setY(wy / cluster.numPoints);
             // merge c's children into cluster's children too
             if (zoom < maxZoom) {
                 cluster.children.addAll(c.children);
                 for (Cluster child: c.children) {
-                    child.parentId = cluster.id;
+                    child.parentId = cluster.getId();
                     child.parent = cluster;
                 }
             }
@@ -285,15 +282,15 @@ public class BiSuperCluster extends SuperCluster {
         if (keepTiming) MyTimer.startTimer();
         if (c1.numPoints == 0) {
             c1.numPoints = 1;
-            c1.id = (c1.id << 5) + (maxZoom + 1);
+            c1.setId((c1.getId() << 5) + (maxZoom + 1));
         }
-        double wx = c1.getDimensionValue(0) * c1.numPoints;
-        double wy = c1.getDimensionValue(1) * c1.numPoints;
-        wx += c2.getDimensionValue(0) * (c2.numPoints==0?1:c2.numPoints);
-        wy += c2.getDimensionValue(1) * (c2.numPoints==0?1:c2.numPoints);
+        double wx = c1.getX() * c1.numPoints;
+        double wy = c1.getY() * c1.numPoints;
+        wx += c2.getX() * (c2.numPoints==0?1:c2.numPoints);
+        wy += c2.getY() * (c2.numPoints==0?1:c2.numPoints);
         c1.numPoints = c1.numPoints + (c2.numPoints==0?1:c2.numPoints);
-        c1.setDimensionValue(0, wx / c1.numPoints);
-        c1.setDimensionValue(1, wy / c1.numPoints);
+        c1.setX(wx / c1.numPoints);
+        c1.setY(wy / c1.numPoints);
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) {
             if (timing.containsKey("mergeCalculation")) {
@@ -346,8 +343,8 @@ public class BiSuperCluster extends SuperCluster {
         int i = 0;
         for (Advocator advocator: advocators) {
             Cluster cluster = advocator.cluster.clone();
-            cluster.setDimensionValue(0, xLng(cluster.getDimensionValue(0)));
-            cluster.setDimensionValue(1, yLat(cluster.getDimensionValue(1)));
+            cluster.setX(xLng(cluster.getX()));
+            cluster.setY(yLat(cluster.getY()));
             clusters[i] = cluster;
             i ++;
         }
@@ -390,8 +387,8 @@ public class BiSuperCluster extends SuperCluster {
             // shift the advocator "from"'s location to the centroid of cluster c
             //TODO - use a index structure that support update location to handle the position shift
             this.advocatorsTrees[zoom].delete(from);
-            from.setDimensionValue(0, c.getDimensionValue(0));
-            from.setDimensionValue(1, c.getDimensionValue(1));
+            from.setX(c.getX());
+            from.setY(c.getY());
             this.advocatorsTrees[zoom].insert(from);
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
@@ -412,8 +409,8 @@ public class BiSuperCluster extends SuperCluster {
             for (Cluster s: toSplit) {
                 split(c.parent, s, zoom - 1);
 
-                Cluster parent = createCluster(s.getDimensionValue(0), s.getDimensionValue(1), s.id, s.numPoints);
-                s.parentId = parent.id;
+                Cluster parent = createCluster(s.getX(), s.getY(), s.getId(), s.numPoints);
+                s.parentId = parent.getId();
                 s.parent = parent;
                 parent.children.add(s);
                 parent.advocatorCluster = s;
@@ -424,8 +421,8 @@ public class BiSuperCluster extends SuperCluster {
         else {
             split(c.parent, c, zoom - 1);
 
-            Cluster parent = createCluster(c.getDimensionValue(0), c.getDimensionValue(1), c.id, c.numPoints);
-            c.parentId = parent.id;
+            Cluster parent = createCluster(c.getX(), c.getY(), c.getId(), c.numPoints);
+            c.parentId = parent.getId();
             c.parent = parent;
             parent.children.add(c);
             parent.advocatorCluster = c;
@@ -484,7 +481,7 @@ public class BiSuperCluster extends SuperCluster {
             if (curr.parent != null) {
                 Cluster currParent = curr.parent;
                 if (currParent.advocator != null) {
-                    if (currParent.advocator.id <= c.parent.advocator.id) {
+                    if (currParent.advocator.getId() <= c.parent.advocator.getId()) {
                         iter.remove();
                     }
                 }
@@ -597,13 +594,13 @@ public class BiSuperCluster extends SuperCluster {
             }
 
             if (keepTiming) MyTimer.startTimer();
-            double wx = c1.getDimensionValue(0) * c1.numPoints;
-            double wy = c1.getDimensionValue(1) * c1.numPoints;
-            wx -= c2.getDimensionValue(0) * (c2.numPoints == 0 ? 1 : c2.numPoints);
-            wy -= c2.getDimensionValue(1) * (c2.numPoints == 0 ? 1 : c2.numPoints);
+            double wx = c1.getX() * c1.numPoints;
+            double wy = c1.getY() * c1.numPoints;
+            wx -= c2.getX() * (c2.numPoints == 0 ? 1 : c2.numPoints);
+            wy -= c2.getY() * (c2.numPoints == 0 ? 1 : c2.numPoints);
             c1.numPoints = c1.numPoints - (c2.numPoints == 0 ? 1 : c2.numPoints);
-            c1.setDimensionValue(0, wx / c1.numPoints);
-            c1.setDimensionValue(1, wy / c1.numPoints);
+            c1.setX(wx / c1.numPoints);
+            c1.setY(wy / c1.numPoints);
             c1.children.remove(c2);
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {

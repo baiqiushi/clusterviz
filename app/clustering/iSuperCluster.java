@@ -26,22 +26,13 @@ public class iSuperCluster extends SuperCluster {
     Map<String, Double> timing = new HashMap<>();
     //-Timing-//
 
-    public iSuperCluster() {
-        this.trees = new KDTree[maxZoom + 1];
-        this.clusters = new Cluster[maxZoom + 1][];
-        this.maxZoomClusters = new ArrayList<>();
-        this.advocatorsTree = new KDTree<>(K);
-        this.pointIdSeq = 0;
-        this.advocatorSeq = 0;
-    }
-
     public iSuperCluster(int _minZoom, int _maxZoom, boolean _analysis) {
         this.minZoom = _minZoom;
         this.maxZoom = _maxZoom;
         this.trees = new KDTree[maxZoom + 1];
         this.clusters = new Cluster[maxZoom + 1][];
         this.maxZoomClusters = new ArrayList<>();
-        this.advocatorsTree = new KDTree<>(K);
+        this.advocatorsTree = new KDTree<>();
         this.pointIdSeq = 0;
         this.advocatorSeq = 0;
         this.keepPoints = _analysis;
@@ -56,7 +47,7 @@ public class iSuperCluster extends SuperCluster {
         if (keepTiming) MyTimer.startTimer();
         // merge all points into the maxZoom level clusters
         for (int i = 0; i < points.length; i ++) {
-            mergePoint(createPointCluster(points[i], this.pointIdSeq ++));
+            mergePoint(createPointCluster(points[i][0], points[i][1], this.pointIdSeq ++));
         }
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) {
@@ -73,7 +64,7 @@ public class iSuperCluster extends SuperCluster {
         for (int i = 0; i < clusters.length; i ++) {
             clusters[i].zoom = Integer.MAX_VALUE;
         }
-        this.trees[maxZoom] = new KDTree<>(K);
+        this.trees[maxZoom] = new KDTree<>();
         this.trees[maxZoom].load(clusters);
         this.clusters[maxZoom] = clusters;
 
@@ -82,7 +73,7 @@ public class iSuperCluster extends SuperCluster {
             // create a new set of clusters for the zoom and index them with a KD-tree
             clusters = this._clusters(clusters, z);
 
-            this.trees[z] = new KDTree<>(K);
+            this.trees[z] = new KDTree<>();
             this.trees[z].load(clusters);
             this.clusters[z] = clusters;
         }
@@ -128,11 +119,8 @@ public class iSuperCluster extends SuperCluster {
         // if no group could be merged into, become a new Advocator itself
         if (advocators.isEmpty()) {
             if (keepTiming) MyTimer.startTimer();
-            Advocator newAdvocator = new Advocator(K);
-            newAdvocator.id = advocatorSeq ++;
+            Advocator newAdvocator = new Advocator(c.getX(), c.getY(), advocatorSeq ++);
             newAdvocator.cluster = c;
-            newAdvocator.setDimensionValue(0, c.getDimensionValue(0));
-            newAdvocator.setDimensionValue(1, c.getDimensionValue(1));
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
                 if (timing.containsKey("mergePoint.createAdvocator")) {
@@ -163,7 +151,7 @@ public class iSuperCluster extends SuperCluster {
                 if (earliestAdvocator == null) {
                     earliestAdvocator = advocator;
                 }
-                else if (earliestAdvocator.id > advocator.id) {
+                else if (earliestAdvocator.getId() > advocator.getId()) {
                     earliestAdvocator = advocator;
                 }
             }
@@ -187,42 +175,42 @@ public class iSuperCluster extends SuperCluster {
                 if (keepPoints) {
                     // keep previous single point cluster as a new child point
                     Cluster point = cluster.clone();
-                    double wx = (cluster.getDimensionValue(0) + c.getDimensionValue(0)) / 2.0;
-                    double wy = (cluster.getDimensionValue(1) + c.getDimensionValue(1)) / 2.0;
-                    cluster.setDimensionValue(0, wx);
-                    cluster.setDimensionValue(1, wy);
+                    double wx = (cluster.getX() + c.getX()) / 2.0;
+                    double wy = (cluster.getY() + c.getY()) / 2.0;
+                    cluster.setX(wx);
+                    cluster.setY(wy);
                     cluster.numPoints = 2;
-                    cluster.id = (cluster.id << 5) + (maxZoom + 1);
+                    cluster.setId((cluster.getId() << 5) + (maxZoom + 1));
                     cluster.children.add(point);
                     cluster.children.add(c);
-                    point.parentId = cluster.id;
-                    c.parentId = cluster.id;
+                    point.parentId = cluster.getId();
+                    c.parentId = cluster.getId();
                 }
                 // just merge this point into cluster
                 else {
-                    double wx = (cluster.getDimensionValue(0) + c.getDimensionValue(0)) / 2.0;
-                    double wy = (cluster.getDimensionValue(1) + c.getDimensionValue(1)) / 2.0;
-                    cluster.setDimensionValue(0, wx);
-                    cluster.setDimensionValue(1, wy);
+                    double wx = (cluster.getX() + c.getX()) / 2.0;
+                    double wy = (cluster.getY() + c.getY()) / 2.0;
+                    cluster.setX(wx);
+                    cluster.setY(wy);
                     cluster.numPoints = 2;
-                    cluster.id = (cluster.id << 5) + (maxZoom + 1);
+                    cluster.setId((cluster.getId() << 5) + (maxZoom + 1));
                 }
             }
             // this advocator's attached point is already a cluster,
             // calculate the new weighted x and y
             else {
-                double wx = cluster.getDimensionValue(0) * cluster.numPoints;
-                double wy = cluster.getDimensionValue(1) * cluster.numPoints;
-                wx += c.getDimensionValue(0);
-                wy += c.getDimensionValue(1);
+                double wx = cluster.getX() * cluster.numPoints;
+                double wy = cluster.getY() * cluster.numPoints;
+                wx += c.getX();
+                wy += c.getY();
                 cluster.numPoints = cluster.numPoints + 1;
-                cluster.setDimensionValue(0, wx / cluster.numPoints);
-                cluster.setDimensionValue(1, wy / cluster.numPoints);
+                cluster.setX( wx / cluster.numPoints);
+                cluster.setY(wy / cluster.numPoints);
                 // only if keepPoints switch turned on, store children as the raw data points
                 if (keepPoints) {
                     cluster.children.add(c);
                     c.expansionZoom = maxZoom + 1;
-                    c.parentId = cluster.id;
+                    c.parentId = cluster.getId();
                 }
             }
             if (keepTiming) MyTimer.stopTimer();

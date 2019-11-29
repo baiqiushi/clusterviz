@@ -30,14 +30,14 @@ public class ClusteringTime {
                 PointTuple[] pointTuples = postgreSQL.queryPointTuplesForLimit(scales[k]);
                 int length = pointTuples.length;
                 for (int i = 0; i < length; i++) {
-                    pointTuples[i].id = i;
+                    pointTuples[i].setId(i);
                 }
 
                 // 2) Compose the input points array
                 double[][] points = new double[length][2];
                 for (int i = 0; i < length; i++) {
-                    points[i][0] = pointTuples[i].getDimensionValue(0);
-                    points[i][1] = pointTuples[i].getDimensionValue(1);
+                    points[i][0] = pointTuples[i].getX();
+                    points[i][1] = pointTuples[i].getY();
                 }
 
                 // 3) Load the points into SuperCluster
@@ -71,14 +71,14 @@ public class ClusteringTime {
             PointTuple[] pointTuples = postgreSQL.queryPointTuplesForLimit(limit);
             int length = pointTuples.length;
             for (int i = 0; i < length; i++) {
-                pointTuples[i].id = i;
+                pointTuples[i].setId(i);
             }
 
             // 2) Compose the input points array
             double[][] points = new double[length][2];
             for (int i = 0; i < length; i++) {
-                points[i][0] = pointTuples[i].getDimensionValue(0);
-                points[i][1] = pointTuples[i].getDimensionValue(1);
+                points[i][0] = pointTuples[i].getX();
+                points[i][1] = pointTuples[i].getY();
             }
 
             // 3) Load the points into SuperCluster

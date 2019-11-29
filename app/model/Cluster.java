@@ -18,8 +18,8 @@ public class Cluster extends Point {
     // flag is true when this cluster has been deleted from its level's tree
     public boolean dirty = false;
 
-    public Cluster(int k) {
-        super(k);
+    public Cluster(double _x, double _y, int _id) {
+        super(_x, _y, _id);
     }
 
     public String toString() {
@@ -30,7 +30,11 @@ public class Cluster extends Point {
                 ", expansionZoom: " + expansionZoom +
                 ", parentId: " + parentId +
                 ", coordinates: ");
-        sb.append(super.toString());
+        sb.append("(");
+        sb.append(x);
+        sb.append(",");
+        sb.append(y);
+        sb.append(")");
         sb.append(", childrenSize: " + children.size());
         if (parent != null) {
             sb.append(", parent: " + parent.id);
@@ -46,15 +50,14 @@ public class Cluster extends Point {
     }
 
     public Cluster clone() {
-        Cluster to = new Cluster(this.k);
-        to.setDimensionValue(0, this.getDimensionValue(0));
-        to.setDimensionValue(1, this.getDimensionValue(1));
-        to.id = this.id;
+        Cluster to = new Cluster(this.x, this.y, this.id);
+        // copy values
         to.numPoints = this.numPoints;
-        to.children = this.children;
         to.parentId = this.parentId;
         to.zoom = this.zoom;
         to.expansionZoom = this.expansionZoom;
+        // copy handles only
+        to.children = this.children;
         to.parent = this.parent;
         to.advocator = this.advocator;
         to.advocatorCluster = this.advocatorCluster;

@@ -10,8 +10,8 @@ public class PointTuple extends Point {
     public long tid; // tuple id of point in database, different from point.id
     public Date timestamp;
 
-    public PointTuple(int k) {
-        super(k);
+    public PointTuple() {
+        super();
     }
 
     public String toString() {
@@ -27,23 +27,23 @@ public class PointTuple extends Point {
         return new Comparator<PointTuple> () {
             @Override
             public int compare(PointTuple p1, PointTuple p2) {
-                if (p1.getDimensionValue(0) == p2.getDimensionValue(0)
-                        && p1.getDimensionValue(1) == p2.getDimensionValue(1)) {
+                if (p1.getX() == p2.getX()
+                        && p1.getY() == p2.getY()) {
                     return 0;
-                } else if (p1.getDimensionValue(0) == p2.getDimensionValue(0)) {
-                    if (p1.getDimensionValue(1) < p2.getDimensionValue(1)) {
+                } else if (p1.getX() == p2.getX()) {
+                    if (p1.getY() < p2.getY()) {
                         return -1;
                     } else {
                         return 1;
                     }
-                } else if (p1.getDimensionValue(1) == p2.getDimensionValue(1)) {
-                    if (p1.getDimensionValue(0) < p2.getDimensionValue(0)) {
+                } else if (p1.getY() == p2.getY()) {
+                    if (p1.getX() < p2.getX()) {
                         return -1;
                     } else {
                         return 1;
                     }
                 } else {
-                    if (p1.getDimensionValue(0) < p2.getDimensionValue(0)) {
+                    if (p1.getX() < p2.getX()) {
                         return -1;
                     } else {
                         return 1;
@@ -58,23 +58,23 @@ public class PointTuple extends Point {
         return new Comparator<PointTuple> () {
             @Override
             public int compare(PointTuple p1, PointTuple p2) {
-                if (p1.getDimensionValue(0) == p2.getDimensionValue(0)
-                        && p1.getDimensionValue(1) == p2.getDimensionValue(1)) {
+                if (p1.getX() == p2.getX()
+                        && p1.getY() == p2.getY()) {
                     return 0;
-                } else if (p1.getDimensionValue(0) == p2.getDimensionValue(0)) {
-                    if (p1.getDimensionValue(1) < p2.getDimensionValue(1)) {
+                } else if (p1.getX() == p2.getX()) {
+                    if (p1.getY() < p2.getY()) {
                         return 1;
                     } else {
                         return -1;
                     }
-                } else if (p1.getDimensionValue(1) == p2.getDimensionValue(1)) {
-                    if (p1.getDimensionValue(0) < p2.getDimensionValue(0)) {
+                } else if (p1.getY() == p2.getY()) {
+                    if (p1.getX() < p2.getX()) {
                         return 1;
                     } else {
                         return -1;
                     }
                 } else {
-                    if (p1.getDimensionValue(0) < p2.getDimensionValue(0)) {
+                    if (p1.getX() < p2.getX()) {
                         return 1;
                     } else {
                         return -1;

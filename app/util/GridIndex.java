@@ -25,7 +25,7 @@ import java.util.Set;
  *                index = j * m + i;
  *
  */
-public class GridIndex implements I2DIndex {
+public class GridIndex implements I2DIndex<I2DPoint> {
 
     class Grid {
         List<I2DPoint> points;

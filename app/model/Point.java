@@ -1,92 +1,75 @@
 package model;
 
+import util.I2DPoint;
 
-import util.IKDPoint;
+public class Point implements I2DPoint {
+    double x;
+    double y;
+    int id;
 
-public class Point implements IKDPoint {
-    int k;
-    double[] values;
-    public int id;
-
-    public Point(int k) {
-        this.k = k;
-        this.values = new double[k];
+    public Point() {
+        x = 0.0;
+        y = 0.0;
+        id = -1;
     }
 
-    public double getDimensionValue(int i) {
-        return values[i];
+    public Point(double _x, double _y, int _id) {
+        x = _x;
+        y = _y;
+        id = _id;
     }
 
-    public void setDimensionValue(int i, double value) {
-        this.values[i] = value;
+    public double getX() {
+        return x;
     }
 
-    public boolean equalsTo(IKDPoint y) {
-        Point py = (Point) y;
-        boolean equal = true;
-        for (int i = 0; i < this.k; i ++) {
-            if (this.values[i] != py.getDimensionValue(i)) {
-                equal = false;
-                break;
-            }
-        }
-        return equal;
+    public double getY() {
+        return y;
     }
 
-    public double distanceTo(IKDPoint y) {
-        double distance = 0.0;
-        Point py = (Point) y;
-        for (int i = 0; i < this.k; i ++) {
-            distance += Math.pow(this.values[i] - py.getDimensionValue(i), 2);
-        }
-        distance = Math.sqrt(distance);
-        return distance;
+    public void setX(double _x) {
+        x = _x;
+    }
+
+    public void setY(double _y) {
+        y = _y;
+    }
+
+    public boolean equalsTo(I2DPoint p2) {
+        if (x == p2.getX() && y == p2.getY()) return true;
+        else return false;
+    }
+
+    public double distanceTo(I2DPoint p2) {
+        return Math.sqrt(Math.pow(x - p2.getX(), 2) + Math.pow(y - p2.getY(), 2));
     }
 
 
-    public boolean leftTo(IKDPoint y) {
-        Point py = (Point) y;
-        boolean left = true;
-        for (int i = 0; i < this.k; i ++) {
-            if (this.values[i] >= py.getDimensionValue(i)) {
-                left = false;
-                break;
-            }
-        }
-        return left;
+    public boolean leftBelow(I2DPoint p2) {
+        if (x < p2.getX() && y < p2.getY()) return true;
+        else return false;
     }
 
-    public boolean rightTo(IKDPoint y) {
-        Point py = (Point) y;
-        boolean right = true;
-        for (int i = 0; i < this.k; i ++) {
-            if (this.values[i] <= py.getDimensionValue(i)) {
-                right = false;
-                break;
-            }
-        }
-        return right;
+    public boolean rightAbove(I2DPoint p2) {
+        if (x > p2.getX() && y > p2.getY()) return true;
+        else return false;
     }
 
-    @Override
-    public IKDPoint clone() {
-        IKDPoint copy = new Point(k);
-        copy.setId(id);
-        for (int i = 0; i < k; i ++) {
-            copy.setDimensionValue(i, this.getDimensionValue(i));
-        }
+    public I2DPoint clone() {
+        I2DPoint copy = new Point(x, y, id);
         return copy;
     }
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("[");
-        for (int i = 0; i < k; i ++) {
-            if (i > 0) {
-                sb.append(", ");
-            }
-            sb.append(values[i]);
-        }
+        sb.append(id);
+        sb.append(":");
+        sb.append("(");
+        sb.append(x);
+        sb.append(",");
+        sb.append(y);
+        sb.append(")");
         sb.append("]");
         return sb.toString();
     }

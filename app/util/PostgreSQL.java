@@ -59,10 +59,10 @@ public class PostgreSQL {
                 Double x = rs.getDouble(2);
                 Double y = rs.getDouble(3);
                 long tid = rs.getLong(4);
-                PointTuple pt = new PointTuple(2);
+                PointTuple pt = new PointTuple();
                 pt.timestamp = create_at;
-                pt.setDimensionValue(0, x);
-                pt.setDimensionValue(1, y);
+                pt.setX(x);
+                pt.setY(y);
                 pt.tid = tid;
                 result.add(pt);
             }
@@ -100,10 +100,10 @@ public class PostgreSQL {
                 Double x = rs.getDouble(2);
                 Double y = rs.getDouble(3);
                 long tid = rs.getLong(4);
-                PointTuple pt = new PointTuple(2);
+                PointTuple pt = new PointTuple();
                 pt.timestamp = create_at;
-                pt.setDimensionValue(0, x);
-                pt.setDimensionValue(1, y);
+                pt.setX(x);
+                pt.setY(y);
                 pt.tid = tid;
                 result.add(pt);
             }
@@ -140,10 +140,10 @@ public class PostgreSQL {
                 Double x = rs.getDouble(2);
                 Double y = rs.getDouble(3);
                 long tid = rs.getLong(4);
-                PointTuple pt = new PointTuple(2);
+                PointTuple pt = new PointTuple();
                 pt.timestamp = create_at;
-                pt.setDimensionValue(0, x);
-                pt.setDimensionValue(1, y);
+                pt.setX(x);
+                pt.setY(y);
                 pt.tid = tid;
                 result.add(pt);
             }
@@ -177,10 +177,10 @@ public class PostgreSQL {
                 Double x = rs.getDouble(2);
                 Double y = rs.getDouble(3);
                 long tid = rs.getLong(4);
-                PointTuple pt = new PointTuple(2);
+                PointTuple pt = new PointTuple();
                 pt.timestamp = create_at;
-                pt.setDimensionValue(0, x);
-                pt.setDimensionValue(1, y);
+                pt.setX(x);
+                pt.setY(y);
                 pt.tid = tid;
                 result.add(pt);
             }

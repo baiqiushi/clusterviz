@@ -35,7 +35,7 @@ public class AiSuperCluster extends SuperCluster {
         this.advocatorSeq = 0;
 
         for (int i = 0; i <= maxZoom; i ++) {
-            this.advocatorsTrees[i] = new KDTree<>(K);
+            this.advocatorsTrees[i] = new KDTree<>();
             this.advocatorClusters[i] = new ArrayList<>();
         }
     }
@@ -50,7 +50,7 @@ public class AiSuperCluster extends SuperCluster {
         this.keepLabels = _analysis;
 
         for (int i = 0; i <= maxZoom; i ++) {
-            this.advocatorsTrees[i] = new KDTree<>(K);
+            this.advocatorsTrees[i] = new KDTree<>();
             this.advocatorClusters[i] = new ArrayList<>();
         }
     }
@@ -66,7 +66,7 @@ public class AiSuperCluster extends SuperCluster {
             if (keepLabels) {
                 this.labels.add(new int[maxZoom + 1]);
             }
-            insert(createPointCluster(points[i], this.pointIdSeq ++), maxZoom);
+            insert(createPointCluster(points[i][0], points[i][1], this.pointIdSeq ++), maxZoom);
         }
 
         long end = System.nanoTime();
@@ -104,11 +104,8 @@ public class AiSuperCluster extends SuperCluster {
         // if no group could be merged into, become a new Advocator itself
         if (advocators.isEmpty()) {
             if (keepTiming) MyTimer.startTimer();
-            Advocator newAdvocator = new Advocator(K);
-            newAdvocator.id = advocatorSeq ++;
+            Advocator newAdvocator = new Advocator(c.getX(), c.getY(), advocatorSeq ++);
             newAdvocator.cluster = c;
-            newAdvocator.setDimensionValue(0, c.getDimensionValue(0));
-            newAdvocator.setDimensionValue(1, c.getDimensionValue(1));
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
                 if (timing.containsKey("createAdvocator")) {
@@ -130,13 +127,13 @@ public class AiSuperCluster extends SuperCluster {
             this.advocatorClusters[zoom].add(c);
 
             if (keepLabels) {
-                this.labels.get(c.id)[zoom] = c.id;
+                this.labels.get(c.getId())[zoom] = c.getId();
             }
 
             // insert this cluster into lower level
             if (zoom >= 1) {
-                Cluster parent = createCluster(c.getDimensionValue(0), c.getDimensionValue(1), c.id, 0);
-                c.parentId = parent.id;
+                Cluster parent = createCluster(c.getX(), c.getY(), c.getId(), 0);
+                c.parentId = parent.getId();
                 c.parent = parent;
                 /** in AiSuperCluster Class, use Cluster.children to store direct descendants pointers */
                 parent.children.add(c);
@@ -152,7 +149,7 @@ public class AiSuperCluster extends SuperCluster {
                 if (earliestAdvocator == null) {
                     earliestAdvocator = advocator;
                 }
-                else if (earliestAdvocator.id > advocator.id) {
+                else if (earliestAdvocator.getId() > advocator.getId()) {
                     earliestAdvocator = advocator;
                 }
             }
@@ -170,20 +167,20 @@ public class AiSuperCluster extends SuperCluster {
             Cluster cluster = earliestAdvocator.cluster;
             if (cluster.numPoints == 0) {
                 cluster.numPoints = 1;
-                cluster.id = (cluster.id << 5) + (maxZoom + 1);
+                cluster.setId((cluster.getId() << 5) + (maxZoom + 1));
             }
-            double wx = cluster.getDimensionValue(0) * cluster.numPoints;
-            double wy = cluster.getDimensionValue(1) * cluster.numPoints;
-            wx += c.getDimensionValue(0);
-            wy += c.getDimensionValue(1);
+            double wx = cluster.getX() * cluster.numPoints;
+            double wy = cluster.getY() * cluster.numPoints;
+            wx += c.getX();
+            wy += c.getY();
             cluster.numPoints = cluster.numPoints + 1;
-            cluster.setDimensionValue(0, wx / cluster.numPoints);
-            cluster.setDimensionValue(1, wy / cluster.numPoints);
+            cluster.setX(wx / cluster.numPoints);
+            cluster.setY(wy / cluster.numPoints);
             // merge c's children into cluster's children too
             if (zoom < maxZoom) {
                 cluster.children.addAll(c.children);
                 for (Cluster child: c.children) {
-                    child.parentId = cluster.id;
+                    child.parentId = cluster.getId();
                     child.parent = cluster;
                 }
             }
@@ -204,7 +201,7 @@ public class AiSuperCluster extends SuperCluster {
             }
 
             if (keepLabels) {
-                this.labels.get(c.id)[zoom] = cluster.id;
+                this.labels.get(c.getId())[zoom] = cluster.getId();
             }
         }
     }
@@ -212,15 +209,15 @@ public class AiSuperCluster extends SuperCluster {
     private void merge(Cluster c1, Cluster c2) {
         if (c1.numPoints == 0) {
             c1.numPoints = 1;
-            c1.id = (c1.id << 5) + (maxZoom + 1);
+            c1.setId((c1.getId() << 5) + (maxZoom + 1));
         }
-        double wx = c1.getDimensionValue(0) * c1.numPoints;
-        double wy = c1.getDimensionValue(1) * c1.numPoints;
-        wx += c2.getDimensionValue(0);
-        wy += c2.getDimensionValue(1);
+        double wx = c1.getX() * c1.numPoints;
+        double wy = c1.getY() * c1.numPoints;
+        wx += c2.getX();
+        wy += c2.getY();
         c1.numPoints = c1.numPoints + 1;
-        c1.setDimensionValue(0, wx / c1.numPoints);
-        c1.setDimensionValue(1, wy / c1.numPoints);
+        c1.setX(wx / c1.numPoints);
+        c1.setY(wy / c1.numPoints);
     }
 
     /**
@@ -257,8 +254,8 @@ public class AiSuperCluster extends SuperCluster {
         int i = 0;
         for (Advocator advocator: advocators) {
             Cluster cluster = advocator.cluster.clone();
-            cluster.setDimensionValue(0, xLng(cluster.getDimensionValue(0)));
-            cluster.setDimensionValue(1, yLat(cluster.getDimensionValue(1)));
+            cluster.setX(xLng(cluster.getX()));
+            cluster.setY(yLat(cluster.getY()));
             clusters[i] = cluster;
             i ++;
         }
