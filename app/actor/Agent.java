@@ -14,10 +14,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.typesafe.config.Config;
 import model.*;
 import play.libs.Json;
-import util.MyTimer;
-import util.MyLogger;
-import util.PostgreSQL;
-import util.RandIndex;
+import util.*;
 
 import javax.inject.Inject;
 import java.text.DateFormat;
@@ -83,6 +80,17 @@ public class Agent extends AbstractActor {
         this.intervalDays = this.config.getInt("progressive.interval");
         this.minZoom = this.config.getInt("cluster.min_zoom");
         this.maxZoom = this.config.getInt("cluster.max_zoom");
+
+        // initialize constants
+        Constants.MIN_LONGITUDE = config.getDouble("data.minLng");
+        Constants.MIN_LATITUDE = config.getDouble("data.minLat");
+        Constants.MAX_LONGITUDE = config.getDouble("data.maxLng");
+        Constants.MAX_LATITUDE = config.getDouble("data.maxLat");
+
+        Constants.MIN_X = SuperCluster.lngX(Constants.MIN_LONGITUDE);
+        Constants.MIN_Y = SuperCluster.latY(Constants.MAX_LATITUDE); // latitude -> x is reversed than geo coordinates
+        Constants.MAX_X = SuperCluster.lngX(Constants.MAX_LONGITUDE);
+        Constants.MAX_Y = SuperCluster.latY(Constants.MIN_LATITUDE); // latitude -> x is reversed than geo coordinates
     }
 
     public static Props getProps() {
@@ -475,13 +483,6 @@ public class Agent extends AbstractActor {
                         break;
                     default:
                         cluster = new SuperCluster(this.minZoom, this.maxZoom, indexType);
-                        if (indexType.equalsIgnoreCase("GridIndex")) {
-                            double minLng = config.getDouble("cluster.minLng");
-                            double minLat = config.getDouble("cluster.minLat");
-                            double maxLng = config.getDouble("cluster.maxLng");
-                            double maxLat = config.getDouble("cluster.maxLat");
-                            cluster.setDomain(minLng, minLat, maxLng, maxLat);
-                        }
                 }
                 superClusters.put(clusterKey, cluster);
                 superClustersHits.put(clusterKey, 0);

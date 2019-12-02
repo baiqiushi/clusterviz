@@ -1,25 +1,19 @@
 package clustering;
 
 import model.Cluster;
-import util.GridIndex;
-import util.I2DIndex;
-import util.KDTree;
+import util.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class SuperCluster {
 
-    int minZoom = 0; // min zoom to generate clusters on
-    int maxZoom = 17; // max zoom level to cluster the points on
+    int minZoom; // min zoom to generate clusters on
+    int maxZoom; // max zoom level to cluster the points on
     int radius = 40; // cluster radius in pixels
     int extent = 256;  // tile extent (radius is calculated relative to it)
     int totalNumberOfPoints = 0;
-    double minX;
-    double minY;
-    double maxX;
-    double maxY;
-    String indexType = "KDTree"; // KDTree / GridIndex
+    String indexType; // KDTree / GridIndex
     I2DIndex<Cluster>[] indexes;
     Cluster[][] clusters;
 
@@ -33,38 +27,18 @@ public class SuperCluster {
     }
 
     public SuperCluster() {
-        this(0, 17, "KDTree");
+        this(Constants.DEFAULT_MIN_ZOOM, Constants.DEFAULT_MAX_ZOOM, Constants.DEFAULT_INDEX_TYPE);
     }
 
     public SuperCluster(int _minZoom, int _maxZoom, String _indexType) {
         this.minZoom = _minZoom;
         this.maxZoom = _maxZoom;
-        switch (_indexType) {
-            case "GridIndex":
-                System.out.println("[SuperCluster] is using [GridIndex] as spatial index data structure.");
-                this.indexes = new GridIndex[maxZoom + 2];
-                this.indexType = _indexType;
-                break;
-            case "KDTree":
-                System.out.println("[SuperCluster] is using [KDTree] as spatial index data structure.");
-                this.indexes = new KDTree[maxZoom + 2];
-                this.indexType = _indexType;
-                break;
-            default:
-                this.indexes = new KDTree[maxZoom + 2];
-                this.indexType = "KDTree";
-                break;
-        }
+
+        this.indexType = _indexType;
+        this.indexes = IndexCreator.createIndexArray(this.indexType, maxZoom + 2);
 
         this.clusters = new Cluster[maxZoom + 2][];
         this.initRadiuses();
-    }
-
-    public void setDomain(double _minLng, double _minLat, double _maxLng, double _maxLat) {
-        this.minX = lngX(_minLng);
-        this.minY = latY(_maxLat); // latitude -> x is reversed than geo coordinates
-        this.maxX = lngX(_maxLng);
-        this.maxY = latY(_minLat); // latitude -> x is reversed than geo coordinates
     }
 
     /**
@@ -80,14 +54,7 @@ public class SuperCluster {
         for (int i = 0; i < points.length; i ++) {
             clusters[i] = createPointCluster(points[i][0], points[i][1], i);
         }
-        switch (this.indexType) {
-            case "GridIndex":
-                this.indexes[maxZoom + 1] = new GridIndex<>(this.minX, this.minY, this.maxX, this.maxY, getRadius(maxZoom));
-                break;
-            case "KDTree":
-                this.indexes[maxZoom + 1] = new KDTree<>();
-                break;
-        }
+        this.indexes[maxZoom + 1] = IndexCreator.createIndex(this.indexType, getRadius(maxZoom));
         this.indexes[maxZoom + 1].load(clusters);
         this.clusters[maxZoom + 1] = clusters;
 
@@ -96,16 +63,7 @@ public class SuperCluster {
         for (int z = maxZoom; z >= minZoom; z --) {
             // create a new set of clusters for the zoom and index them with a KD-tree
             clusters = this._clusters(clusters, z);
-
-            switch (this.indexType) {
-                case "GridIndex":
-                    this.indexes[z] = new GridIndex<>(this.minX, this.minY, this.maxX, this.maxY, getRadius(z - 1 >= 0? z - 1: 0));
-                    break;
-                case "KDTree":
-                    this.indexes[z] = new KDTree<>();
-                    break;
-            }
-
+            this.indexes[z] = IndexCreator.createIndex(this.indexType, getRadius(z - 1 >= 0? z - 1: 0));
             this.indexes[z].load(clusters);
             this.clusters[z] = clusters;
         }

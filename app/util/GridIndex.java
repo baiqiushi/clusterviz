@@ -38,6 +38,10 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
 
     private List<PointType>[][] grids;
 
+    public GridIndex(double step) {
+        this(Constants.MIN_X, Constants.MIN_Y, Constants.MAX_X, Constants.MAX_Y, step);
+    }
+
     public GridIndex(double left, double bottom, double right, double top, double step) {
 
         this.minX = left;
