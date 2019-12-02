@@ -189,7 +189,8 @@ public class Agent extends AbstractActor {
                 }
 
                 String clusterOrder = query.order == null ? "original" : query.order;
-                success = clusterData(clusterKey, clusterOrder, "SuperCluster", false, false);
+                String indexType = query.indexType == null ? "KDTree" : query.indexType;
+                success = clusterData(clusterKey, clusterOrder, "SuperCluster", indexType, false, false);
                 if (!success) {
                     // TODO - exception
                 }
@@ -277,8 +278,9 @@ public class Agent extends AbstractActor {
             }
 
             String clusterOrder = query.order == null ? "original" : query.order;
+            String indexType = query.indexType == null ? "KDTree" : query.indexType;
             MyTimer.startTimer();
-            success = clusterData(clusterKey, clusterOrder, query.algorithm, deltaOnly, _request.analysis != null);
+            success = clusterData(clusterKey, clusterOrder, query.algorithm, indexType, deltaOnly, _request.analysis != null);
             MyTimer.stopTimer();
             MyTimer.progressTimer.add(MyTimer.durationSeconds());
             if (!success) {
@@ -432,7 +434,7 @@ public class Agent extends AbstractActor {
      * @param analysis - true - if we need to analysis the rand-index of clustering results, false - otherwise
      * @return
      */
-    private boolean clusterData(String clusterKey, String clusterOrder, String algorithm, boolean deltaOnly, boolean analysis) {
+    private boolean clusterData(String clusterKey, String clusterOrder, String algorithm, String indexType, boolean deltaOnly, boolean analysis) {
         double[][] points = orderPoints(clusterKey, clusterOrder, deltaOnly);
         if (points == null) {
             return false;
@@ -472,7 +474,14 @@ public class Agent extends AbstractActor {
                         cluster = new BiSuperCluster(this.minZoom, this.maxZoom, analysis);
                         break;
                     default:
-                        cluster = new SuperCluster(this.minZoom, this.maxZoom);
+                        cluster = new SuperCluster(this.minZoom, this.maxZoom, indexType);
+                        if (indexType.equalsIgnoreCase("GridIndex")) {
+                            double minLng = config.getDouble("cluster.minLng");
+                            double minLat = config.getDouble("cluster.minLat");
+                            double maxLng = config.getDouble("cluster.maxLng");
+                            double maxLat = config.getDouble("cluster.maxLat");
+                            cluster.setDomain(minLng, minLat, maxLng, maxLat);
+                        }
                 }
                 superClusters.put(clusterKey, cluster);
                 superClustersHits.put(clusterKey, 0);
@@ -503,7 +512,7 @@ public class Agent extends AbstractActor {
                 else {
                     String clusterKey = _cmd.arguments[0];
                     String clusterOrder = _cmd.arguments[1];
-                    success = clusterData(clusterKey, clusterOrder, "SuperCluster", false, false);
+                    success = clusterData(clusterKey, clusterOrder, "SuperCluster", "KDTree", false, false);
                     if (success) {
                         respond(buildCmdResponse(_request, _cmd.action, "cluster built for key = " + clusterKey + " order = " + clusterOrder, "done"));
                     }

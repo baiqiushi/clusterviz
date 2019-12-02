@@ -48,6 +48,10 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         $scope.query.algorithm = e.algorithm;
       }
 
+      if (e.indexType) {
+        $scope.query.indexType = e.indexType;
+      }
+
       // only send query when comprised query has enough information, i.e. keyword, order, algorithm
       if ($scope.query.keyword && $scope.query.order && $scope.query.algorithm) {
         $scope.query.cluster = $scope.query.keyword + "-" + $scope.query.order + "-" + $scope.query.algorithm;

@@ -41,7 +41,7 @@ public class SuperClusterTest {
             points[i][1] = pointTuples[i].getY();
         }
 
-        SuperCluster superCluster =  new SuperCluster(minZoom, maxZoom);
+        SuperCluster superCluster =  new SuperCluster(minZoom, maxZoom, "KDTree");
         superCluster.load(points);
 
         int zoom = 17;

@@ -29,7 +29,7 @@ public class iSuperCluster extends SuperCluster {
     public iSuperCluster(int _minZoom, int _maxZoom, boolean _analysis) {
         this.minZoom = _minZoom;
         this.maxZoom = _maxZoom;
-        this.trees = new KDTree[maxZoom + 1];
+        this.indexes = new KDTree[maxZoom + 1];
         this.clusters = new Cluster[maxZoom + 1][];
         this.maxZoomClusters = new ArrayList<>();
         this.advocatorsTree = new KDTree<>();
@@ -64,8 +64,8 @@ public class iSuperCluster extends SuperCluster {
         for (int i = 0; i < clusters.length; i ++) {
             clusters[i].zoom = Integer.MAX_VALUE;
         }
-        this.trees[maxZoom] = new KDTree<>();
-        this.trees[maxZoom].load(clusters);
+        this.indexes[maxZoom] = new KDTree<>();
+        this.indexes[maxZoom].load(clusters);
         this.clusters[maxZoom] = clusters;
 
         // cluster the clusters on maxZoom level to form maxZoom-1 level, etc.;
@@ -73,8 +73,8 @@ public class iSuperCluster extends SuperCluster {
             // create a new set of clusters for the zoom and index them with a KD-tree
             clusters = this._clusters(clusters, z);
 
-            this.trees[z] = new KDTree<>();
-            this.trees[z].load(clusters);
+            this.indexes[z] = new KDTree<>();
+            this.indexes[z].load(clusters);
             this.clusters[z] = clusters;
         }
         if (keepTiming) MyTimer.stopTimer();

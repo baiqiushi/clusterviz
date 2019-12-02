@@ -74,13 +74,13 @@ public class InsertionOrders {
         }
 
         // 2-1) Run SuperCluster for all different orders
-        SuperCluster aSuperCluster =  new SuperCluster(minZoom, maxZoom);
+        SuperCluster aSuperCluster =  new SuperCluster(minZoom, maxZoom, "KDTree");
         aSuperCluster.load(aPoints);
-        SuperCluster bSuperCluster = new SuperCluster(minZoom, maxZoom);
+        SuperCluster bSuperCluster = new SuperCluster(minZoom, maxZoom, "KDTree");
         bSuperCluster.load(bPoints);
-        SuperCluster cSuperCluster = new SuperCluster(minZoom, maxZoom);
+        SuperCluster cSuperCluster = new SuperCluster(minZoom, maxZoom, "KDTree");
         cSuperCluster.load(cPoints);
-        SuperCluster dSuperCluster = new SuperCluster(minZoom, maxZoom);
+        SuperCluster dSuperCluster = new SuperCluster(minZoom, maxZoom, "KDTree");
         dSuperCluster.load(dPoints);
 
         // 2-2) Run K-Means for all different orders, k decided by given zoom level's aSuperCluster

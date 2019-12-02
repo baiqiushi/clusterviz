@@ -9,4 +9,5 @@ public class Query {
     public int zoom;
     public double[] bbox; //x0, y0, x1, y1
     public String algorithm; // "SuperCluster"(default) / "SuperClusterInBatch" / "iSuperCluster"
+    public String indexType; // "KDTree"(default) / "GridIndex"
 }
