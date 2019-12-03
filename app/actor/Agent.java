@@ -82,15 +82,17 @@ public class Agent extends AbstractActor {
         this.maxZoom = this.config.getInt("cluster.max_zoom");
 
         // initialize constants
-        Constants.MIN_LONGITUDE = config.getDouble("data.minLng");
-        Constants.MIN_LATITUDE = config.getDouble("data.minLat");
-        Constants.MAX_LONGITUDE = config.getDouble("data.maxLng");
-        Constants.MAX_LATITUDE = config.getDouble("data.maxLat");
+        Constants.MIN_LONGITUDE = this.config.getDouble("data.minLng");
+        Constants.MIN_LATITUDE = this.config.getDouble("data.minLat");
+        Constants.MAX_LONGITUDE = this.config.getDouble("data.maxLng");
+        Constants.MAX_LATITUDE = this.config.getDouble("data.maxLat");
 
         Constants.MIN_X = SuperCluster.lngX(Constants.MIN_LONGITUDE);
         Constants.MIN_Y = SuperCluster.latY(Constants.MAX_LATITUDE); // latitude -> x is reversed than geo coordinates
         Constants.MAX_X = SuperCluster.lngX(Constants.MAX_LONGITUDE);
         Constants.MAX_Y = SuperCluster.latY(Constants.MIN_LATITUDE); // latitude -> x is reversed than geo coordinates
+
+        Constants.MAX_RESOLUTION = this.config.getInt("index.maxResolution");
     }
 
     public static Props getProps() {
@@ -479,7 +481,7 @@ public class Agent extends AbstractActor {
                         break;
                     case "bisupercluster":
                     case "bisc":
-                        cluster = new BiSuperCluster(this.minZoom, this.maxZoom, analysis);
+                        cluster = new BiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
                         break;
                     default:
                         cluster = new SuperCluster(this.minZoom, this.maxZoom, indexType);

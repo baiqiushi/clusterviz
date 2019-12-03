@@ -10,9 +10,9 @@ public interface I2DIndex<PointType> {
 
     void delete(PointType point);
 
-    List<PointType> within(PointType center, double radius);
+    List<PointType> within(I2DPoint center, double radius);
 
-    List<PointType> range(PointType leftBottom, PointType rightTop);
+    List<PointType> range(I2DPoint leftBottom, I2DPoint rightTop);
 
     void print();
 }

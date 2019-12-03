@@ -16,4 +16,6 @@ public class Constants {
     public static double MIN_Y;
     public static double MAX_X;
     public static double MAX_Y;
+
+    public static int MAX_RESOLUTION;
 }

@@ -25,7 +25,7 @@ import java.util.*;
 public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType> {
 
     // m or n can not be over this MAX_RESOLUTION
-    private static final int MAX_RESOLUTION = 100;
+    private static final int MAX_RESOLUTION = Constants.MAX_RESOLUTION;
 
     private double minX;
     private double minY;

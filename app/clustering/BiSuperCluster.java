@@ -2,18 +2,17 @@ package clustering;
 
 import model.Advocator;
 import model.Cluster;
-import util.KDTree;
-import util.MyTimer;
+import util.*;
 
 import java.util.*;
 
 public class BiSuperCluster extends SuperCluster {
     // advocators at each level
-    KDTree<Advocator>[] advocatorsTrees;
+    I2DIndex<Advocator>[] advocatorsIndexes;
     // clusters at each level
     List<Cluster>[] advocatorClusters;
     // clusters at each level as a tree
-    KDTree<Cluster>[] clustersTrees;
+    I2DIndex<Cluster>[] clustersIndexes;
     // clusters at each level that are pending for insert into tree
     Queue<Cluster>[] pendingClusters;
 
@@ -23,26 +22,33 @@ public class BiSuperCluster extends SuperCluster {
 
     double miu = 0.5;
 
+    String indexType; // KDTree / GridIndex
+
     //-Timing-//
     static final boolean keepTiming = true;
     Map<String, Double> timing = new HashMap<>();
     //-Timing-//
 
     public BiSuperCluster(int _minZoom, int _maxZoom, boolean _analysis) {
+        this(_minZoom, _maxZoom, Constants.DEFAULT_INDEX_TYPE, _analysis);
+    }
+
+    public BiSuperCluster(int _minZoom, int _maxZoom, String _indexType, boolean _analysis) {
         this.minZoom = _minZoom;
         this.maxZoom = _maxZoom;
-        this.advocatorsTrees = new KDTree[maxZoom + 1];
+        this.indexType = _indexType;
+        this.advocatorsIndexes = IndexCreator.createIndexArray(indexType, maxZoom + 1);
         this.advocatorClusters = new List[maxZoom + 1];
-        this.clustersTrees = new KDTree[maxZoom + 1];
+        this.clustersIndexes = IndexCreator.createIndexArray(indexType, maxZoom + 1);
         this.pendingClusters = new Queue[maxZoom + 1];
         this.pointIdSeq = 0;
         this.advocatorSeq = 0;
 
-        for (int i = 0; i <= maxZoom; i ++) {
-            this.advocatorsTrees[i] = new KDTree<>();
-            this.advocatorClusters[i] = new ArrayList<>();
-            this.clustersTrees[i] = new KDTree<>();
-            this.pendingClusters[i] = new LinkedList<>();
+        for (int z = 0; z <= maxZoom; z ++) {
+            this.advocatorsIndexes[z] = IndexCreator.createIndex(indexType, getRadius(z));
+            this.advocatorClusters[z] = new ArrayList<>();
+            this.clustersIndexes[z] = IndexCreator.createIndex(indexType, getRadius(z - 1 >= 0? z - 1: 0));
+            this.pendingClusters[z] = new LinkedList<>();
         }
     }
 
@@ -65,7 +71,7 @@ public class BiSuperCluster extends SuperCluster {
             // update clustersTree for level z
             Cluster pending;
             while ((pending = this.pendingClusters[z].poll()) != null) {
-                this.clustersTrees[z].insert(pending);
+                this.clustersIndexes[z].insert(pending);
             }
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
@@ -125,8 +131,8 @@ public class BiSuperCluster extends SuperCluster {
 
         if (keepTiming) MyTimer.startTimer();
         // Find all earlier advocators c can merge into
-        KDTree<Advocator> advocatorsTree = this.advocatorsTrees[zoom];
-        List<Advocator> advocators = advocatorsTree.within(c, radius);
+        I2DIndex<Advocator> advocatorsIndex = this.advocatorsIndexes[zoom];
+        List<Advocator> advocators = advocatorsIndex.within(c, radius);
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) {
             if (timing.containsKey("insert-rangeSearch")) {
@@ -143,7 +149,7 @@ public class BiSuperCluster extends SuperCluster {
             c.advocator = newAdvocator;
 
             if (keepTiming) MyTimer.startTimer();
-            advocatorsTree.insert(newAdvocator);
+            advocatorsIndex.insert(newAdvocator);
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
                 if (timing.containsKey("maintainAdvocatorTree")) {
@@ -155,7 +161,7 @@ public class BiSuperCluster extends SuperCluster {
             this.advocatorClusters[zoom].add(c);
 
             if (keepTiming) MyTimer.startTimer();
-            this.clustersTrees[zoom].insert(c);
+            this.clustersIndexes[zoom].insert(c);
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
                 if (timing.containsKey("maintainClusterTree")) {
@@ -204,7 +210,7 @@ public class BiSuperCluster extends SuperCluster {
             if (keepTiming) MyTimer.startTimer();
             // delete cluster from clustersTree
             if (!cluster.dirty) {
-                this.clustersTrees[zoom].delete(cluster);
+                this.clustersIndexes[zoom].delete(cluster);
             }
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
@@ -268,7 +274,7 @@ public class BiSuperCluster extends SuperCluster {
         if (keepTiming) MyTimer.startTimer();
         // delete c1 from clustersTree
         if (!c1.dirty) {
-            this.clustersTrees[zoom].delete(c1);
+            this.clustersIndexes[zoom].delete(c1);
         }
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) {
@@ -335,10 +341,10 @@ public class BiSuperCluster extends SuperCluster {
             return concat(easternHem, westernHem);
         }
 
-        KDTree<Advocator> advocatorsTree = this.advocatorsTrees[this._limitZoom(zoom)];
+        I2DIndex<Advocator> advocatorsIndex = this.advocatorsIndexes[this._limitZoom(zoom)];
         Cluster leftBottom = createPointCluster(minLng, maxLat);
         Cluster rightTop = createPointCluster(maxLng, minLat);
-        List<Advocator> advocators = advocatorsTree.range(leftBottom, rightTop);
+        List<Advocator> advocators = advocatorsIndex.range(leftBottom, rightTop);
         Cluster[] clusters = new Cluster[advocators.size()];
         int i = 0;
         for (Advocator advocator: advocators) {
@@ -386,10 +392,10 @@ public class BiSuperCluster extends SuperCluster {
             if (keepTiming) MyTimer.startTimer();
             // shift the advocator "from"'s location to the centroid of cluster c
             //TODO - use a index structure that support update location to handle the position shift
-            this.advocatorsTrees[zoom].delete(from);
+            this.advocatorsIndexes[zoom].delete(from);
             from.setX(c.getX());
             from.setY(c.getY());
-            this.advocatorsTrees[zoom].insert(from);
+            this.advocatorsIndexes[zoom].insert(from);
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
                 if (timing.containsKey("maintainAdvocatorTree")) {
@@ -464,7 +470,7 @@ public class BiSuperCluster extends SuperCluster {
         }
 
         if (keepTiming) MyTimer.startTimer();
-        List<Cluster> clusters = this.clustersTrees[zoom].within(c, r);
+        List<Cluster> clusters = this.clustersIndexes[zoom].within(c, r);
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) {
             if (timing.containsKey("shift-rangeSearch")) {
@@ -511,7 +517,7 @@ public class BiSuperCluster extends SuperCluster {
         }
 
         if (keepTiming) MyTimer.startTimer();
-        List<Cluster> clusters = this.clustersTrees[zoom].within(c, r);
+        List<Cluster> clusters = this.clustersIndexes[zoom].within(c, r);
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) {
             if (timing.containsKey("shift-rangeSearch")) {
@@ -552,7 +558,7 @@ public class BiSuperCluster extends SuperCluster {
         if (c1.children.size() == 1 && c1.children.contains(c2)) {
 
             if (keepTiming) MyTimer.startTimer();
-            this.advocatorsTrees[zoom].delete(c1.advocator);
+            this.advocatorsIndexes[zoom].delete(c1.advocator);
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
                 if (timing.containsKey("maintainAdvocatorTree")) {
@@ -565,7 +571,7 @@ public class BiSuperCluster extends SuperCluster {
             this.advocatorClusters[zoom].remove(c1);
 
             if (keepTiming) MyTimer.startTimer();
-            this.clustersTrees[zoom].delete(c1);
+            this.clustersIndexes[zoom].delete(c1);
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
                 if (timing.containsKey("maintainClusterTree")) {
@@ -582,7 +588,7 @@ public class BiSuperCluster extends SuperCluster {
             if (keepTiming) MyTimer.startTimer();
             // delete c1 from clustersTree
             if (!c1.dirty) {
-                this.clustersTrees[zoom].delete(c1);
+                this.clustersIndexes[zoom].delete(c1);
             }
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) {
