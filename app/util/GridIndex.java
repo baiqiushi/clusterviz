@@ -36,7 +36,7 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
     private int n;
     private int size = 0;
 
-    private List<PointType>[][] grids;
+    private List<PointType>[] grids;
 
     public GridIndex(double step) {
         this(Constants.MIN_X, Constants.MIN_Y, Constants.MAX_X, Constants.MAX_Y, step);
@@ -63,13 +63,7 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
         }
 
         // initialize an array of grids
-        grids = new List[m][n];
-
-        for (int i = 0; i < m; i ++) {
-            for (int j = 0; j < n; j ++) {
-                grids[i][j] = new ArrayList<>();
-            }
-        }
+        grids = new List[m * n];
     }
 
     /**
@@ -104,9 +98,11 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
         int i = locateX(point.getX());
         int j = locateY(point.getY());
         if (i < 0 || i >= m || j < 0 || j >= n) return;
-        List<PointType> grid = grids[i][j];
+        if (grids[j*m + i] == null) {
+            grids[j*m + i] = new ArrayList<>();
+        }
         // insert point into this grid's list
-        grid.add(point);
+        grids[j*m + i].add(point);
         size ++;
     }
 
@@ -123,9 +119,8 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
         int i = locateX(point.getX());
         int j = locateY(point.getY());
         if (i < 0 || i >= m || j < 0 || j >= n) return;
-        List<PointType> grid = grids[i][j];
         // remove point from this grid's list
-        if (grid.remove(point)) size --;
+        if (grids[j*m + i] != null && grids[j*m + i].remove(point)) size --;
     }
 
     /**
@@ -158,7 +153,8 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
         for (int i = (int) Math.ceil(inLeft); i < (int) Math.floor(inRight); i ++) {
             for (int j = (int) Math.ceil(inBottom); j < (int) Math.floor(inTop); j ++) {
                 if (i < 0 || i >= m || j < 0 || j >= n) continue;
-                result.addAll(grids[i][j]);
+                if (grids[j*m + i] == null) continue;
+                result.addAll(grids[j*m + i]);
             }
         }
 
@@ -182,7 +178,8 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
             // note: if outTop % 1 == 0.0, outTop aligns with grid edge, then do not check grids above outTop
             for (int j = (int) Math.floor(outBottom); j <= (int) Math.floor(outTop) - (outTop % 1 == 0.0? 1: 0); j ++) {
                 if (i < 0 || i >= m || j < 0 || j >= n) continue;
-                List<PointType> grid = grids[i][j];
+                List<PointType> grid = grids[j*m + i];
+                if (grid == null) continue;
                 for (PointType p: grid) {
                     if (p.distanceTo(center) <= radius) {
                         result.add(p);
@@ -197,7 +194,8 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
         for (int i = (int) Math.floor(inRight); i <= (int) Math.floor(outRight) - (outRight % 1 == 0.0? 1: 0); i ++) {
             for (int j = (int) Math.floor(outBottom); j <= (int) Math.floor(outTop) - (outTop % 1 == 0.0? 1: 0); j ++) {
                 if (i < 0 || i >= m || j < 0 || j >= n) continue;
-                List<PointType> grid = grids[i][j];
+                List<PointType> grid = grids[j*m + i];
+                if (grid == null) continue;
                 for (PointType p: grid) {
                     if (p.distanceTo(center) <= radius) {
                         result.add(p);
@@ -214,7 +212,8 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
             // note: skip duplicated traversal (left-bottom, right-bottom)
             for (int i = (int) Math.floor(inLeft) + 1; i <= (int) Math.floor(inRight) - 1; i ++) {
                 if (i < 0 || i >= m || j < 0 || j >= n) continue;
-                List<PointType> grid = grids[i][j];
+                List<PointType> grid = grids[j*m + i];
+                if (grid == null) continue;
                 for (PointType p: grid) {
                     if (p.distanceTo(center) <= radius) {
                         result.add(p);
@@ -230,7 +229,8 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
             // note: skip duplicated traversal (left-top, right-top)
             for (int i = (int) Math.floor(inLeft) + 1; i <= (int) Math.floor(inRight) - 1; i ++) {
                 if (i < 0 || i >= m || j < 0 || j >= n) continue;
-                List<PointType> grid = grids[i][j];
+                List<PointType> grid = grids[j*m + i];
+                if (grid == null) continue;
                 for (PointType p: grid) {
                     if (p.distanceTo(center) <= radius) {
                         result.add(p);
@@ -256,7 +256,8 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
         for (int i = (int) Math.ceil(left); i < (int) Math.floor(right); i ++) {
             for (int j = (int) Math.ceil(bottom); j < (int) Math.floor(top); j ++) {
                 if (i < 0 || i >= m || j < 0 || j >= n) continue;
-                result.addAll(grids[i][j]);
+                if (grids[j*m + i] == null) continue;
+                result.addAll(grids[j*m + i]);
             }
         }
 
@@ -268,7 +269,8 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
             // note: if top % 1 == 0.0, top aligns with grid edge, then do not check grids above top
             for (int j = (int) Math.floor(bottom); j <= (int) Math.floor(top) - (top % 1 == 0.0? 1: 0); j ++) {
                 if (i < 0 || i >= m || j < 0 || j >= n) continue;
-                List<PointType> grid = grids[i][j];
+                List<PointType> grid = grids[j*m + i];
+                if (grid == null) continue;
                 for (PointType p: grid) {
                     if (p.rightAbove(leftBottom) && p.leftBelow(rightTop)) {
                         result.add(p);
@@ -284,7 +286,8 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
             // note: if top % 1 == 0.0, top aligns with grid edge, then do not check grids above top
             for (int j = (int) Math.floor(bottom); j <= (int) Math.floor(top) - (top % 1 == 0.0? 1: 0); j ++) {
                 if (i < 0 || i >= m || j < 0 || j >= n) continue;
-                List<PointType> grid = grids[i][j];
+                List<PointType> grid = grids[j*m + i];
+                if (grid == null) continue;
                 for (PointType p: grid) {
                     if (p.rightAbove(leftBottom) && p.leftBelow(rightTop)) {
                         result.add(p);
@@ -300,7 +303,8 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
             // note: skip duplicated traversal (left-bottom, right-bottom)
             for (int i = (int) Math.floor(left) + 1; i <= (int) Math.floor(right) - 1; i ++) {
                 if (i < 0 || i >= m || j < 0 || j >= n) continue;
-                List<PointType> grid = grids[i][j];
+                List<PointType> grid = grids[j*m + i];
+                if (grid == null) continue;
                 for (PointType p: grid) {
                     if (p.rightAbove(leftBottom) && p.leftBelow(rightTop)) {
                         result.add(p);
@@ -316,7 +320,8 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
             // note: skip duplicated traversal (left-top, right-top)
             for (int i = (int) Math.floor(left) + 1; i <= (int) Math.floor(right) - 1; i ++) {
                 if (i < 0 || i >= m || j < 0 || j >= n) continue;
-                List<PointType> grid = grids[i][j];
+                List<PointType> grid = grids[j*m + i];
+                if (grid == null) continue;
                 for (PointType p: grid) {
                     if (p.rightAbove(leftBottom) && p.leftBelow(rightTop)) {
                         result.add(p);
@@ -334,7 +339,7 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
         System.out.println("size = " + size);
         for (int j = n - 1; j >= 0; j --) {
             for (int i = 0; i < m; i ++) {
-                List<PointType> grid = grids[i][j];
+                List<PointType> grid = grids[j*m + i];
                 if (grid != null) {
                     System.out.print(grid.size());
                 } else {
