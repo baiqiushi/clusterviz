@@ -13,10 +13,6 @@ object Dependencies {
     "org.webjars" % "angular-leaflet-directive" % "0.8.2",
     "org.webjars.bower" % "json-bigint" % "0.0.0",
     "org.webjars.bower" % "bootstrap-toggle" % "2.2.2",
-    // jquery-ui
-    //"org.webjars.bower" % "jquery-ui" % "1.12.1",
-    // jquery-ui theme
-    //"org.webjars" % "jquery-ui-themes" % "1.12.1",
     // jackson
     "com.fasterxml.jackson.core" % "jackson-core" % "2.9.4",
     // PostgreSQL

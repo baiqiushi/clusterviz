@@ -50,6 +50,8 @@ public class BiSuperCluster extends SuperCluster {
             this.clustersIndexes[z] = IndexCreator.createIndex(indexType, getRadius(z - 1 >= 0? z - 1: 0));
             this.pendingClusters[z] = new LinkedList<>();
         }
+
+        MyMemory.printMemory();
     }
 
     public void load(double[][] points) {
@@ -115,6 +117,8 @@ public class BiSuperCluster extends SuperCluster {
         System.out.println("This batch shift clusters: " + shiftCount);
         System.out.println("Total shift clusters: " + this.totalShiftCount);
         if (keepTiming) this.printTiming();
+
+        MyMemory.printMemory();
     }
 
     public void insert(Cluster c, int zoom) {
