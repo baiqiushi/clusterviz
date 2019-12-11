@@ -1,5 +1,7 @@
 package model;
 
+import util.Flags;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,6 +19,15 @@ public class Cluster extends Point {
     public Cluster advocatorCluster = null;
     // flag is true when this cluster has been deleted from its level's tree
     public boolean dirty = false;
+
+    // flag to indicate its status from lower level children's shifting
+    public Flags flag = Flags.NONE;
+    // only valid when flag == Flags.UPDATED, update type for this cluster
+    public Flags update = Flags.NONE; // MERGE / SPLIT
+    // only valid when update == Flags.MERGE/Flags.SPLIT, delta cluster for update
+    public ClusterDelta updateDelta = null;
+    // sequence number of this cluster to indicate its processing order
+    public int seq = 0;
 
     public Cluster(double _x, double _y, int _id) {
         super(_x, _y, _id);

@@ -3,10 +3,7 @@ package actor;
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
-import clustering.AiSuperCluster;
-import clustering.BiSuperCluster;
-import clustering.SuperCluster;
-import clustering.iSuperCluster;
+import clustering.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -482,6 +479,10 @@ public class Agent extends AbstractActor {
                     case "bisupercluster":
                     case "bisc":
                         cluster = new BiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
+                        break;
+                    case "sbisupercluster":
+                    case "sbic":
+                        cluster = new SBiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
                         break;
                     default:
                         cluster = new SuperCluster(this.minZoom, this.maxZoom, indexType);
