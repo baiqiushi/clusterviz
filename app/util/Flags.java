@@ -1,5 +1,5 @@
 package util;
 
 public enum Flags {
-    NONE, INSERTED, UPDATED, DELETED, MERGE, SPLIT
+    NONE, INSERTED, UPDATED, DELETED
 }
