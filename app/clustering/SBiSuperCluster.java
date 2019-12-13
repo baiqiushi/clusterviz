@@ -142,31 +142,33 @@ public class SBiSuperCluster extends SuperCluster {
             deleteCount += deleteCountLevel;
 
             //-DEBUG-//
-            Cluster[] allClusters = getClusters(-180, -90, 180, 90, z-1);
-            int totalPointsCount = 0;
-            for (int i = 0; i < allClusters.length; i ++) {
-                totalPointsCount += allClusters[i].numPoints==0?1:allClusters[i].numPoints;
-                // check whether cluster's numPoints = sum of all its children's numPoints
-                if (allClusters[i].children != null) {
-                    int sumChildren = 0;
-                    for (Cluster child: allClusters[i].children) {
-                        sumChildren += child.numPoints==0?1:child.numPoints;
-                    }
-                    if ((allClusters[i].numPoints==0?1:allClusters[i].numPoints) != sumChildren) {
-                        System.out.println("[Error] Cluster " + allClusters[i].getId() + ":[" + allClusters[i].numPoints + "] is not consistent with its children!");
-                        StringBuilder sb = new StringBuilder();
-                        for (Cluster child: allClusters[i].children) {
-                            sb.append(child.getId() + ":[" + child.numPoints + "], ");
-                        }
-                        System.out.println("Its children: " + sb.toString());
-                    }
-                }
-                // check whether cluster's coordinate is NaN
-                if (Double.isNaN(allClusters[i].getX()) || Double.isNaN(allClusters[i].getY())) {
-                    System.out.println("[Error] Cluster " + allClusters[i].getId() + ":[" + allClusters[i].numPoints + "]: " + allClusters[i]);
-                }
-            }
-            System.out.println("zoom level [" +  (z-1) + "] has totally ====> " + totalPointsCount + " <==== points.");
+//            Cluster[] allClusters = getClusters(-180, -90, 180, 90, z-1);
+//            int totalPointsCount = 0;
+//            for (int i = 0; i < allClusters.length; i ++) {
+//                totalPointsCount += allClusters[i].numPoints==0?1:allClusters[i].numPoints;
+//                // check whether cluster's numPoints = sum of all its children's numPoints
+//                if (allClusters[i].children != null) {
+//                    int sumChildren = 0;
+//                    for (Cluster child: allClusters[i].children) {
+//                        sumChildren += child.numPoints==0?1:child.numPoints;
+//                    }
+//                    if ((allClusters[i].numPoints==0?1:allClusters[i].numPoints) != sumChildren) {
+//                        System.out.println("[Error] Cluster " + allClusters[i].getId() + ":[" + allClusters[i].numPoints + "] is not consistent with its children!");
+//                        StringBuilder sb = new StringBuilder();
+//                        for (Cluster child: allClusters[i].children) {
+//                            sb.append(child.getId() + ":[" + child.numPoints + "], ");
+//                        }
+//                        System.out.println("Its children: " + sb.toString());
+//                    }
+//                }
+//                // check whether cluster's coordinate is NaN
+//                if (Double.isNaN(allClusters[i].getX()) || Double.isNaN(allClusters[i].getY())) {
+//                    System.out.println("[Error] Cluster " + allClusters[i].getId() + ":[" + allClusters[i].numPoints + "]: " + allClusters[i]);
+//                }
+//            }
+//            if (totalPointsCount != this.totalNumberOfPoints) {
+//                System.out.println("[Error] zoom level [" + (z - 1) + "] has totally ====> " + totalPointsCount + " <==== points. Correct should be " + this.totalNumberOfPoints);
+//            }
             //-DEBUG-//
         }
 
@@ -293,7 +295,7 @@ public class SBiSuperCluster extends SuperCluster {
         if (c1 == null) return;
 
         //-DEBUG-//
-        System.out.println("Merge " + c2.getId() + ":[" + c2.numPoints + "] into cluster " + c1.getId() + ":[" + c1.numPoints + "] at level " + zoom + " ...");
+        //System.out.println("Merge " + c2.getId() + ":[" + c2.numPoints + "] into cluster " + c1.getId() + ":[" + c1.numPoints + "] at level " + zoom + " ...");
         //-DEBUG-//
 
         // delete c1 from clustersTree
@@ -349,7 +351,7 @@ public class SBiSuperCluster extends SuperCluster {
         if (c1 == null) return;
 
         //-DEBUG-//
-        System.out.println("Split " + c2.getId() + ":[" + c2.numPoints + "] from cluster " + c1.getId() + ":[" + c1.numPoints + "] at level " + zoom + " ...");
+        //System.out.println("Split " + c2.getId() + ":[" + c2.numPoints + "] from cluster " + c1.getId() + ":[" + c1.numPoints + "] at level " + zoom + " ...");
         //-DEBUG-//
 
         // if c2 is c1's only child, delete c1 directly
