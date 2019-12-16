@@ -20,7 +20,7 @@ public class BiSuperCluster extends SuperCluster {
     int advocatorSeq;
     int totalShiftCount = 0;
 
-    double miu = 0.0;
+    double miu = 0.5;
 
     String indexType; // KDTree / GridIndex
 
@@ -167,7 +167,7 @@ public class BiSuperCluster extends SuperCluster {
     private void insert(Cluster c, int zoom) {
 
         //-DEBUG-//
-        System.out.println("insert " + c.getId() + ":[" + c.numPoints + "] into level " + zoom + " ...");
+        //System.out.println("insert " + c.getId() + ":[" + c.numPoints + "] into level " + zoom + " ...");
         //-DEBUG-//
 
         if (keepTiming) MyTimer.startTimer();
@@ -259,17 +259,6 @@ public class BiSuperCluster extends SuperCluster {
             // merge into earliest advocator's group
             Cluster cluster = earliestAdvocator.cluster;
 
-            //-DEBUG-//
-//            if (zoom == 3 && cluster.getId() == 82) {
-//                System.out.println("[insert] " + c.getId() + ":[" + c.numPoints + "] at level 3, merging into ");
-//                StringBuilder sb = new StringBuilder();
-//                for (Cluster child : cluster.children) {
-//                    sb.append(child.getId() + ":[" + child.numPoints + "]->" + child.parent.getId() + ", ");
-//                }
-//                System.out.println("         " + cluster.getId() + ":[" + cluster.numPoints + "]'s children: " + sb.toString());
-//            }
-            //-DEBUG-//
-
             if (keepTiming) MyTimer.startTimer();
             // delete cluster from clustersTree
             if (!cluster.dirty) {
@@ -310,17 +299,6 @@ public class BiSuperCluster extends SuperCluster {
                 }
             }
 
-            //-DEBUG-//
-//            if (zoom == 3 && cluster.getId() == 82) {
-//                System.out.println("[insert] done!");
-//                StringBuilder sb = new StringBuilder();
-//                for (Cluster child : cluster.children) {
-//                    sb.append(child.getId() + ":[" + child.numPoints + "]->" + child.parent.getId() + ", ");
-//                }
-//                System.out.println("         " + cluster.getId() + ":[" + cluster.numPoints + "]'s children: " + sb.toString());
-//            }
-            //-DEBUG-//
-
             // keep cluster in pendingClusters
             if (!cluster.dirty) {
                 this.pendingClusters[zoom].add(cluster);
@@ -343,18 +321,7 @@ public class BiSuperCluster extends SuperCluster {
         if (c1 == null) return;
 
         //-DEBUG-//
-        System.out.println("Merge cluster " + c2.getId() + ":[" + c2.numPoints + "] into " + c1.getId() + ":[" + c1.numPoints + "] at level " + zoom + " ...");
-        //-DEBUG-//
-
-        //-DEBUG-//
-//        if (zoom == 3 && c1.getId() == 82) {
-//            System.out.println("[merge] merging " + c2.getId() + ":[" + c2.numPoints + "] into cluster 82:[" + c1.numPoints + "] at level 3.");
-//            StringBuilder sb = new StringBuilder();
-//            for (Cluster child : c1.children) {
-//                sb.append(child.getId() + ":[" + child.numPoints + "]->" + child.parent.getId() + ", ");
-//            }
-//            System.out.println("        " + c1.getId() + ":[" + c1.numPoints + "]'s children: " + sb.toString());
-//        }
+        //System.out.println("Merge cluster " + c2.getId() + ":[" + c2.numPoints + "] into " + c1.getId() + ":[" + c1.numPoints + "] at level " + zoom + " ...");
         //-DEBUG-//
 
         if (keepTiming) MyTimer.startTimer();
@@ -387,17 +354,6 @@ public class BiSuperCluster extends SuperCluster {
             }
         }
 
-        //-DEBUG-//
-//        if (zoom == 3 && c1.getId() == 82) {
-//            System.out.println("[merge] done!");
-//            StringBuilder sb = new StringBuilder();
-//            for (Cluster child : c1.children) {
-//                sb.append(child.getId() + ":[" + child.numPoints + "]->" + child.parent.getId() + ", ");
-//            }
-//            System.out.println("        " + c1.getId() + ":[" + c1.numPoints + "]'s children: " + sb.toString());
-//        }
-        //-DEBUG-//
-
         // keep c1 in pendingClusters
         if (!c1.dirty) {
             this.pendingClusters[zoom].add(c1);
@@ -408,133 +364,60 @@ public class BiSuperCluster extends SuperCluster {
     }
 
     /**
-     * Split c2 from c1, zoom is the level of c1,
-     * and recursively split c2 from c1.parent
+     * Get an array of Clusters for given visible region and zoom level
+     * note: search on advocators tree, but return the clusters attached to the advocators
      *
-     * @param c1
-     * @param c2
+     * @param x0
+     * @param y0
+     * @param x1
+     * @param y1
      * @param zoom
+     * @return
      */
-    private void split(Cluster c1, Cluster c2, int zoom) {
-        if (c1 == null) return;
+    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom) {
+        double minLng = ((x0 + 180) % 360 + 360) % 360 - 180;
+        double minLat = Math.max(-90, Math.min(90, y0));
+        double maxLng = x1 == 180 ? 180 : ((x1 + 180) % 360 + 360) % 360 - 180;
+        double maxLat = Math.max(-90, Math.min(90, y1));
 
-        //-DEBUG-//
-        System.out.println("Split cluster " + c2.getId() + ":[" + c2.numPoints + "] from " + c1.getId() + ":[" + c1.numPoints + "] at level " + zoom + " ...");
-        //-DEBUG-//
-
-        //-DEBUG-//
-//        if (zoom == 3 && c1.getId() == 82) {
-//            System.out.println("[split] splitting " + c2.getId() + ":[" + c2.numPoints + "] from cluster 82:[" + c1.numPoints + "] at level 3.");
-//            StringBuilder sb = new StringBuilder();
-//            for (Cluster child : c1.children) {
-//                sb.append(child.getId() + ":[" + child.numPoints + "]->" + child.parent.getId() + ", ");
-//            }
-//            System.out.println("        " + c1.getId() + ":[" + c1.numPoints + "]'s children: " + sb.toString());
-//        }
-        //-DEBUG-//
-
-        // if c2 is c1's only child, delete c1 directly
-        if (c1.children.size() == 1 && c1.children.contains(c2)) {
-
-            if (keepTiming) MyTimer.startTimer();
-            this.advocatorsIndexes[zoom].delete(c1.advocator);
-            if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) {
-                if (timing.containsKey("maintainAdvocatorTree")) {
-                    timing.put("maintainAdvocatorTree", timing.get("maintainAdvocatorTree") + MyTimer.durationSeconds());
-                } else {
-                    timing.put("maintainAdvocatorTree", MyTimer.durationSeconds());
-                }
-            }
-
-            this.advocatorClusters[zoom].remove(c1);
-
-            if (keepTiming) MyTimer.startTimer();
-            this.clustersIndexes[zoom].delete(c1);
-            if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) {
-                if (timing.containsKey("maintainClusterTree")) {
-                    timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
-                } else {
-                    timing.put("maintainClusterTree", MyTimer.durationSeconds());
-                }
-            }
-
-            c1.children.remove(c2);
-            c2.parent = null;
-            c2.parentId = -1;
-
-            split(c1.parent, c1, zoom - 1);
-        }
-        // otherwise, subtract c2's weight from c1 and recurse
-        else {
-            if (keepTiming) MyTimer.startTimer();
-            // delete c1 from clustersTree
-            if (!c1.dirty) {
-                this.clustersIndexes[zoom].delete(c1);
-            }
-            if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) {
-                if (timing.containsKey("maintainClusterTree")) {
-                    timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
-                } else {
-                    timing.put("maintainClusterTree", MyTimer.durationSeconds());
-                }
-            }
-
-            if (keepTiming) MyTimer.startTimer();
-            // split c2's coordinate from c1's centroid calculation
-            split(c1, c2.getX(), c2.getY(), c2.numPoints);
-            // remove c2 from c1's children, if it is
-            c1.children.remove(c2);
-            c2.parent = null;
-            c2.parentId = -1;
-            if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) {
-                if (timing.containsKey("splitCalculation")) {
-                    timing.put("splitCalculation", timing.get("splitCalculation") + MyTimer.durationSeconds());
-                } else {
-                    timing.put("splitCalculation", MyTimer.durationSeconds());
-                }
-            }
-
-            // keep c1 in pendingClusters
-            if (!c1.dirty) {
-                this.pendingClusters[zoom].add(c1);
-                c1.dirty = true;
-            }
-
-            split(c1.parent, c2, zoom - 1);
+        if (x1 - x0 >= 360) {
+            minLng = -180;
+            maxLng = 180;
+        } else if (minLng > maxLng) {
+            Cluster[] easternHem = this.getClusters(minLng, minLat, 180, maxLat, zoom);
+            Cluster[] westernHem = this.getClusters(-180, minLat, maxLng, maxLat, zoom);
+            return concat(easternHem, westernHem);
         }
 
+        I2DIndex<Advocator> advocatorsIndex = this.advocatorsIndexes[this._limitZoom(zoom)];
+        Cluster leftBottom = createPointCluster(minLng, maxLat);
+        Cluster rightTop = createPointCluster(maxLng, minLat);
+        List<Advocator> advocators = advocatorsIndex.range(leftBottom, rightTop);
+        Cluster[] clusters = new Cluster[advocators.size()];
+        int i = 0;
+        for (Advocator advocator: advocators) {
+            Cluster cluster = advocator.cluster.clone();
+            cluster.setX(xLng(cluster.getX()));
+            cluster.setY(yLat(cluster.getY()));
+            clusters[i] = cluster;
+            i ++;
+        }
         //-DEBUG-//
-//        if (zoom == 3 && c1.getId() == 82) {
-//            System.out.println("[split] done!");
-//            StringBuilder sb = new StringBuilder();
-//            for (Cluster child : c1.children) {
-//                sb.append(child.getId() + ":[" + child.numPoints + "]->" + child.parent.getId() + ", ");
-//            }
-//            System.out.println("         Now " + c1.getId() + ":[" + c1.numPoints + "]'s children: " + sb.toString());
+//        System.out.println("[getClusters] advocatorsTree.size = " + advocatorsTree.size());
+//        System.out.println("[getClusters] result.size = " + clusters.length);
+//        System.out.println("[getClusters] this level advocatorClusters.size = " + this.advocatorClusters[this._limitZoom(zoom)].size());
+//        System.out.println("[getClusters] result: ===============>");
+//        for (Cluster result: clusters) {
+//            System.out.println(result);
 //        }
         //-DEBUG-//
+        return clusters;
     }
 
     private void shift(Cluster c, Advocator from, int zoom) {
 
         //-DEBUG-//
-        System.out.println("Shift cluster " + c.getId() + ":[" + c.numPoints + "] at level " + zoom + " ...");
-        //-DEBUG-//
-
-        //-DEBUG-//
-//        if (zoom == 4 && c.parent.getId() == 82) {
-//            System.out.println("Shift cluster " + c.getId() + ":[" + c.numPoints + "] at level " + zoom + " ...");
-//            System.out.println("------------------  ------------------");
-//            StringBuilder sb = new StringBuilder();
-//            for (Cluster child : c.parent.children) {
-//                sb.append(child.getId() + ":[" + child.numPoints + "]->" + child.parent.getId() + ", ");
-//            }
-//            System.out.println("[Before] " + c.parent.getId() + ":[" + c.parent.numPoints + "]'s children: " + sb.toString());
-//        }
+        //System.out.println("Shift cluster " + c.getId() + ":[" + c.numPoints + "] at level " + zoom + " ...");
         //-DEBUG-//
 
         if (isAdvocatorOfParent(c)) {
@@ -542,32 +425,6 @@ public class BiSuperCluster extends SuperCluster {
             List<Cluster> toMerge = toMerge(c, zoom);
             // Find list of clusters that should split from c.parent
             List<Cluster> toSplit = toSplit(c, zoom);
-
-            //-DEBUG-//
-//            if (zoom == 4) {
-//                boolean related = false;
-//                if (toMerge.size() > 0) {
-//                    StringBuilder sb = new StringBuilder();
-//                    for (Cluster tm : toMerge) {
-//                        if (tm.parent == null) continue;
-//                        if (tm.parent.getId() == 82) related = true;
-//                        sb.append(tm.getId() + ":[" + tm.numPoints + "]->" + tm.parent.getId() + ", ");
-//                    }
-//                    if (related)
-//                        System.out.println(c.parent.getId() + ":[" + c.parent.numPoints + "] will merge: " + sb.toString());
-//                }
-//                if (toSplit.size() > 0) {
-//                    StringBuilder sb = new StringBuilder();
-//                    for (Cluster ts : toSplit) {
-//                        if (ts.parent == null) continue;
-//                        if (ts.parent.getId() == 82) related = true;
-//                        sb.append(ts.getId() + ":[" + ts.numPoints + "]->" + ts.parent.getId() + ", ");
-//                    }
-//                    if (related)
-//                        System.out.println(c.parent.getId() + ":[" + c.parent.numPoints + "] will split: " + sb.toString());
-//                }
-//            }
-            //-DEBUG-//
 
             if (keepTiming) MyTimer.startTimer();
             // shift the advocator "from"'s location to the centroid of cluster c
@@ -616,17 +473,6 @@ public class BiSuperCluster extends SuperCluster {
 
             insert(parent, zoom - 1);
         }
-
-        //-DEBUG-//
-//        if (zoom == 4 && c.parent.getId() == 82) {
-//            StringBuilder sb = new StringBuilder();
-//            for (Cluster child : c.parent.children) {
-//                sb.append(child.getId() + ":[" + child.numPoints + "]->" + child.parent.getId() + ", ");
-//            }
-//            System.out.println("[After] " + c.parent.getId() + ":[" + c.parent.numPoints + "]'s children: " + sb.toString());
-//            System.out.println("------------------  ------------------");
-//        }
-        //-DEBUG-//
     }
 
     /**
@@ -726,54 +572,93 @@ public class BiSuperCluster extends SuperCluster {
     }
 
     /**
-     * Get an array of Clusters for given visible region and zoom level
-     * note: search on advocators tree, but return the clusters attached to the advocators
+     * Split c2 from c1, zoom is the level of c1,
+     * and recursively split c2 from c1.parent
      *
-     * @param x0
-     * @param y0
-     * @param x1
-     * @param y1
+     * @param c1
+     * @param c2
      * @param zoom
-     * @return
      */
-    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom) {
-        double minLng = ((x0 + 180) % 360 + 360) % 360 - 180;
-        double minLat = Math.max(-90, Math.min(90, y0));
-        double maxLng = x1 == 180 ? 180 : ((x1 + 180) % 360 + 360) % 360 - 180;
-        double maxLat = Math.max(-90, Math.min(90, y1));
+    private void split(Cluster c1, Cluster c2, int zoom) {
+        if (c1 == null) return;
 
-        if (x1 - x0 >= 360) {
-            minLng = -180;
-            maxLng = 180;
-        } else if (minLng > maxLng) {
-            Cluster[] easternHem = this.getClusters(minLng, minLat, 180, maxLat, zoom);
-            Cluster[] westernHem = this.getClusters(-180, minLat, maxLng, maxLat, zoom);
-            return concat(easternHem, westernHem);
-        }
+        //-DEBUG-//
+        //System.out.println("Split cluster " + c2.getId() + ":[" + c2.numPoints + "] from " + c1.getId() + ":[" + c1.numPoints + "] at level " + zoom + " ...");
+        //-DEBUG-//
 
-        I2DIndex<Advocator> advocatorsIndex = this.advocatorsIndexes[this._limitZoom(zoom)];
-        Cluster leftBottom = createPointCluster(minLng, maxLat);
-        Cluster rightTop = createPointCluster(maxLng, minLat);
-        List<Advocator> advocators = advocatorsIndex.range(leftBottom, rightTop);
-        Cluster[] clusters = new Cluster[advocators.size()];
-        int i = 0;
-        for (Advocator advocator: advocators) {
-            Cluster cluster = advocator.cluster.clone();
-            cluster.setX(xLng(cluster.getX()));
-            cluster.setY(yLat(cluster.getY()));
-            clusters[i] = cluster;
-            i ++;
+        // if c2 is c1's only child, delete c1 directly
+        if (c1.children.size() == 1 && c1.children.contains(c2)) {
+
+            if (keepTiming) MyTimer.startTimer();
+            this.advocatorsIndexes[zoom].delete(c1.advocator);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("maintainAdvocatorTree")) {
+                    timing.put("maintainAdvocatorTree", timing.get("maintainAdvocatorTree") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("maintainAdvocatorTree", MyTimer.durationSeconds());
+                }
+            }
+
+            this.advocatorClusters[zoom].remove(c1);
+
+            if (keepTiming) MyTimer.startTimer();
+            this.clustersIndexes[zoom].delete(c1);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("maintainClusterTree")) {
+                    timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("maintainClusterTree", MyTimer.durationSeconds());
+                }
+            }
+
+            c1.children.remove(c2);
+            c2.parent = null;
+            c2.parentId = -1;
+
+            split(c1.parent, c1, zoom - 1);
         }
-        //-DEBUG-//
-//        System.out.println("[getClusters] advocatorsTree.size = " + advocatorsTree.size());
-//        System.out.println("[getClusters] result.size = " + clusters.length);
-//        System.out.println("[getClusters] this level advocatorClusters.size = " + this.advocatorClusters[this._limitZoom(zoom)].size());
-//        System.out.println("[getClusters] result: ===============>");
-//        for (Cluster result: clusters) {
-//            System.out.println(result);
-//        }
-        //-DEBUG-//
-        return clusters;
+        // otherwise, subtract c2's weight from c1 and recurse
+        else {
+            if (keepTiming) MyTimer.startTimer();
+            // delete c1 from clustersTree
+            if (!c1.dirty) {
+                this.clustersIndexes[zoom].delete(c1);
+            }
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("maintainClusterTree")) {
+                    timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("maintainClusterTree", MyTimer.durationSeconds());
+                }
+            }
+
+            if (keepTiming) MyTimer.startTimer();
+            // split c2's coordinate from c1's centroid calculation
+            split(c1, c2.getX(), c2.getY(), c2.numPoints);
+            // remove c2 from c1's children, if it is
+            c1.children.remove(c2);
+            c2.parent = null;
+            c2.parentId = -1;
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                if (timing.containsKey("splitCalculation")) {
+                    timing.put("splitCalculation", timing.get("splitCalculation") + MyTimer.durationSeconds());
+                } else {
+                    timing.put("splitCalculation", MyTimer.durationSeconds());
+                }
+            }
+
+            // keep c1 in pendingClusters
+            if (!c1.dirty) {
+                this.pendingClusters[zoom].add(c1);
+                c1.dirty = true;
+            }
+
+            split(c1.parent, c2, zoom - 1);
+        }
     }
 
     /**

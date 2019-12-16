@@ -453,7 +453,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.appendPointsToClusters = function (data) {
       // initialize the markers layer
       if (!$scope.markersLayer) {
-        $scope.markersLayer = L.markerClusterGroup({ chunkedLoading: true });
+        $scope.markersLayer = L.markerClusterGroup({maxClusterRadius: 40, chunkedLoading: true });
       }
 
       // update the makers layer
