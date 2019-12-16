@@ -44,6 +44,13 @@ public class KDTree<PointType extends I2DPoint> implements I2DIndex<PointType> {
     }
 
     public void insert(PointType point) {
+
+        //-DEBUG-//
+//        if (point.getId() == 1384) {
+//            System.out.println("[KDTree --> insert] is inserting 1384: " + point);
+//        }
+        //-DEBUG-//
+
         size ++;
 
         // empty tree
@@ -135,6 +142,10 @@ public class KDTree<PointType extends I2DPoint> implements I2DIndex<PointType> {
                     PointType tombstone = (PointType) currentPoint.clone();
                     currentNode.point = tombstone;
                     currentNode.deleted = true;
+
+                    //-DEBUG-//
+                    //System.out.println("[KDTree --> delete] hit node's point to delete " + point);
+                    //-DEBUG-//
                 }
                 // else hit the node's duplicate point
                 else {
@@ -142,6 +153,10 @@ public class KDTree<PointType extends I2DPoint> implements I2DIndex<PointType> {
                         I2DPoint p = iter.next();
                         if (p.getId() == point.getId()) {
                             iter.remove();
+
+                            //-DEBUG-//
+                            //System.out.println("[KDTree --> delete] hit node's duplicate to delete " + point);
+                            //-DEBUG-//
                         }
                     }
                 }
@@ -169,6 +184,9 @@ public class KDTree<PointType extends I2DPoint> implements I2DIndex<PointType> {
             align = !align;
         }
         // didn't find the point
+        //-DEBUG-//
+        System.out.println("[KDTree --> delete] didn't find node: " + point);
+        //-DEBUG-//
     }
 
     public List<PointType> within(I2DPoint center, double radius) {

@@ -88,25 +88,69 @@ public class SBiSuperCluster extends SuperCluster {
             Cluster pending;
             while ((pending = this.pendingClusters[z].poll()) != null) {
                 this.clustersIndexes[z].insert(pending);
+                pending.dirty = false;
             }
 
             // shifting at level z affects clustering results of level (z-1)
             double r = getRadius(z - 1);
 
             //-DEBUG-//
-//            System.out.println("-------------------------------------------");
-//            System.out.println("Priority Queue of level [" + z + "]:");
-//            for (Cluster fc: this.flaggedClusters[z]) {
-//                System.out.println(fc.flag.name() + ": " + fc.seq + ": " + fc.getId() + ": [" + fc.numPoints + "]" + (fc.flag==Flags.UPDATED? " update delta="+fc.updateDelta.numPoints: ""));
-//            }
-//            System.out.println("-------------------------------------------");
+            System.out.println("-------------------------------------------");
+            System.out.println("Priority Queue of level [" + z + "]:");
+            int delta = 0;
+            for (Cluster fc: this.flaggedClusters[z]) {
+                System.out.println(fc.flag.name() + ": " + fc.seq + ": " + printCluster(fc) + (fc.flag==Flags.UPDATED? " update delta="+fc.updateDelta.numPoints: ""));
+                if (fc.flag == Flags.INSERTED) {
+                    delta += fc.numPoints == 0? 1: fc.numPoints;
+                }
+                if (fc.flag == Flags.UPDATED) {
+                    delta += fc.updateDelta.numPoints;
+                }
+                if (fc.flag == Flags.DELETED) {
+                    delta -= fc.numPoints == 0? 1: fc.numPoints;
+                }
+            }
+            System.out.println("Total delta: " + delta);
+            if (delta != points.length) {
+                System.out.println("[Error] Total delta != batch delta: " + points.length);
+            }
+            System.out.println("-------------------------------------------");
+            Cluster[] allClusters1 = getClusters(-180, -90, 180, 90, 2);
+            for (Cluster c : allClusters1) {
+                if (c.getId() == 196) {
+                    System.out.println("[Debug] zoom level [2] " + printCluster(c));
+                    System.out.println("[Debug]                |--" + printClusterChildren(c));
+                }
+            }
             //-DEBUG-//
 
             int insertCountLevel = 0;
             int updateCountLevel = 0;
             int shiftCountLevel = 0;
             int deleteCountLevel = 0;
-            // handle all changes at z level to form clusters at (z-1) level
+
+            // (1) before handle grouping relationships, first apply all updates
+            for (Cluster fc: this.flaggedClusters[z]) {
+                if (fc.flag == Flags.UPDATED) {
+                    updateCountLevel ++;
+                    update(fc, z);
+                }
+            }
+
+            // (2) then apply all deletions, so that splits are propagated to (z-1) level.
+            // TODO - apply deletions first
+            List<Cluster> deleted = new ArrayList<>();
+            for (Cluster fc: this.flaggedClusters[z]) {
+                if (fc.flag == Flags.DELETED) {
+                    onDelete(fc, z);
+                    deleteCount ++;
+                    deleted.add(fc);
+                }
+            }
+            this.flaggedClusters[z].removeAll(deleted);
+
+
+            // (3) handle all shifts and reInserts at z level to tune grouping relationships for clusters at (z-1) level
             Cluster flaggedCluster;
             while ((flaggedCluster = this.flaggedClusters[z].poll()) != null) {
 
@@ -116,8 +160,8 @@ public class SBiSuperCluster extends SuperCluster {
                 }
 
                 if (flaggedCluster.flag == Flags.UPDATED) {
-                    updateCountLevel ++;
-                    update(flaggedCluster, z);
+//                    updateCountLevel ++;
+//                    update(flaggedCluster, z);
 
                     if (flaggedCluster.distanceTo(flaggedCluster.advocator) > miu * r) {
                         shift(flaggedCluster, flaggedCluster.advocator, z);
@@ -125,16 +169,16 @@ public class SBiSuperCluster extends SuperCluster {
                     }
                 }
 
-                if (flaggedCluster.flag == Flags.DELETED) {
-                    delete(flaggedCluster, z);
-                    deleteCountLevel ++;
-                }
+//                if (flaggedCluster.flag == Flags.DELETED) {
+//                    onDelete(flaggedCluster, z);
+//                    deleteCountLevel ++;
+//                }
             }
 
             System.out.println("zoom level [" + z + "] inserted " + insertCountLevel + " clusters.");
             System.out.println("zoom level [" + z + "] updated " + updateCountLevel + " clusters.");
             System.out.println("zoom level [" + z + "]   -- shifted " + shiftCountLevel + " clusters.");
-            System.out.println("zoom level [" + z + "] delete " + deleteCountLevel + " clusters.");
+            System.out.println("zoom level [" + z + "] deleted " + deleteCountLevel + " clusters.");
 
             insertCount += insertCountLevel;
             updateCount += updateCountLevel;
@@ -142,35 +186,45 @@ public class SBiSuperCluster extends SuperCluster {
             deleteCount += deleteCountLevel;
 
             //-DEBUG-//
-//            Cluster[] allClusters = getClusters(-180, -90, 180, 90, z-1);
-//            int totalPointsCount = 0;
-//            for (int i = 0; i < allClusters.length; i ++) {
-//                totalPointsCount += allClusters[i].numPoints==0?1:allClusters[i].numPoints;
-//                // check whether cluster's numPoints = sum of all its children's numPoints
-//                if (allClusters[i].children != null) {
-//                    int sumChildren = 0;
-//                    for (Cluster child: allClusters[i].children) {
-//                        sumChildren += child.numPoints==0?1:child.numPoints;
-//                    }
-//                    if ((allClusters[i].numPoints==0?1:allClusters[i].numPoints) != sumChildren) {
-//                        System.out.println("[Error] Cluster " + allClusters[i].getId() + ":[" + allClusters[i].numPoints + "] is not consistent with its children!");
-//                        StringBuilder sb = new StringBuilder();
-//                        for (Cluster child: allClusters[i].children) {
-//                            sb.append(child.getId() + ":[" + child.numPoints + "], ");
-//                        }
-//                        System.out.println("Its children: " + sb.toString());
-//                    }
-//                }
-//                // check whether cluster's coordinate is NaN
-//                if (Double.isNaN(allClusters[i].getX()) || Double.isNaN(allClusters[i].getY())) {
-//                    System.out.println("[Error] Cluster " + allClusters[i].getId() + ":[" + allClusters[i].numPoints + "]: " + allClusters[i]);
-//                }
-//            }
-//            if (totalPointsCount != this.totalNumberOfPoints) {
-//                System.out.println("[Error] zoom level [" + (z - 1) + "] has totally ====> " + totalPointsCount + " <==== points. Correct should be " + this.totalNumberOfPoints);
-//            }
+            Cluster[] allClusters = getClusters(-180, -90, 180, 90, z);
+            int totalPointsCount = 0;
+            for (int i = 0; i < allClusters.length; i ++) {
+                totalPointsCount += allClusters[i].numPoints==0?1:allClusters[i].numPoints;
+                // check whether cluster's numPoints = sum of all its children's numPoints
+                if (!allClusters[i].children.isEmpty()) {
+                    int sumChildren = 0;
+                    for (Cluster child: allClusters[i].children) {
+                        sumChildren += child.numPoints==0?1:child.numPoints;
+                    }
+                    if ((allClusters[i].numPoints==0?1:allClusters[i].numPoints) != sumChildren) {
+                        System.out.println("[Error] Cluster (" + (z) + ")" + printCluster(allClusters[i]) + " is not consistent with its children!");
+                        System.out.println("                               |--" + printClusterChildren(allClusters[i]));
+                    }
+                }
+                // check whether cluster's coordinate is NaN
+                if (Double.isNaN(allClusters[i].getX()) || Double.isNaN(allClusters[i].getY())) {
+                    System.out.println("[Error] Cluster " + printCluster(allClusters[i]) + ": " + allClusters[i]);
+                }
+            }
+            if (totalPointsCount != this.totalNumberOfPoints) {
+                System.out.println("[Error] zoom level [" + (z) + "] has totally ====> " + totalPointsCount + " <==== points. Correct should be " + this.totalNumberOfPoints + ". Delta = " + points.length);
+            }
             //-DEBUG-//
         }
+
+        //-DEBUG-//
+//        for (int z = maxZoom; z > minZoom; z --) {
+//            if (z == 2) {
+//                Cluster[] allClusters = getClusters(-180, -90, 180, 90, z);
+//                for (Cluster c : allClusters) {
+//                    if (c.getId() == 35) {
+//                        System.out.println("[Debug] zoom level [2] " + printCluster(c));
+//                        System.out.println("[Debug]                |--" + printClusterChildren(c));
+//                    }
+//                }
+//            }
+//        }
+        //-DEBUG-//
 
         this.totalInsertCount += insertCount;
         this.totalUpdateCount += updateCount;
@@ -228,8 +282,14 @@ public class SBiSuperCluster extends SuperCluster {
             this.clustersIndexes[maxZoom].insert(c);
 
             c.flag = Flags.INSERTED;
-            if (!this.flaggedClusters[maxZoom].contains(c)) // TODO - this case should not happen at all
+            if (this.flaggedClusters[maxZoom].contains(c)) {
+                // TODO - this case should not happen at all
+                System.out.println("[warn] max zoom level newly inserted c " + printCluster(c) + " is already 'INSERTED' !!!");
+            }
+            else {
                 this.flaggedClusters[maxZoom].add(c);
+            }
+
         }
         // if earlier advocators' groups could be merged into
         else {
@@ -329,7 +389,14 @@ public class SBiSuperCluster extends SuperCluster {
                 // update c1's updateDelta to merge cluster c2
                 merge(c1.updateDelta, c2.getX(), c2.getY(), c2.numPoints);
             }
-            // TODO - if c1 has been flagged as INSERT/DELETE, should do nothing?
+            else if (c1.flag == Flags.DELETED) {
+                // TODO - if c1 has been flagged as DELETED, this case should not happen!
+                System.out.println("[warn] merge c2 " + printCluster(c2) + " into a 'DELETED' c1 " + printCluster(c1) + " !!!");
+            }
+            else {
+                // TODO - if c1 has been flagged as INSERT, should do nothing?
+                System.out.println("[warn] merge c2 " + printCluster(c2) + " into a 'INSERTED' c1 " + printCluster(c1) + ", do nothing.");
+            }
         }
         else {
             c1.flag = Flags.UPDATED;
@@ -356,10 +423,7 @@ public class SBiSuperCluster extends SuperCluster {
 
         // if c2 is c1's only child, delete c1 directly
         if (c1.children.size() == 1) {
-            // TODO - verify this case
-            c1.flag = Flags.DELETED;
-            if (!this.flaggedClusters[zoom].contains(c1))
-                this.flaggedClusters[zoom].add(c1);
+            delete(c1, zoom);
         }
         // otherwise, subtract c2's weight from c1
         else {
@@ -390,7 +454,14 @@ public class SBiSuperCluster extends SuperCluster {
                     // update c1's updateDelta to split cluster c2
                     split(c1.updateDelta, c2.getX(), c2.getY(), c2.numPoints);
                 }
-                // TODO - if c1 has been flagged as INSERT/DELETE, should do nothing?
+                else if (c1.flag ==  Flags.DELETED) {
+                    // TODO - if c1 has been flagged as DELETED, this case should not happen!
+                    System.out.println("[warn] split c2 " + printCluster(c2) + " from a 'DELETED' c1 " + printCluster(c1) + " !!!");
+                }
+                else {
+                    // TODO - if c1 has been flagged as INSERT, should do nothing?
+                    System.out.println("[warn] split c2 " + printCluster(c2) + " from a 'INSERTED' c1 " + printCluster(c1) + ", do nothing.");
+                }
             }
             else {
                 c1.flag = Flags.UPDATED;
@@ -398,6 +469,61 @@ public class SBiSuperCluster extends SuperCluster {
                 c1.updateDelta = new ClusterDelta(c2.getX(), c2.getY(), c2.numPoints == 0? -1: -c2.numPoints);
                 this.flaggedClusters[zoom].add(c1);
             }
+        }
+    }
+
+    /**
+     * Delete cluster c from zoom level
+     *
+     * @param c
+     * @param zoom
+     */
+    private void delete(Cluster c, int zoom) {
+
+        this.advocatorsIndexes[zoom].delete(c.advocator);
+        this.advocatorClusters[zoom].remove(c);
+        //this.clustersIndexes[zoom].delete(c);
+
+        //-DEBUG-//
+        if (c.getId() == 1384) {
+            System.out.println("(" + zoom + ") [delete] deleted " + printCluster(c));
+        }
+        //-DEBUG-//
+
+        if (this.flaggedClusters[zoom].contains(c)) {
+            // TODO - handle existing cases
+
+            // c has been updated in this round
+            if (c.flag == Flags.UPDATED) {
+                // de-apply delta from c in case c's phantom update (not propagated to c.parent yet)
+                // will be split from c.parent
+                int numPoints = c.numPoints == 0? 1: c.numPoints;
+                double dx = c.updateDelta.x;
+                double dy = c.updateDelta.y;
+                int dNumPoints = c.updateDelta.numPoints;
+                double wx = c.getX() * numPoints - dx * dNumPoints;
+                double wy = c.getY() * numPoints - dy * dNumPoints;
+                // TODO - for update cluster with delta, it should not be possible the numPoints be 0.
+                numPoints = numPoints - dNumPoints;
+
+                c.setX(wx / numPoints);
+                c.setY(wy / numPoints);
+                c.numPoints = numPoints;
+            }
+            else if (c.flag == Flags.INSERTED) {
+                // TODO - if c has been flagged as INSERTED, this case should not happen!
+                System.out.println("[warn] delete a newly 'INSERTED' c " + printCluster(c) + " !!!");
+            }
+            else {
+                // TODO - if c has been flagged as DELETED, this case should not happen!
+                System.out.println("[warn] delete an already 'DELETED' c " + printCluster(c) + " !!!");
+            }
+
+            c.flag = Flags.DELETED;
+        }
+        else {
+            c.flag = Flags.DELETED;
+            this.flaggedClusters[zoom].add(c);
         }
     }
 
@@ -414,6 +540,12 @@ public class SBiSuperCluster extends SuperCluster {
         double r = getRadius(zoom - 1);
 
         List<Cluster> clusters = this.clustersIndexes[zoom].within(c, r);
+
+        //-DEBUG-//
+//        if (c.getId() == 4) {
+//            System.out.println("(" + zoom + ") [toMerge] found clusters: " + clusters);
+//        }
+        //-DEBUG-//
 
         clusters.removeAll(c.parent.children);
         // remove those already has a parent with smaller id of advocator than c.parent
@@ -506,7 +638,14 @@ public class SBiSuperCluster extends SuperCluster {
             if (c.flag == Flags.UPDATED) {
                 combine(c.updateDelta, delta);
             }
-            // TODO - if c has been flagged as INSERT/DELETE, should do nothing?
+            else if (c.flag == Flags.INSERTED) {
+                // TODO - if c has been flagged as INSERT, should not happen!
+                System.out.println("[warn] apply delta to an already 'INSERTED' c " + printCluster(c) + " !!!");
+            }
+            else {
+                // TODO - if c has been flagged as DELETE, should not happen!
+                System.out.println("[warn] apply delta to an already 'DELETED' c " + printCluster(c) + " !!!");
+            }
         }
         else {
             c.flag = Flags.UPDATED;
@@ -518,12 +657,19 @@ public class SBiSuperCluster extends SuperCluster {
     private void update(Cluster c, int zoom) {
 
         //-DEBUG-//
-        //System.out.println("Updating cluster " + c.getId() + ":[" + c.numPoints + "], delta=" + c.updateDelta.numPoints + " at level " + zoom + " ...");
+        System.out.println("[update] updating c = " + printCluster(c) + ", delta=" + c.updateDelta.numPoints + " at level " + zoom + " ...");
+        System.out.println("[update]     apply delta to c.parent " + printCluster(c.parent));
+        System.out.println("[update]                             |--" + printClusterChildren(c.parent));
         //-DEBUG-//
 
         // propagate c's delta to c's parent
         applyDelta(c.parent, c.updateDelta, zoom - 1);
         c.updateDelta = null;
+
+        //-DEBUG-//
+        System.out.println("[update]     after applied delta, c.parent " + printCluster(c.parent));
+        System.out.println("[update]                                   |--" + printClusterChildren(c.parent));
+        //-DEBUG-//
     }
 
     /**
@@ -538,17 +684,49 @@ public class SBiSuperCluster extends SuperCluster {
      */
     private void reInsert(Cluster c, int zoom) {
         //-DEBUG-//
-        //System.out.println("reInserting " + c.getId() + ": [" + c.numPoints + "]...");
+        System.out.println("[reInsert] reInserting c = " + printCluster(c) + " ...");
         //-DEBUG-//
 
         if (zoom == minZoom) return;
         double radius = getRadius(zoom - 1);
 
-        // Find all earlier advocators c can merge into
+        // Find all advocators within radius to c
         List<Advocator> advocators = this.advocatorsIndexes[zoom - 1].within(c, radius);
+        // find the earliest advocator
+        Advocator earliestAdvocator = null;
+        for (Advocator advocator: advocators) {
+            if (earliestAdvocator == null) {
+                earliestAdvocator = advocator;
+            }
+            else if (earliestAdvocator.getId() > advocator.getId()) {
+                earliestAdvocator = advocator;
+            }
+        }
 
-        // if no group could be merged into, become a new Advocator itself
-        if (advocators.isEmpty()) {
+        // if c should be merged into an earlier advocator's group
+        if (earliestAdvocator != null && earliestAdvocator.cluster.seq < c.seq) {
+
+            // merge into earliest advocator's group
+            Cluster cluster = earliestAdvocator.cluster;
+
+            //-DEBUG-//
+            System.out.println("[reInsert]     c should merge into earlier advocator " + printCluster(cluster) + ".");
+            System.out.println("[reInsert]                                           |--" + printClusterChildren(cluster));
+            //-DEBUG-//
+
+            merge(cluster, c, zoom - 1);
+
+            //-DEBUG-//
+            System.out.println("[reInsert]     after merged c, " + printCluster(cluster));
+            System.out.println("[reInsert]                     |--" + printClusterChildren(cluster));
+            //-DEBUG-//
+        }
+        // if no earlier group could be merged into, become a new Advocator itself
+        else {
+
+            //-DEBUG-//
+            System.out.println("[reInsert]     c will be a new Advocator itself.");
+            //-DEBUG-//
 
             // create a parent cluster of c, and add it to zoom-1 level
             Cluster parent = createCluster(c.getX(), c.getY(), c.getId(), c.numPoints);
@@ -618,7 +796,8 @@ public class SBiSuperCluster extends SuperCluster {
 
 
             if (this.flaggedClusters[zoom - 1].contains(parent)) {
-                // TODO - handle existing cases
+                // TODO - if parent has been flagged as INSERTED/DELETED/UPDATED, should not happen!
+                System.out.println("[warn] insert an already '" + parent.flag.name() + "' parent " + printCluster(parent) + " !!!");
                 //parent.flag = Flags.INSERTED;
             }
             else {
@@ -626,43 +805,29 @@ public class SBiSuperCluster extends SuperCluster {
                 this.flaggedClusters[zoom - 1].add(parent);
             }
         }
-        // if earlier advocators' groups could be merged into
-        else {
-            // find the earliest advocator
-            Advocator earliestAdvocator = null;
-            for (Advocator advocator: advocators) {
-                if (earliestAdvocator == null) {
-                    earliestAdvocator = advocator;
-                }
-                else if (earliestAdvocator.getId() > advocator.getId()) {
-                    earliestAdvocator = advocator;
-                }
-            }
-
-            // merge into earliest advocator's group
-            Cluster cluster = earliestAdvocator.cluster;
-
-            merge(cluster, c, zoom - 1);
-        }
-
-        c.flag = Flags.NONE;
+        //c.flag = Flags.NONE;
     }
 
     /**
-     * delete cluster c from zoom level
+     * onDelete cluster c from zoom level
      *   Note: information of c itself is already up to date,
      *         grouping relationships at zoom level is also up to date,
-     *         delete just wants to update the grouping relationships at zoom-1 level
+     *         onDelete just wants to update the grouping relationships at zoom-1 level
      *
      * @param c
      * @param zoom
      */
-    private void delete(Cluster c, int zoom) {
+    private void onDelete(Cluster c, int zoom) {
+
         this.advocatorsIndexes[zoom].delete(c.advocator);
         this.advocatorClusters[zoom].remove(c);
         this.clustersIndexes[zoom].delete(c);
-        c.flag = Flags.NONE;
 
+        //-DEBUG-//
+        System.out.println("[delete] deleting c = " + printCluster(c) + " ...");
+        //-DEBUG-//
+
+        //c.flag = Flags.NONE;
         split(c.parent, c, zoom - 1);
     }
 
@@ -678,24 +843,122 @@ public class SBiSuperCluster extends SuperCluster {
      */
     private void shift(Cluster c, Advocator from, int zoom) {
         if (zoom == minZoom) return;
+
+        //-DEBUG-//
+        System.out.println("[shift] shifting c = " + printCluster(c) + " ...");
+        //-DEBUG-//
+
         // shifting at level zoom affects clustering results of level (zoom-1)
         double radius = getRadius(zoom - 1);
 
         if (isAdvocatorOfParent(c)) {
-            // Find all earlier advocators c can merge into
-            List<Advocator> advocators = this.advocatorsIndexes[zoom - 1].within(c, radius);
 
-            // if no group could be merged into, merge other clusters or split children clusters
-            if (advocators.isEmpty()) {
+            //-DEBUG-//
+            System.out.println("[shift]     c is an Advocator.");
+            //-DEBUG-//
+
+            // Find all advocators within radius to c
+            List<Advocator> advocators = this.advocatorsIndexes[zoom - 1].within(c, radius);
+            // find the earliest advocator
+            Advocator earliestAdvocator = null;
+            for (Advocator advocator: advocators) {
+                if (earliestAdvocator == null) {
+                    earliestAdvocator = advocator;
+                }
+                else if (earliestAdvocator.getId() > advocator.getId()) {
+                    earliestAdvocator = advocator;
+                }
+            }
+
+            // if c should be merged into an earlier advocator's group
+            if (earliestAdvocator != null && earliestAdvocator.cluster.seq < c.seq) {
+
+                Cluster cluster = earliestAdvocator.cluster;
+
+                //-DEBUG-//
+                System.out.println("[shift]         c should merge into earlier advocator " + printCluster(cluster) + ".");
+                System.out.println("[shift]         breaking c.parent ...");
+                StringBuilder sb = new StringBuilder();
+                //-DEBUG-//
+
+                // break c.parent cluster
+                // flag all children (except c) of c.parent as “inserted”
+                c.parent.children.remove(c);
+
+                for (Cluster sibling: c.parent.children) {
+
+                    //-DEBUG-//
+                    sb.append(printCluster(sibling) + ", ");
+                    //-DEBUG-//
+
+                    if (this.flaggedClusters[zoom].contains(sibling)) {
+                        if (sibling.flag == Flags.INSERTED) {
+                            // TODO - if sibling is flagged as INSERTED, should not happen!
+                            System.out.println("[warn] insert an already 'INSERTED' sibling " + printCluster(sibling) + " !!!");
+                        }
+                        else if (sibling.flag == Flags.UPDATED) {
+                            sibling.flag = Flags.INSERTED;
+                        }
+                        else {
+                            // TODO - if sibling is flagged as DELETED, should not happen!
+                            System.out.println("[warn] insert an already 'DELETED' sibling " + printCluster(sibling) + " !!!");
+                        }
+                    }
+                    else {
+                        sibling.flag = Flags.INSERTED;
+                        this.flaggedClusters[zoom].add(sibling);
+                    }
+                }
+
+                //-DEBUG-//
+                if (c.parent.children.size() > 0) {
+                    sb.deleteCharAt(sb.length() - 2);
+                    System.out.println("[shift]         c's siblings will be reinserted: " + sb.toString());
+                }
+                System.out.println("[shift]         delete c's parent " + printCluster(c.parent));
+                //-DEBUG-//
+
+                delete(c.parent, zoom - 1);
+
+                //-DEBUG-//
+                System.out.println("[shift]         merging c into " + printCluster(cluster));
+                System.out.println("[shift]                        |--" + printClusterChildren(cluster));
+                //-DEBUG-//
+
+                merge(cluster, c, zoom - 1);
+
+                //-DEBUG-//
+                System.out.println("[shift]         after merged c, " + printCluster(cluster));
+                System.out.println("[shift]                         |--" + printClusterChildren(cluster));
+                //-DEBUG-//
+            }
+            // if no earlier group could be merged into, merge other clusters or split children clusters
+            else {
+
                 List<Cluster> toMerge = toMerge(c, zoom);
                 List<Cluster> toSplit = toSplit(c, zoom);
+
+                //-DEBUG-//
+                System.out.println("[shift]         no earlier group could be merged into.");
+                StringBuilder sb = new StringBuilder();
+                for (Cluster m: toMerge) sb.append(printCluster(m) + ", ");
+                System.out.println("[shift]             toMerge: " + sb.toString());
+                sb = new StringBuilder();
+                for (Cluster m: toSplit) sb.append(printCluster(m) + ", ");
+                System.out.println("[shift]             toSplit: " + sb.toString());
+                System.out.println("[shift]             before, c.parent " + printCluster(c.parent));
+                System.out.println("[shift]                              |--" + printClusterChildren(c.parent));
+                //-DEBUG-//
+
                 // shift the advocator "from"'s location to the centroid of cluster c
                 this.advocatorsIndexes[zoom].delete(from);
                 from.setX(c.getX());
                 from.setY(c.getY());
                 this.advocatorsIndexes[zoom].insert(from);
 
+
                 for (Cluster m: toMerge) {
+
                     if (isAdvocatorOfParent(m)) {
                         // break m.parent cluster
                         // flag all children (except m) of m.parent as “inserted”
@@ -703,7 +966,17 @@ public class SBiSuperCluster extends SuperCluster {
                         for (Cluster sibling: m.parent.children) {
 
                             if (this.flaggedClusters[zoom].contains(sibling)) {
-                                // TODO - handle existing cases
+                                if (sibling.flag == Flags.INSERTED) {
+                                    // TODO - if sibling is flagged as INSERTED, should not happen!
+                                    System.out.println("[warn] insert an already 'INSERTED' sibling " + printCluster(sibling) + " !!!");
+                                }
+                                else if(sibling.flag == Flags.UPDATED) {
+                                    sibling.flag = Flags.INSERTED;
+                                }
+                                else {
+                                    // TODO - if sibling is flagged as DELETED, should not happen!
+                                    System.out.println("[warn] insert an already 'DELETED' sibling " + printCluster(sibling) + " !!!");
+                                }
                             }
                             else {
                                 sibling.flag = Flags.INSERTED;
@@ -711,45 +984,97 @@ public class SBiSuperCluster extends SuperCluster {
                             }
                         }
 
-                        if (this.flaggedClusters[zoom - 1].contains(m.parent)) {
-                            // TODO - handle existing cases
-                        }
-                        else {
-                            m.parent.flag = Flags.DELETED;
-                            this.flaggedClusters[zoom - 1].add(m.parent);
-                        }
+                        //-DEBUG-//
+                        System.out.println("[shift]                 delete m.parent " + printCluster(m.parent));
+                        //-DEBUG-//
+
+                        // delete m.parent
+                        delete(m.parent, zoom -1);
+
                         merge(c.parent, m, zoom - 1);
                     }
                     else {
                         split(m.parent, m, zoom - 1);
                         merge(c.parent, m, zoom - 1);
                     }
+
                     // remove cluster m from queue of clusters to be processed
                     if (this.flaggedClusters[zoom].contains(m))
                         this.flaggedClusters[zoom].remove(m);
                 }
 
+                //-DEBUG-//
+                System.out.println("[shift]             after merged, c.parent " + printCluster(c.parent));
+                System.out.println("[shift]                                    |--" + printClusterChildren(c.parent));
+                //-DEBUG-//
+
                 for (Cluster s: toSplit) {
+
                     split(c.parent, s, zoom - 1);
 
                     if (this.flaggedClusters[zoom].contains(s)) {
-                        // TODO - handle existing cases
+                        if (s.flag == Flags.INSERTED) {
+                            // TODO - if s is flagged as INSERTED, should not happen!
+                            System.out.println("[warn] split an newly 'INSERTED' s " + printCluster(s) + " from c.parent " + printCluster(c.parent) + " !!!");
+                        }
+                        else if (s.flag == Flags.UPDATED) {
+                            // TODO - if s is flagged as UPDATED, make it INSERTED.
+                            s.flag = Flags.INSERTED;
+                        }
+                        else {
+                            // TODO - if s is flagged as DELETED, should not happen!
+                            System.out.println("[warn] split a 'DELETED' s " + printCluster(s) + " from c.parent " + printCluster(c.parent) + " !!!");
+                        }
                     }
                     else {
                         s.flag = Flags.INSERTED;
                         this.flaggedClusters[zoom].add(s);
                     }
                 }
+
+                //-DEBUG-//
+                System.out.println("[shift]             after split, c.parent " + printCluster(c.parent));
+                System.out.println("[shift]                                   |--" + printClusterChildren(c.parent));
+                //-DEBUG-//
             }
 
-            c.flag = Flags.NONE;
+            //c.flag = Flags.NONE;
         }
         else {
-            if (c.parent.advocator.distanceTo(c) > radius) {
+
+            //-DEBUG-//
+            System.out.println("[shift]     c is NOT an Advocator.");
+            //-DEBUG-//
+
+            if (c.parent != null && c.parent.advocator.distanceTo(c) > radius) {
+
+                //-DEBUG-//
+                Cluster c_parent = c.parent;
+                System.out.println("[shift]         split c from c.parent " + printCluster(c_parent));
+                System.out.println("[shift]                               |--" + printClusterChildren(c_parent));
+                //-DEBUG-//
+
                 split(c.parent, c, zoom - 1);
+
+                //-DEBUG-//
+                System.out.println("[shift]         after split, c.parent " + printCluster(c_parent));
+                System.out.println("[shift]                               |--" + printClusterChildren(c_parent));
+                //-DEBUG-//
 
                 if (this.flaggedClusters[zoom].contains(c)) {
                     // TODO - handle existing cases
+                    if (c.flag == Flags.INSERTED) {
+                        // TODO - if c is flagged as INSERTED, should not happen!
+                        System.out.println("[warn] shifting an newly 'INSERTED' c and split it " + printCluster(c) + " from c.parent " + printCluster(c.parent) + " !!!");
+                    }
+                    else if (c.flag == Flags.UPDATED) {
+                        // TODO - if c is flagged as UPDATED, should not happen!
+                        System.out.println("[warn] shifting a duplicate 'UPDATED' c and split it " + printCluster(c) + " from c.parent " + printCluster(c.parent) + " !!!");
+                    }
+                    else {
+                        // TODO - if c is flagged as DELETED, should not happen!
+                        System.out.println("[warn] shifting a already 'DELETED' c and split it " + printCluster(c) + " from c.parent " + printCluster(c.parent) + " !!!");
+                    }
                 }
                 else {
                     c.flag = Flags.INSERTED;
@@ -757,7 +1082,11 @@ public class SBiSuperCluster extends SuperCluster {
                 }
             }
             else {
-                c.flag = Flags.NONE;
+                //c.flag = Flags.NONE;
+
+                //-DEBUG-//
+                System.out.println("[shift]         c is still within its parent range.");
+                //-DEBUG-//
             }
         }
     }
@@ -947,5 +1276,21 @@ public class SBiSuperCluster extends SuperCluster {
         delta1.x = x / (numPoints == 0? 1: numPoints);
         delta1.y = y / (numPoints == 0? 1: numPoints);
         delta1.numPoints = numPoints;
+    }
+
+    private String printCluster(Cluster c) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(c.getId() + ":[" + c.numPoints + "]");
+        return sb.toString();
+    }
+
+    private String printClusterChildren(Cluster c) {
+        if (c.children.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (Cluster child: c.children) {
+            sb.append(child.getId() + ":[" + child.numPoints + "], ");
+        }
+        sb.deleteCharAt(sb.length() - 2);
+        return sb.toString();
     }
 }
