@@ -30,7 +30,7 @@ public class Agent extends AbstractActor {
     private Config config;
     private String keyword;
     private PostgreSQL postgreSQL;
-    private PointTuple[] pointTuples;
+    private List<PointTuple> pointTuples;
     /**
      * maps from ordering of points to tid
      * key - clusterKey
@@ -132,8 +132,8 @@ public class Agent extends AbstractActor {
         }
     }
 
-    private void buildGeoJsonArrayPoint(Point[] points, ArrayNode geoJsonArray) {
-        for (int i = 0; i < points.length; i ++) {
+    private void buildGeoJsonArrayPoint(List<PointTuple> points, ArrayNode geoJsonArray) {
+        for (int i = 0; i < points.size(); i ++) {
             ObjectNode feature = JsonNodeFactory.instance.objectNode();
             feature.put("type", "Feature");
 
@@ -142,8 +142,8 @@ public class Agent extends AbstractActor {
 
             ObjectNode geometry = JsonNodeFactory.instance.objectNode();
             ArrayNode coordinates = geometry.putArray("coordinates");
-            coordinates.add(points[i].getX());
-            coordinates.add(points[i].getY());
+            coordinates.add(points.get(i).getX());
+            coordinates.add(points.get(i).getY());
             geometry.put("type", "Point");
             feature.set("geometry", geometry);
 
@@ -151,12 +151,12 @@ public class Agent extends AbstractActor {
         }
     }
 
-    private void buildDataArrayPoint(Point[] points, ArrayNode dataArray) {
-        for (int i = 0; i < points.length; i ++) {
+    private void buildDataArrayPoint(List<PointTuple> points, ArrayNode dataArray) {
+        for (int i = 0; i < points.size(); i ++) {
             ArrayNode pointTuple = JsonNodeFactory.instance.arrayNode();
-            pointTuple.add(points[i].getX());
-            pointTuple.add(points[i].getY());
-            pointTuple.add(points[i].getId());
+            pointTuple.add(points.get(i).getX());
+            pointTuple.add(points.get(i).getY());
+            pointTuple.add(points.get(i).getId());
             dataArray.add(pointTuple);
         }
     }
@@ -400,8 +400,8 @@ public class Agent extends AbstractActor {
         if (pointTuples == null) {
             return false;
         }
-        for (int i = 0; i < pointTuples.length; i ++) {
-            pointTuples[i].setId(i);
+        for (int i = 0; i < pointTuples.size(); i ++) {
+            pointTuples.get(i).setId(i);
         }
         return true;
     }
@@ -416,7 +416,7 @@ public class Agent extends AbstractActor {
         if (postgreSQL == null) {
             postgreSQL = new PostgreSQL();
         }
-        PointTuple[] deltaPointTuples;
+        List<PointTuple> deltaPointTuples;
         if (keyword.equals("%")) {
             deltaPointTuples = postgreSQL.queryPointTuplesForTime(start, end);
         }
@@ -426,16 +426,14 @@ public class Agent extends AbstractActor {
         if (deltaPointTuples == null) {
             return false;
         }
-        for (int i = 0; i < deltaPointTuples.length; i ++) {
-            deltaPointTuples[i].setId(i);
+        for (int i = 0; i < deltaPointTuples.size(); i ++) {
+            deltaPointTuples.get(i).setId(i);
         }
         if (pointTuples == null || deltaOnly) {
             pointTuples = deltaPointTuples;
         }
         else {
-            List<PointTuple> base = new ArrayList(Arrays.asList(pointTuples));
-            base.addAll(Arrays.asList(deltaPointTuples));
-            pointTuples = base.toArray(new PointTuple[base.size()]);
+            pointTuples.addAll(deltaPointTuples);
         }
         return true;
     }
@@ -499,6 +497,9 @@ public class Agent extends AbstractActor {
                 superClustersHits.put(clusterKey, 0);
             }
             cluster.load(points);
+            if (deltaOnly) {
+                PointTupleListFactory.recycle(this.pointTuples);
+            }
         }
         return true;
     }
@@ -509,7 +510,7 @@ public class Agent extends AbstractActor {
             case "load":
                 success = loadData(_request.keyword);
                 if (success) {
-                    respond(buildCmdResponse(_request, _cmd.action, "data loaded, size = " + this.pointTuples.length, "done"));
+                    respond(buildCmdResponse(_request, _cmd.action, "data loaded, size = " + this.pointTuples.size(), "done"));
                 }
                 else {
                     respond(buildCmdResponse(_request, _cmd.action, "load data failed", "error"));
@@ -542,41 +543,37 @@ public class Agent extends AbstractActor {
     }
 
     private double[][] orderPoints(String _key, String _order, boolean deltaOnly) {
-        double[][] points = new double[pointTuples.length][2];
+        double[][] points = new double[pointTuples.size()][2];
         Long[] orderMap = new Long[points.length];
         switch (_order) {
             case "original":
-                for (int i = 0; i < pointTuples.length; i ++) {
-                    points[i][0] = pointTuples[i].getX();
-                    points[i][1] = pointTuples[i].getY();
-                    orderMap[i] = pointTuples[i].tid;
+                for (int i = 0; i < pointTuples.size(); i ++) {
+                    points[i][0] = pointTuples.get(i).getX();
+                    points[i][1] = pointTuples.get(i).getY();
+                    orderMap[i] = pointTuples.get(i).tid;
                 }
                 break;
             case "reverse":
-                for (int i = 0; i < pointTuples.length; i ++) {
-                    points[pointTuples.length - 1 - i][0] = pointTuples[i].getX();
-                    points[pointTuples.length - 1 - i][1] = pointTuples[i].getY();
-                    orderMap[pointTuples.length - 1 - i] = pointTuples[i].tid;
+                for (int i = 0; i < pointTuples.size(); i ++) {
+                    points[pointTuples.size() - 1 - i][0] = pointTuples.get(i).getX();
+                    points[pointTuples.size() - 1 - i][1] = pointTuples.get(i).getY();
+                    orderMap[pointTuples.size() - 1 - i] = pointTuples.get(i).tid;
                 }
                 break;
             case "spatial":
-                List<PointTuple> pointTuplesList = Arrays.asList(pointTuples);
-                Collections.sort(pointTuplesList, PointTuple.getSpatialComparator());
-                PointTuple[] cPointTuples = pointTuplesList.toArray(new PointTuple[pointTuplesList.size()]);
-                for (int i = 0; i < cPointTuples.length; i ++) {
-                    points[i][0] = cPointTuples[i].getX();
-                    points[i][1] = cPointTuples[i].getY();
-                    orderMap[i] = cPointTuples[i].tid;
+                Collections.sort(pointTuples, PointTuple.getSpatialComparator());
+                for (int i = 0; i < pointTuples.size(); i ++) {
+                    points[i][0] = pointTuples.get(i).getX();
+                    points[i][1] = pointTuples.get(i).getY();
+                    orderMap[i] = pointTuples.get(i).tid;
                 }
                 break;
             case "reverse-spatial":
-                List<PointTuple> pointTuplesList_ = Arrays.asList(pointTuples);
-                Collections.sort(pointTuplesList_, PointTuple.getReverseSpatialComparator());
-                PointTuple[] cPointTuples_ = pointTuplesList_.toArray(new PointTuple[pointTuplesList_.size()]);
-                for (int i = 0; i < cPointTuples_.length; i ++) {
-                    points[i][0] = cPointTuples_[i].getX();
-                    points[i][1] = cPointTuples_[i].getY();
-                    orderMap[i] = cPointTuples_[i].tid;
+                Collections.sort(pointTuples, PointTuple.getReverseSpatialComparator());
+                for (int i = 0; i < pointTuples.size(); i ++) {
+                    points[i][0] = pointTuples.get(i).getX();
+                    points[i][1] = pointTuples.get(i).getY();
+                    orderMap[i] = pointTuples.get(i).tid;
                 }
                 break;
             default:
@@ -678,8 +675,8 @@ public class Agent extends AbstractActor {
         if (pointTuples == null) {
             // TODO - exception
         }
-        for (int i = 0; i < pointTuples.length; i ++) {
-            pointTuples[i].setId(i);
+        for (int i = 0; i < pointTuples.size(); i ++) {
+            pointTuples.get(i).setId(i);
         }
         ObjectNode result = JsonNodeFactory.instance.objectNode();
         result.put("type", "FeatureCollection");

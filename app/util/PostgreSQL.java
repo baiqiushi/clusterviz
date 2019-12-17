@@ -1,6 +1,7 @@
 package util;
 
 import model.PointTuple;
+import model.PointTupleListFactory;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -37,7 +38,7 @@ public class PostgreSQL {
         }
     }
 
-    public PointTuple[] queryPointTuplesForKeyword(String keyword) {
+    public List<PointTuple> queryPointTuplesForKeyword(String keyword) {
 
         if (this.conn == null) {
             if(!this.connectDB()) {
@@ -46,7 +47,10 @@ public class PostgreSQL {
         }
 
         System.out.println("Querying PostgreSQL with keyword: [" + keyword + "] ... ...");
-        List<PointTuple> result = new ArrayList<PointTuple>();
+        //List<PointTuple> result = new ArrayList<PointTuple>();
+        // reuse array list of PointTuple
+        List<PointTuple> result = PointTupleListFactory.newPointTupleList();
+        int i = 0;
         String sql = "SELECT create_at, x, y, id FROM tweets WHERE to_tsvector('english', text)@@to_tsquery('english', ?)";
         long start = System.nanoTime();
         try {
@@ -59,24 +63,39 @@ public class PostgreSQL {
                 Double x = rs.getDouble(2);
                 Double y = rs.getDouble(3);
                 long tid = rs.getLong(4);
-                PointTuple pt = new PointTuple();
-                pt.timestamp = create_at;
-                pt.setX(x);
-                pt.setY(y);
-                pt.tid = tid;
-                result.add(pt);
+                // still enough objects in list can be reused
+                if (i < result.size()) {
+                    result.get(i).timestamp = create_at;
+                    result.get(i).setX(x);
+                    result.get(i).setY(y);
+                    result.get(i).tid = tid;
+                }
+                // no more objects can be reused
+                else {
+                    PointTuple pt = new PointTuple();
+                    pt.timestamp = create_at;
+                    pt.setX(x);
+                    pt.setY(y);
+                    pt.tid = tid;
+                    result.add(pt);
+                }
+                i ++;
             }
         } catch (SQLException e) {
             System.err.println(e.getMessage());
+        }
+        // remove additional objects in the tail of the list
+        while (i < result.size()) {
+            result.remove(result.size() - 1);
         }
         long end = System.nanoTime();
         System.out.println("Querying PostgreSQL with keyword: [" + keyword + "] is done! ");
         System.out.println("Takes time: " + TimeUnit.SECONDS.convert(end - start, TimeUnit.NANOSECONDS) + " seconds");
         System.out.println("Result size: " + result.size());
-        return result.toArray(new PointTuple[result.size()]);
+        return result;
     }
 
-    public PointTuple[] queryPointTuplesForKeywordAndTime(String keyword, Date sd, Date ed) {
+    public List<PointTuple> queryPointTuplesForKeywordAndTime(String keyword, Date sd, Date ed) {
 
         if (this.conn == null) {
             if(!this.connectDB()) {
@@ -85,7 +104,16 @@ public class PostgreSQL {
         }
 
         System.out.println("Querying PostgreSQL with keyword: [" + keyword + "] and time [" + sd + ", " + ed + "]... ...");
-        List<PointTuple> result = new ArrayList<PointTuple>();
+        //List<PointTuple> result = new ArrayList<PointTuple>();
+        // reuse array list of PointTuple
+        List<PointTuple> result = PointTupleListFactory.newPointTupleList();
+        int i = 0;
+        //-DEBUG-//
+        int size = result.size();
+        if (result.size() > 0) {
+            System.out.println("[Debug] [PostgreSQL] is reusing List<PointTuple> with size = " + result.size());
+        }
+        //-DEBUG-//
         String sql = "SELECT create_at, x, y, id FROM tweets WHERE to_tsvector('english', text)@@to_tsquery('english', ?) and create_at between ? and ?";
         long start = System.nanoTime();
         try {
@@ -100,24 +128,44 @@ public class PostgreSQL {
                 Double x = rs.getDouble(2);
                 Double y = rs.getDouble(3);
                 long tid = rs.getLong(4);
-                PointTuple pt = new PointTuple();
-                pt.timestamp = create_at;
-                pt.setX(x);
-                pt.setY(y);
-                pt.tid = tid;
-                result.add(pt);
+                // still enough objects in list can be reused
+                if (i < result.size()) {
+                    result.get(i).timestamp = create_at;
+                    result.get(i).setX(x);
+                    result.get(i).setY(y);
+                    result.get(i).tid = tid;
+                }
+                // no more objects can be reused
+                else {
+                    PointTuple pt = new PointTuple();
+                    pt.timestamp = create_at;
+                    pt.setX(x);
+                    pt.setY(y);
+                    pt.tid = tid;
+                    result.add(pt);
+                }
+                i ++;
             }
         } catch (SQLException e) {
             System.err.println(e.getMessage());
+        }
+        //-DEBUG-//
+        if (result.size() > size) {
+            System.out.println("[Debug] [PostgreSQL] " + (result.size() - size)  + " more PointTuple objects were created to complement the reused list.");
+        }
+        //-DEBUG-//
+        // remove additional objects in the tail of the list
+        while (i < result.size()) {
+            result.remove(result.size() - 1);
         }
         long end = System.nanoTime();
         System.out.println("Querying PostgreSQL with keyword: [" + keyword + "] and time [" + sd + ", " + ed +  "] is done! ");
         System.out.println("Takes time: " + TimeUnit.SECONDS.convert(end - start, TimeUnit.NANOSECONDS) + " seconds");
         System.out.println("Result size: " + result.size());
-        return result.toArray(new PointTuple[result.size()]);
+        return result;
     }
 
-    public PointTuple[] queryPointTuplesForTime(Date sd, Date ed) {
+    public List<PointTuple> queryPointTuplesForTime(Date sd, Date ed) {
 
         if (this.conn == null) {
             if(!this.connectDB()) {
@@ -126,7 +174,15 @@ public class PostgreSQL {
         }
 
         System.out.println("Querying PostgreSQL with time [" + sd + ", " + ed + "]... ...");
-        List<PointTuple> result = new ArrayList<PointTuple>();
+        //List<PointTuple> result = new ArrayList<PointTuple>();
+        List<PointTuple> result = PointTupleListFactory.newPointTupleList();
+        int i = 0;
+        //-DEBUG-//
+        int size = result.size();
+        if (result.size() > 0) {
+            System.out.println("[Debug] [PostgreSQL] is reusing List<PointTuple> with size = " + result.size());
+        }
+        //-DEBUG-//
         String sql = "SELECT create_at, x, y, id FROM tweets WHERE create_at between ? and ?";
         long start = System.nanoTime();
         try {
@@ -140,21 +196,41 @@ public class PostgreSQL {
                 Double x = rs.getDouble(2);
                 Double y = rs.getDouble(3);
                 long tid = rs.getLong(4);
-                PointTuple pt = new PointTuple();
-                pt.timestamp = create_at;
-                pt.setX(x);
-                pt.setY(y);
-                pt.tid = tid;
-                result.add(pt);
+                // still enough objects in list can be reused
+                if (i < result.size()) {
+                    result.get(i).timestamp = create_at;
+                    result.get(i).setX(x);
+                    result.get(i).setY(y);
+                    result.get(i).tid = tid;
+                }
+                // no more objects can be reused
+                else {
+                    PointTuple pt = new PointTuple();
+                    pt.timestamp = create_at;
+                    pt.setX(x);
+                    pt.setY(y);
+                    pt.tid = tid;
+                    result.add(pt);
+                }
+                i ++;
             }
         } catch (SQLException e) {
             System.err.println(e.getMessage());
+        }
+        //-DEBUG-//
+        if (result.size() > size) {
+            System.out.println("[Debug] [PostgreSQL] " + (result.size() - size)  + " more PointTuple objects were created to complement the reused list.");
+        }
+        //-DEBUG-//
+        // remove additional objects in the tail of the list
+        while (i < result.size()) {
+            result.remove(result.size() - 1);
         }
         long end = System.nanoTime();
         System.out.println("Querying PostgreSQL with time [" + sd + ", " + ed +  "] is done! ");
         System.out.println("Database time: " + TimeUnit.SECONDS.convert(end - start, TimeUnit.NANOSECONDS) + " seconds");
         System.out.println("Result size: " + result.size());
-        return result.toArray(new PointTuple[result.size()]);
+        return result;
     }
 
     public PointTuple[] queryPointTuplesForLimit(int limit) {

@@ -18,10 +18,10 @@ public class InsertionOrders {
     public static final int minZoom = 4;
     public static final int maxZoom = 8;
 
-    public static void printPointTuples(PointTuple[] pointTuples, int limit) {
-        System.out.println("==================== Point Tuples (" + pointTuples.length + ") ====================");
-        for (int i = 0; i < Math.min(pointTuples.length, limit); i ++) {
-            System.out.println(pointTuples[i]);
+    public static void printPointTuples(List<PointTuple> pointTuples, int limit) {
+        System.out.println("==================== Point Tuples (" + pointTuples.size() + ") ====================");
+        for (int i = 0; i < Math.min(pointTuples.size(), limit); i ++) {
+            System.out.println(pointTuples.get(i));
         }
         System.out.println("... ...");
     }
@@ -34,10 +34,10 @@ public class InsertionOrders {
 
         // 0) Load original data from PostgreSQL
         PostgreSQL postgreSQL = new PostgreSQL();
-        PointTuple[] pointTuples = postgreSQL.queryPointTuplesForKeyword(keyword);
-        int length = pointTuples.length;
+        List<PointTuple> pointTuples = postgreSQL.queryPointTuplesForKeyword(keyword);
+        int length = pointTuples.size();
         for (int i = 0; i < length; i ++) {
-            pointTuples[i].setId(i);
+            pointTuples.get(i).setId(i);
         }
 
         printPointTuples(pointTuples, 10);
@@ -46,18 +46,18 @@ public class InsertionOrders {
         // A - original order (database order)
         double[][] aPoints = new double[length][2];
         for (int i = 0; i < length; i ++) {
-            aPoints[i][0] = pointTuples[i].getX();
-            aPoints[i][1] = pointTuples[i].getY();
+            aPoints[i][0] = pointTuples.get(i).getX();
+            aPoints[i][1] = pointTuples.get(i).getY();
         }
         // B - reversed order (reverse A)
         double[][] bPoints = new double[length][2];
         for (int i = 0; i < length; i ++) {
-            bPoints[length - 1 - i][0] = pointTuples[i].getX();
-            bPoints[length - 1 - i][1] = pointTuples[i].getY();
+            bPoints[length - 1 - i][0] = pointTuples.get(i).getX();
+            bPoints[length - 1 - i][1] = pointTuples.get(i).getY();
         }
         // C - spatial order (left-bottom to right-top)
-        List<PointTuple> pointTuplesList = Arrays.asList(pointTuples);
-        Collections.sort(pointTuplesList, PointTuple.getSpatialComparator());
+        List<PointTuple> pointTuplesList = pointTuples;
+        Collections.sort(pointTuples, PointTuple.getSpatialComparator());
         PointTuple[] cPointTuples = pointTuplesList.toArray(new PointTuple[pointTuplesList.size()]);
         double[][] cPoints = new double[length][2];
         for (int i = 0; i < cPointTuples.length; i ++) {
