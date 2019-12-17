@@ -254,6 +254,8 @@ public class Agent extends AbstractActor {
 
         // for experiments analysis
         MyTimer.progressTimer.clear();
+        MyMemory.progressUsedMemory.clear();
+        MyMemory.porgressTotalMemory.clear();
 
         Query query = _request.query;
         String clusterKey = query.cluster;
@@ -290,6 +292,8 @@ public class Agent extends AbstractActor {
             success = clusterData(clusterKey, clusterOrder, query.algorithm, indexType, deltaOnly, _request.analysis != null);
             MyTimer.stopTimer();
             MyTimer.progressTimer.add(MyTimer.durationSeconds());
+            MyMemory.progressUsedMemory.add(MyMemory.getUsedMemory());
+            MyMemory.porgressTotalMemory.add(MyMemory.getTotalMemory());
             if (!success) {
                 // TODO - exception
             }
@@ -348,6 +352,10 @@ public class Agent extends AbstractActor {
         System.out.println("clustering time for each batch: ");
         for (double time: MyTimer.progressTimer) {
             System.out.println(time);
+        }
+        System.out.println("memory usage until each batch (MB): ");
+        for (int i = 0; i < MyMemory.progressUsedMemory.size(); i ++) {
+            System.out.println(MyMemory.progressUsedMemory.get(i) + ",  " + MyMemory.porgressTotalMemory.get(i));
         }
         if (_request.analysis != null) {
             System.out.println("Rand index values for each batch: ");
