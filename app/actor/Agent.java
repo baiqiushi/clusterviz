@@ -561,6 +561,7 @@ public class Agent extends AbstractActor {
                 }
                 break;
             case "spatial":
+                //TODO - verify the ordering since we get rid of the array <-> list
                 Collections.sort(pointTuples, PointTuple.getSpatialComparator());
                 for (int i = 0; i < pointTuples.size(); i ++) {
                     points[i][0] = pointTuples.get(i).getX();
@@ -569,6 +570,7 @@ public class Agent extends AbstractActor {
                 }
                 break;
             case "reverse-spatial":
+                //TODO - verify the ordering since we get rid of the array <-> list
                 Collections.sort(pointTuples, PointTuple.getReverseSpatialComparator());
                 for (int i = 0; i < pointTuples.size(); i ++) {
                     points[i][0] = pointTuples.get(i).getX();
