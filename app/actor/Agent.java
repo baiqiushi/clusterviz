@@ -448,60 +448,82 @@ public class Agent extends AbstractActor {
      * @return
      */
     private boolean clusterData(String clusterKey, String clusterOrder, String algorithm, String indexType, boolean deltaOnly, boolean analysis) {
-        double[][] points = orderPoints(clusterKey, clusterOrder, deltaOnly);
-        if (points == null) {
-            return false;
-        }
-        else {
-            SuperCluster cluster;
-            if (superClusters.containsKey(clusterKey)) {
-                cluster = superClusters.get(clusterKey);
+
+        if (analysis) {
+            double[][] points = orderPoints(clusterKey, clusterOrder, deltaOnly);
+            if (points == null) {
+                return false;
             }
             else {
-                // if too many cached clusters, replace the least used one
-                if (superClusters.size() > MAX_CLUSTERS) {
-                    String leastUsedClusterKey = null;
-                    int leastHit = Integer.MAX_VALUE;
-                    for (Map.Entry<String, Integer> map: this.superClustersHits.entrySet()) {
-                        if (map.getValue() < leastHit) {
-                            leastHit = map.getValue();
-                            leastUsedClusterKey = map.getKey();
-                        }
-                    }
-                    if (leastUsedClusterKey != null) {
-                        superClusters.remove(leastUsedClusterKey);
-                    }
+                SuperCluster cluster = getSuperCluster(clusterKey, algorithm, indexType, true);
+                cluster.load(points);
+                if (deltaOnly) {
+                    PointTupleListFactory.recycle(this.pointTuples);
                 }
-
-                switch (algorithm.toLowerCase()) {
-                    case "isupercluster":
-                    case "isc":
-                        cluster = new iSuperCluster(this.minZoom, this.maxZoom, analysis);
-                        break;
-                    case "aisupercluster":
-                    case "aisc":
-                        cluster = new AiSuperCluster(this.minZoom, this.maxZoom, analysis);
-                        break;
-                    case "bisupercluster":
-                    case "bisc":
-                        cluster = new BiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
-                        break;
-                    case "sbisupercluster":
-                    case "sbic":
-                        cluster = new SBiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
-                        break;
-                    default:
-                        cluster = new SuperCluster(this.minZoom, this.maxZoom, indexType);
-                }
-                superClusters.put(clusterKey, cluster);
-                superClustersHits.put(clusterKey, 0);
-            }
-            cluster.load(points);
-            if (deltaOnly) {
-                PointTupleListFactory.recycle(this.pointTuples);
             }
         }
+        // when no analysis, use pointTuples list directly for loading
+        else {
+            if (this.pointTuples == null || this.pointTuples.isEmpty()) {
+                return false;
+            }
+            else {
+                SuperCluster cluster = getSuperCluster(clusterKey, algorithm, indexType, false);
+                cluster.load(this.pointTuples);
+                if (deltaOnly) {
+                    PointTupleListFactory.recycle(this.pointTuples);
+                }
+            }
+        }
+
         return true;
+    }
+
+    private SuperCluster getSuperCluster(String clusterKey, String algorithm, String indexType, boolean analysis) {
+        SuperCluster cluster;
+        if (superClusters.containsKey(clusterKey)) {
+            cluster = superClusters.get(clusterKey);
+        }
+        else {
+            // if too many cached clusters, replace the least used one
+            if (superClusters.size() > MAX_CLUSTERS) {
+                String leastUsedClusterKey = null;
+                int leastHit = Integer.MAX_VALUE;
+                for (Map.Entry<String, Integer> map: this.superClustersHits.entrySet()) {
+                    if (map.getValue() < leastHit) {
+                        leastHit = map.getValue();
+                        leastUsedClusterKey = map.getKey();
+                    }
+                }
+                if (leastUsedClusterKey != null) {
+                    superClusters.remove(leastUsedClusterKey);
+                }
+            }
+
+            switch (algorithm.toLowerCase()) {
+                case "isupercluster":
+                case "isc":
+                    cluster = new iSuperCluster(this.minZoom, this.maxZoom, analysis);
+                    break;
+                case "aisupercluster":
+                case "aisc":
+                    cluster = new AiSuperCluster(this.minZoom, this.maxZoom, analysis);
+                    break;
+                case "bisupercluster":
+                case "bisc":
+                    cluster = new BiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
+                    break;
+                case "sbisupercluster":
+                case "sbic":
+                    cluster = new SBiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
+                    break;
+                default:
+                    cluster = new SuperCluster(this.minZoom, this.maxZoom, indexType);
+            }
+            superClusters.put(clusterKey, cluster);
+            superClustersHits.put(clusterKey, 0);
+        }
+        return cluster;
     }
 
     private boolean handleCmd(Command _cmd, Request _request) {

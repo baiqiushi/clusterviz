@@ -3,6 +3,7 @@ package clustering;
 import model.Advocator;
 import model.Cluster;
 import model.ClusterDelta;
+import model.PointTuple;
 import util.Flags;
 import util.I2DIndex;
 import util.IndexCreator;
@@ -64,19 +65,19 @@ public class SBiSuperCluster extends SuperCluster {
         MyMemory.printMemory();
     }
 
-
-    public void load(double[][] points) {
-        System.out.println("Strict Batch incremental SuperCluster loading " + points.length + " points ... ...");
-        long start = System.nanoTime();
-
-        this.totalNumberOfPoints += points.length;
-        System.out.println("Total # of points should be " + totalNumberOfPoints + " now.");
-
-        // insert points to max zoom level one by one
+    private void insertPointClusters(double[][] points) {
         for (int i = 0; i < points.length; i ++) {
             insert(createPointCluster(points[i][0], points[i][1], this.pointIdSeq ++, this.pointSeqSeq ++));
         }
+    }
 
+    private void insertPointClusters(List<PointTuple> points) {
+        for (int i = 0; i < points.size(); i ++) {
+            insert(createPointCluster(points.get(i).getX(), points.get(i).getY(), this.pointIdSeq ++, this.pointSeqSeq ++));
+        }
+    }
+
+    private void buildHierarchy() {
         int insertCount = 0;
         int updateCount = 0;
         int shiftCount = 0;
@@ -177,16 +178,62 @@ public class SBiSuperCluster extends SuperCluster {
         this.totalShiftCount += shiftCount;
         this.totalDeleteCount += deleteCount;
 
-        long end = System.nanoTime();
-        System.out.println("[SBiSC] Strict Batch incremental SuperCluster loading is done!");
-        System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
-        System.out.println("Max zoom level clusters # = " + this.advocatorClusters[maxZoom].size());
+        System.out.println("---------------------------------------------");
         System.out.println("This batch insert clusters: " + insertCount);
         System.out.println("This batch update clusters: " + updateCount);
         System.out.println("This batch   -- shift clusters: " + shiftCount);
         System.out.println("This batch delete clusters: " + deleteCount);
         System.out.println("---------------------------------------------");
         System.out.println("This batch handled clusters: " + (insertCount + updateCount + deleteCount));
+        System.out.println("---------------------------------------------");
+    }
+
+    public void load(double[][] points) {
+        System.out.println("Strict Batch incremental SuperCluster loading " + points.length + " points ... ...");
+        long start = System.nanoTime();
+
+        this.totalNumberOfPoints += points.length;
+        System.out.println("Total # of points should be " + totalNumberOfPoints + " now.");
+
+        // insert points to max zoom level one by one
+        insertPointClusters(points);
+
+        // build hierarchy
+        buildHierarchy();
+
+        long end = System.nanoTime();
+        System.out.println("[SBiSC] Strict Batch incremental SuperCluster loading is done!");
+        System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
+        System.out.println("Max zoom level clusters # = " + this.advocatorClusters[maxZoom].size());
+        System.out.println("---------------------------------------------");
+        System.out.println("Total insert clusters: " + this.totalInsertCount);
+        System.out.println("Total update clusters: " + this.totalUpdateCount);
+        System.out.println("Total   -- shift clusters: " + this.totalShiftCount);
+        System.out.println("Total delete clusters: " + this.totalDeleteCount);
+        System.out.println("---------------------------------------------");
+        System.out.println("Total handled clusters: " + (this.totalInsertCount + this.totalUpdateCount + this.totalDeleteCount));
+        System.out.println("---------------------------------------------");
+
+        MyMemory.printMemory();
+    }
+
+    public void load(List<PointTuple> points) {
+        System.out.println("Strict Batch incremental SuperCluster loading " + points.size() + " points ... ...");
+        long start = System.nanoTime();
+
+        this.totalNumberOfPoints += points.size();
+        System.out.println("Total # of points should be " + totalNumberOfPoints + " now.");
+
+        // insert points to max zoom level one by one
+        insertPointClusters(points);
+
+        // build hierarchy
+        buildHierarchy();
+
+        long end = System.nanoTime();
+        System.out.println("[SBiSC] Strict Batch incremental SuperCluster loading is done!");
+        System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
+        System.out.println("Max zoom level clusters # = " + this.advocatorClusters[maxZoom].size());
         System.out.println("---------------------------------------------");
         System.out.println("Total insert clusters: " + this.totalInsertCount);
         System.out.println("Total update clusters: " + this.totalUpdateCount);

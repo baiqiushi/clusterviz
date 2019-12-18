@@ -2,6 +2,7 @@ package clustering;
 
 import model.Cluster;
 import model.Advocator;
+import model.PointTuple;
 import util.KDTree;
 import util.MyTimer;
 
@@ -38,27 +39,19 @@ public class iSuperCluster extends SuperCluster {
         this.keepPoints = _analysis;
     }
 
-    public void load(double[][] points) {
-        System.out.println("incremental SuperCluster loading " + points.length + " points ... ...");
-        long start = System.nanoTime();
-
-        this.totalNumberOfPoints += points.length;
-
-        if (keepTiming) MyTimer.startTimer();
-        // merge all points into the maxZoom level clusters
+    private void mergePointClusters(double[][] points) {
         for (int i = 0; i < points.length; i ++) {
             mergePoint(createPointCluster(points[i][0], points[i][1], this.pointIdSeq ++));
         }
-        if (keepTiming) MyTimer.stopTimer();
-        if (keepTiming) {
-            if (timing.containsKey("mergePoint")) {
-                timing.put("mergePoint", timing.get("mergePoint") + MyTimer.durationSeconds());
-            } else {
-                timing.put("mergePoint", MyTimer.durationSeconds());
-            }
-        }
+    }
 
-        if (keepTiming) MyTimer.startTimer();
+    private void mergePointClusters(List<PointTuple> points) {
+        for (int i = 0; i < points.size(); i ++) {
+            mergePoint(createPointCluster(points.get(i).getX(), points.get(i).getY(), this.pointIdSeq ++));
+        }
+    }
+
+    private void buildHierarchy() {
         // then re-cluster all the levels above maxZoom level
         Cluster[] clusters = this.maxZoomClusters.toArray(new Cluster[this.maxZoomClusters.size()]);
         for (int i = 0; i < clusters.length; i ++) {
@@ -77,6 +70,65 @@ public class iSuperCluster extends SuperCluster {
             this.indexes[z].load(clusters);
             this.clusters[z] = clusters;
         }
+
+    }
+
+    public void load(double[][] points) {
+        System.out.println("incremental SuperCluster loading " + points.length + " points ... ...");
+        long start = System.nanoTime();
+
+        this.totalNumberOfPoints += points.length;
+
+        if (keepTiming) MyTimer.startTimer();
+        // merge all points into the maxZoom level clusters
+        mergePointClusters(points);
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) {
+            if (timing.containsKey("mergePoint")) {
+                timing.put("mergePoint", timing.get("mergePoint") + MyTimer.durationSeconds());
+            } else {
+                timing.put("mergePoint", MyTimer.durationSeconds());
+            }
+        }
+
+        if (keepTiming) MyTimer.startTimer();
+        buildHierarchy();
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) {
+            if (timing.containsKey("recluster")) {
+                timing.put("recluster", timing.get("recluster") + MyTimer.durationSeconds());
+            } else {
+                timing.put("recluster", MyTimer.durationSeconds());
+            }
+        }
+
+        long end = System.nanoTime();
+        System.out.println("incremental SuperCluster loading is done!");
+        System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
+        System.out.println("Max zoom level clusters # = " + this.maxZoomClusters.size());
+        if (keepTiming) printTiming();
+    }
+
+    public void load(List<PointTuple> points) {
+        System.out.println("incremental SuperCluster loading " + points.size() + " points ... ...");
+        long start = System.nanoTime();
+
+        this.totalNumberOfPoints += points.size();
+
+        if (keepTiming) MyTimer.startTimer();
+        // merge all points into the maxZoom level clusters
+        mergePointClusters(points);
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) {
+            if (timing.containsKey("mergePoint")) {
+                timing.put("mergePoint", timing.get("mergePoint") + MyTimer.durationSeconds());
+            } else {
+                timing.put("mergePoint", MyTimer.durationSeconds());
+            }
+        }
+
+        if (keepTiming) MyTimer.startTimer();
+        buildHierarchy();
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) {
             if (timing.containsKey("recluster")) {

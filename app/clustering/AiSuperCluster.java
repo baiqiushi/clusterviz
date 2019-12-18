@@ -2,6 +2,7 @@ package clustering;
 
 import model.Advocator;
 import model.Cluster;
+import model.PointTuple;
 import util.KDTree;
 import util.MyLogger;
 import util.MyTimer;
@@ -53,6 +54,27 @@ public class AiSuperCluster extends SuperCluster {
             this.advocatorsTrees[i] = new KDTree<>();
             this.advocatorClusters[i] = new ArrayList<>();
         }
+    }
+
+    public void load(List<PointTuple> points) {
+        System.out.println("Approximate incremental SuperCluster loading " + points.size() + " points ... ...");
+        long start = System.nanoTime();
+
+        this.totalNumberOfPoints += points.size();
+
+        // insert points to max zoom level one by one
+        for (int i = 0; i < points.size(); i ++) {
+            if (keepLabels) {
+                this.labels.add(new int[maxZoom + 1]);
+            }
+            insert(createPointCluster(points.get(i).getX(), points.get(i).getY(), this.pointIdSeq ++), maxZoom);
+        }
+
+        long end = System.nanoTime();
+        System.out.println("Approximate incremental SuperCluster loading is done!");
+        System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
+        System.out.println("Max zoom level clusters # = " + this.advocatorClusters[maxZoom].size());
+        if (keepTiming) this.printTiming();
     }
 
     public void load(double[][] points) {

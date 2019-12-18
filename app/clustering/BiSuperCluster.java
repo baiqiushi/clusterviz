@@ -2,6 +2,7 @@ package clustering;
 
 import model.Advocator;
 import model.Cluster;
+import model.PointTuple;
 import util.*;
 
 import java.util.*;
@@ -50,18 +51,19 @@ public class BiSuperCluster extends SuperCluster {
         MyMemory.printMemory();
     }
 
-    public void load(double[][] points) {
-        System.out.println("Batch incremental SuperCluster loading " + points.length + " points ... ...");
-        long start = System.nanoTime();
-
-        this.totalNumberOfPoints += points.length;
-        System.out.println("Total # of points should be " + totalNumberOfPoints + " now.");
-
-        // insert points to max zoom level one by one
+    private void insertPointClusters(double[][] points) {
         for (int i = 0; i < points.length; i ++) {
             insert(createPointCluster(points[i][0], points[i][1], this.pointIdSeq ++), maxZoom);
         }
+    }
 
+    private void insertPointClusters(List<PointTuple> points) {
+        for (int i = 0; i < points.size(); i ++) {
+            insert(createPointCluster(points.get(i).getX(), points.get(i).getY(), this.pointIdSeq ++), maxZoom);
+        }
+    }
+
+    private void buildHierarchy() {
         //-DEBUG-//
         for (int z = maxZoom; z >= minZoom; z --) {
             Cluster[] allClusters = getClusters(-180, -90, 180, 90, z);
@@ -152,13 +154,48 @@ public class BiSuperCluster extends SuperCluster {
         this.totalShiftCount += shiftCount;
 
         System.out.println("==== All shifts of this batch are done! ====");
+        System.out.println("Max zoom level clusters # = " + this.advocatorClusters[maxZoom].size());
+        System.out.println("This batch shift clusters: " + shiftCount);
+        System.out.println("Total shift clusters: " + this.totalShiftCount);
+    }
+
+    public void load(double[][] points) {
+        System.out.println("Batch incremental SuperCluster loading " + points.length + " points ... ...");
+        long start = System.nanoTime();
+
+        this.totalNumberOfPoints += points.length;
+        System.out.println("Total # of points should be " + totalNumberOfPoints + " now.");
+
+        // insert points to max zoom level one by one
+        insertPointClusters(points);
+
+        // build hierarchy
+        buildHierarchy();
 
         long end = System.nanoTime();
         System.out.println("Batch incremental SuperCluster loading is done!");
         System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
-        System.out.println("Max zoom level clusters # = " + this.advocatorClusters[maxZoom].size());
-        System.out.println("This batch shift clusters: " + shiftCount);
-        System.out.println("Total shift clusters: " + this.totalShiftCount);
+        if (keepTiming) this.printTiming();
+
+        MyMemory.printMemory();
+    }
+
+    public void load(List<PointTuple> points) {
+        System.out.println("Batch incremental SuperCluster loading " + points.size() + " points ... ...");
+        long start = System.nanoTime();
+
+        this.totalNumberOfPoints += points.size();
+        System.out.println("Total # of points should be " + totalNumberOfPoints + " now.");
+
+        // insert points to max zoom level one by one
+        insertPointClusters(points);
+
+        // build hierarchy
+        buildHierarchy();
+
+        long end = System.nanoTime();
+        System.out.println("Batch incremental SuperCluster loading is done!");
+        System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
         if (keepTiming) this.printTiming();
 
         MyMemory.printMemory();

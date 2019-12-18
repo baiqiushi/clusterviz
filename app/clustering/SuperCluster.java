@@ -1,6 +1,7 @@
 package clustering;
 
 import model.Cluster;
+import model.PointTuple;
 import util.*;
 
 import java.util.ArrayList;
@@ -41,19 +42,29 @@ public class SuperCluster {
         this.initRadiuses();
     }
 
-    /**
-     * @param points, an array of coordinates,
-     *                at point[i] must be x = points[i][0], y = points[i][1]
-     */
-    public void load(double[][] points) {
-        System.out.println("SuperCluster loading " + points.length + " points ... ...");
-        long start = System.nanoTime();
-        this.totalNumberOfPoints = points.length;
-        // generate a cluster object for each point and index input points into a KD-tree
+    private Cluster[] createPointClusters(double[][] points) {
         Cluster[] clusters = new Cluster[points.length];
         for (int i = 0; i < points.length; i ++) {
             clusters[i] = createPointCluster(points[i][0], points[i][1], i);
         }
+        return clusters;
+    }
+
+    private Cluster[] createPointClusters(List<PointTuple> points) {
+        Cluster[] clusters = new Cluster[points.size()];
+        for (int i = 0; i < points.size(); i ++) {
+            clusters[i] = createPointCluster(points.get(i).getX(), points.get(i).getY(), i);
+        }
+        return clusters;
+    }
+
+    /**
+     * build hierarchy of the super cluster
+     *
+     * @param clusters - point clusters created from raw points
+     */
+    private void buildHierarchy(Cluster[] clusters) {
+        // index input points into a KD-tree
         this.indexes[maxZoom + 1] = IndexCreator.createIndex(this.indexType, getRadius(maxZoom));
         this.indexes[maxZoom + 1].load(clusters);
         this.clusters[maxZoom + 1] = clusters;
@@ -71,6 +82,37 @@ public class SuperCluster {
         // abandon the tree and array storing the raw data, to be fair with iSuperCluster
         this.indexes[maxZoom + 1] = null;
         this.clusters[maxZoom + 1] = null;
+    }
+
+    public void load(List<PointTuple> points) {
+        System.out.println("SuperCluster loading " + points.size() + " points ... ...");
+        long start = System.nanoTime();
+        this.totalNumberOfPoints = points.size();
+        // generate a cluster object for each point
+        Cluster[] clusters = createPointClusters(points);
+
+        // build hierarchy of clusters based on the clusters for raw points
+        buildHierarchy(clusters);
+
+        long end = System.nanoTime();
+        System.out.println("SuperCluster loading is done!");
+        System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
+        System.out.println("Max zoom level clusters # = " + this.clusters[maxZoom].length);
+    }
+
+    /**
+     * @param points, an array of coordinates,
+     *                at point[i] must be x = points[i][0], y = points[i][1]
+     */
+    public void load(double[][] points) {
+        System.out.println("SuperCluster loading " + points.length + " points ... ...");
+        long start = System.nanoTime();
+        this.totalNumberOfPoints = points.length;
+        // generate a cluster object for each point
+        Cluster[] clusters = createPointClusters(points);
+
+        // build hierarchy of clusters based on the clusters for raw points
+        buildHierarchy(clusters);
 
         long end = System.nanoTime();
         System.out.println("SuperCluster loading is done!");
