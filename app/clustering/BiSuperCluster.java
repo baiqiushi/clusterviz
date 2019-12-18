@@ -76,20 +76,20 @@ public class BiSuperCluster extends SuperCluster {
         }
     }
 
-    private void buildHierarchy() {
-        //-DEBUG-//
-        for (int z = maxZoom; z >= minZoom; z --) {
-            Cluster[] allClusters = getClusters(-180, -90, 180, 90, z);
-            int totalPointsCount = 0;
-            for (int i = 0; i < allClusters.length; i ++) {
-                totalPointsCount += allClusters[i].numPoints == 0 ? 1 : allClusters[i].numPoints;
-            }
-            if (totalPointsCount != this.totalNumberOfPoints) {
-                System.out.println("[Error] zoom level [" + z + "] has totally ====> " + totalPointsCount + " <==== points.");
-            }
-        }
-        System.out.println("==== All insertions of this batch are done! ====");
-        //-DEBUG-//
+    private void shiftClusters() {
+//        //-DEBUG-//
+//        System.out.println("==== Before starting shift operations ====");
+//        for (int z = maxZoom; z >= minZoom; z --) {
+//            Cluster[] allClusters = getClusters(-180, -90, 180, 90, z);
+//            int totalPointsCount = 0;
+//            for (int i = 0; i < allClusters.length; i ++) {
+//                totalPointsCount += allClusters[i].numPoints == 0 ? 1 : allClusters[i].numPoints;
+//            }
+//            if (totalPointsCount != this.totalNumberOfPoints) {
+//                System.out.println("[Error] zoom level [" + z + "] has totally ====> " + totalPointsCount + " <==== points.");
+//            }
+//        }
+//        //-DEBUG-//
 
         int shiftCount = 0;
         // shift clusters with significant relocation bottom-up
@@ -100,6 +100,7 @@ public class BiSuperCluster extends SuperCluster {
             Cluster pending;
             while ((pending = this.pendingClusters[z].poll()) != null) {
                 this.clustersIndexes[z].insert(pending);
+                pending.dirty = false;
             }
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
@@ -122,35 +123,36 @@ public class BiSuperCluster extends SuperCluster {
             System.out.println("==== zoom level [" + z + "] shifted " + shiftCountLevel + " clusters.");
             shiftCount += shiftCountLevel;
 
-            //-DEBUG-//
-            Cluster[] allClusters = getClusters(-180, -90, 180, 90, z-1);
-            int totalPointsCount = 0;
-            for (int i = 0; i < allClusters.length; i ++) {
-                totalPointsCount += allClusters[i].numPoints==0?1:allClusters[i].numPoints;
-                // check whether cluster's numPoints = sum of all its children's numPoints
-                if (allClusters[i].children != null) {
-                    int sumChildren = 0;
-                    for (Cluster child: allClusters[i].children) {
-                        sumChildren += child.numPoints==0?1:child.numPoints;
-                    }
-                    if ((allClusters[i].numPoints==0?1:allClusters[i].numPoints) != sumChildren) {
-                        System.out.println("[Error] Cluster " + allClusters[i].getId() + ":[" + allClusters[i].numPoints + "] is not consistent with its children!");
-                        StringBuilder sb = new StringBuilder();
-                        for (Cluster child: allClusters[i].children) {
-                            sb.append(child.getId() + ":[" + child.numPoints + "]->" + child.parent.getId() + ", ");
-                        }
-                        System.out.println("Its children: " + sb.toString());
-                    }
-                }
-                // check whether cluster's coordinate is NaN
-                if (Double.isNaN(allClusters[i].getX()) || Double.isNaN(allClusters[i].getY())) {
-                    System.out.println("[Error] Cluster " + allClusters[i].getId() + ":[" + allClusters[i].numPoints + "]: " + allClusters[i]);
-                }
-            }
-            if (totalPointsCount != this.totalNumberOfPoints) {
-                System.out.println("[Error] zoom level [" + (z - 1) + "] has totally ====> " + totalPointsCount + " <==== points.");
-            }
-            //-DEBUG-//
+//            //-DEBUG-//
+//            System.out.println("==== After shifted clusters for level " + z + " ====");
+//            Cluster[] allClusters = getClusters(-180, -90, 180, 90, z-1);
+//            int totalPointsCount = 0;
+//            for (int i = 0; i < allClusters.length; i ++) {
+//                totalPointsCount += allClusters[i].numPoints==0?1:allClusters[i].numPoints;
+//                // check whether cluster's numPoints = sum of all its children's numPoints
+//                if (allClusters[i].children != null) {
+//                    int sumChildren = 0;
+//                    for (Cluster child: allClusters[i].children) {
+//                        sumChildren += child.numPoints==0?1:child.numPoints;
+//                    }
+//                    if ((allClusters[i].numPoints==0?1:allClusters[i].numPoints) != sumChildren) {
+//                        System.out.println("[Error] Cluster " + allClusters[i].getId() + ":[" + allClusters[i].numPoints + "] is not consistent with its children!");
+//                        StringBuilder sb = new StringBuilder();
+//                        for (Cluster child: allClusters[i].children) {
+//                            sb.append(child.getId() + ":[" + child.numPoints + "]->" + child.parent.getId() + ", ");
+//                        }
+//                        System.out.println("Its children: " + sb.toString());
+//                    }
+//                }
+//                // check whether cluster's coordinate is NaN
+//                if (Double.isNaN(allClusters[i].getX()) || Double.isNaN(allClusters[i].getY())) {
+//                    System.out.println("[Error] Cluster " + allClusters[i].getId() + ":[" + allClusters[i].numPoints + "]: " + allClusters[i]);
+//                }
+//            }
+//            if (totalPointsCount != this.totalNumberOfPoints) {
+//                System.out.println("[Error] zoom level [" + (z - 1) + "] has totally ====> " + totalPointsCount + " <==== points, while correct = " + this.totalNumberOfPoints);
+//            }
+//            //-DEBUG-//
         }
         this.totalShiftCount += shiftCount;
 
@@ -170,8 +172,8 @@ public class BiSuperCluster extends SuperCluster {
         // insert points to max zoom level one by one
         insertPointClusters(points);
 
-        // build hierarchy
-        buildHierarchy();
+        // shift clusters that are necessary
+        shiftClusters();
 
         long end = System.nanoTime();
         System.out.println("Batch incremental SuperCluster loading is done!");
@@ -191,8 +193,8 @@ public class BiSuperCluster extends SuperCluster {
         // insert points to max zoom level one by one
         insertPointClusters(points);
 
-        // build hierarchy
-        buildHierarchy();
+        // shift clusters that are necessary
+        shiftClusters();
 
         long end = System.nanoTime();
         System.out.println("Batch incremental SuperCluster loading is done!");
@@ -443,15 +445,19 @@ public class BiSuperCluster extends SuperCluster {
             }
         }
         else {
-            split(c.parent, c, zoom - 1);
+            // shifting at level zoom affects clustering results of level (zoom-1)
+            double radius = getRadius(zoom - 1);
+            if (c.parent.advocator.distanceTo(c) > radius) {
+                split(c.parent, c, zoom - 1);
 
-            Cluster parent = createCluster(c.getX(), c.getY(), c.getId(), c.numPoints);
-            c.parentId = parent.getId();
-            c.parent = parent;
-            parent.children.add(c);
-            parent.advocatorCluster = c;
+                Cluster parent = createCluster(c.getX(), c.getY(), c.getId(), c.numPoints);
+                c.parentId = parent.getId();
+                c.parent = parent;
+                parent.children.add(c);
+                parent.advocatorCluster = c;
 
-            insert(parent, zoom - 1);
+                insert(parent, zoom - 1);
+            }
         }
     }
 
@@ -487,9 +493,15 @@ public class BiSuperCluster extends SuperCluster {
         if (keepTiming) timing.put("shift-rangeSearch", timing.get("shift-rangeSearch") + MyTimer.durationSeconds());
 
         clusters.removeAll(c.parent.children);
-        // remove those already has a parent with smaller id of advocator than c.parent
+        // remove those:
+        //    (1) already has a parent with smaller id of advocator than c.parent
+        //    (2) that are advocators themselves
         for (Iterator<Cluster> iter = clusters.iterator(); iter.hasNext(); ) {
             Cluster curr = iter.next();
+            if (isAdvocatorOfParent(curr)) {
+                iter.remove();
+                continue;
+            }
             if (curr.parent != null) {
                 Cluster currParent = curr.parent;
                 if (currParent.advocator != null) {
@@ -516,14 +528,11 @@ public class BiSuperCluster extends SuperCluster {
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) timing.put("getRadius", timing.get("getRadius") + MyTimer.durationSeconds());
 
-        if (keepTiming) MyTimer.startTimer();
-        List<Cluster> clusters = this.clustersIndexes[zoom].within(c, r);
-        if (keepTiming) MyTimer.stopTimer();
-        if (keepTiming) timing.put("shift-rangeSearch", timing.get("shift-rangeSearch") + MyTimer.durationSeconds());
-
         List<Cluster> children = new ArrayList<>(c.parent.children);
 
-        children.removeAll(clusters);
+        // remove those who are within r to c
+        children.removeIf(child -> child.distanceTo(c) <= r);
+
         return children;
     }
 
