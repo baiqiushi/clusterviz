@@ -51,7 +51,7 @@ public class PostgreSQL {
         // reuse array list of PointTuple
         List<PointTuple> result = PointTupleListFactory.newPointTupleList();
         int i = 0;
-        String sql = "SELECT create_at, x, y, id FROM tweets WHERE to_tsvector('english', text)@@to_tsquery('english', ?)";
+        String sql = "SELECT x, y, id FROM tweets WHERE to_tsvector('english', text)@@to_tsquery('english', ?)";
         long start = System.nanoTime();
         try {
             PreparedStatement statement = conn.prepareStatement(sql);
@@ -59,13 +59,11 @@ public class PostgreSQL {
             System.out.println("SQL: " + statement);
             ResultSet rs = statement.executeQuery();
             while (rs.next()) {
-                Timestamp create_at = rs.getTimestamp(1);
-                Double x = rs.getDouble(2);
-                Double y = rs.getDouble(3);
-                long tid = rs.getLong(4);
+                Double x = rs.getDouble(1);
+                Double y = rs.getDouble(2);
+                long tid = rs.getLong(3);
                 // still enough objects in list can be reused
                 if (i < result.size()) {
-                    result.get(i).timestamp = create_at;
                     result.get(i).setX(x);
                     result.get(i).setY(y);
                     result.get(i).tid = tid;
@@ -73,7 +71,6 @@ public class PostgreSQL {
                 // no more objects can be reused
                 else {
                     PointTuple pt = new PointTuple();
-                    pt.timestamp = create_at;
                     pt.setX(x);
                     pt.setY(y);
                     pt.tid = tid;
@@ -114,7 +111,7 @@ public class PostgreSQL {
             System.out.println("[Debug] [PostgreSQL] is reusing List<PointTuple> with size = " + result.size());
         }
         //-DEBUG-//
-        String sql = "SELECT create_at, x, y, id FROM tweets WHERE to_tsvector('english', text)@@to_tsquery('english', ?) and create_at between ? and ?";
+        String sql = "SELECT x, y, id FROM tweets WHERE to_tsvector('english', text)@@to_tsquery('english', ?) and create_at between ? and ?";
         long start = System.nanoTime();
         try {
             PreparedStatement statement = conn.prepareStatement(sql);
@@ -124,13 +121,11 @@ public class PostgreSQL {
             System.out.println("SQL: " + statement);
             ResultSet rs = statement.executeQuery();
             while (rs.next()) {
-                Timestamp create_at = rs.getTimestamp(1);
-                Double x = rs.getDouble(2);
-                Double y = rs.getDouble(3);
-                long tid = rs.getLong(4);
+                Double x = rs.getDouble(1);
+                Double y = rs.getDouble(2);
+                long tid = rs.getLong(3);
                 // still enough objects in list can be reused
                 if (i < result.size()) {
-                    result.get(i).timestamp = create_at;
                     result.get(i).setX(x);
                     result.get(i).setY(y);
                     result.get(i).tid = tid;
@@ -138,7 +133,6 @@ public class PostgreSQL {
                 // no more objects can be reused
                 else {
                     PointTuple pt = new PointTuple();
-                    pt.timestamp = create_at;
                     pt.setX(x);
                     pt.setY(y);
                     pt.tid = tid;
@@ -183,7 +177,7 @@ public class PostgreSQL {
             System.out.println("[Debug] [PostgreSQL] is reusing List<PointTuple> with size = " + result.size());
         }
         //-DEBUG-//
-        String sql = "SELECT create_at, x, y, id FROM tweets WHERE create_at between ? and ?";
+        String sql = "SELECT x, y, id FROM tweets WHERE create_at between ? and ?";
         long start = System.nanoTime();
         try {
             PreparedStatement statement = conn.prepareStatement(sql);
@@ -192,13 +186,11 @@ public class PostgreSQL {
             System.out.println("SQL: " + statement);
             ResultSet rs = statement.executeQuery();
             while (rs.next()) {
-                Timestamp create_at = rs.getTimestamp(1);
-                Double x = rs.getDouble(2);
-                Double y = rs.getDouble(3);
-                long tid = rs.getLong(4);
+                Double x = rs.getDouble(1);
+                Double y = rs.getDouble(2);
+                long tid = rs.getLong(3);
                 // still enough objects in list can be reused
                 if (i < result.size()) {
-                    result.get(i).timestamp = create_at;
                     result.get(i).setX(x);
                     result.get(i).setY(y);
                     result.get(i).tid = tid;
@@ -206,7 +198,6 @@ public class PostgreSQL {
                 // no more objects can be reused
                 else {
                     PointTuple pt = new PointTuple();
-                    pt.timestamp = create_at;
                     pt.setX(x);
                     pt.setY(y);
                     pt.tid = tid;
@@ -242,19 +233,17 @@ public class PostgreSQL {
 
         System.out.println("Querying PostgreSQL with limit: [" + limit + "] ... ...");
         List<PointTuple> result = new ArrayList<PointTuple>();
-        String sql = "SELECT create_at, x, y, id FROM tweets limit ?";
+        String sql = "SELECT x, y, id FROM tweets limit ?";
         long start = System.nanoTime();
         try {
             PreparedStatement statement = conn.prepareStatement(sql);
             statement.setInt(1, limit);
             ResultSet rs = statement.executeQuery();
             while (rs.next()) {
-                Timestamp create_at = rs.getTimestamp(1);
-                Double x = rs.getDouble(2);
-                Double y = rs.getDouble(3);
-                long tid = rs.getLong(4);
+                Double x = rs.getDouble(1);
+                Double y = rs.getDouble(2);
+                long tid = rs.getLong(3);
                 PointTuple pt = new PointTuple();
-                pt.timestamp = create_at;
                 pt.setX(x);
                 pt.setY(y);
                 pt.tid = tid;
