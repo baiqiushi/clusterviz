@@ -5,6 +5,7 @@ import model.Cluster;
 import model.PointTuple;
 import util.KDTree;
 import util.MyLogger;
+import util.MyMemory;
 import util.MyTimer;
 
 import java.util.ArrayList;
@@ -29,18 +30,6 @@ public class AiSuperCluster extends SuperCluster {
     Map<String, Double> timing = new HashMap<>();
     //-Timing-//
 
-    public AiSuperCluster() {
-        this.advocatorsTrees = new KDTree[maxZoom + 1];
-        this.advocatorClusters = new List[maxZoom + 1];
-        this.pointIdSeq = 0;
-        this.advocatorSeq = 0;
-
-        for (int i = 0; i <= maxZoom; i ++) {
-            this.advocatorsTrees[i] = new KDTree<>();
-            this.advocatorClusters[i] = new ArrayList<>();
-        }
-    }
-
     public AiSuperCluster(int _minZoom, int _maxZoom, boolean _analysis) {
         this.minZoom = _minZoom;
         this.maxZoom = _maxZoom;
@@ -53,6 +42,16 @@ public class AiSuperCluster extends SuperCluster {
         for (int i = 0; i <= maxZoom; i ++) {
             this.advocatorsTrees[i] = new KDTree<>();
             this.advocatorClusters[i] = new ArrayList<>();
+        }
+
+        // initialize the timing map
+        if (keepTiming) {
+            timing = new HashMap<>();
+            timing.put("total", 0.0);
+            timing.put("rangeSearch", 0.0);
+            timing.put("insertTree", 0.0);
+            timing.put("findEarliest", 0.0);
+            timing.put("mergeCalculation", 0.0);
         }
     }
 
@@ -71,10 +70,13 @@ public class AiSuperCluster extends SuperCluster {
         }
 
         long end = System.nanoTime();
+        if (keepTiming) timing.put("total", timing.get("total") + (double) (end - start) / 1000000000.0);
         System.out.println("Approximate incremental SuperCluster loading is done!");
         System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
         System.out.println("Max zoom level clusters # = " + this.advocatorClusters[maxZoom].size());
         if (keepTiming) this.printTiming();
+
+        MyMemory.printMemory();
     }
 
     public void load(double[][] points) {
@@ -92,60 +94,35 @@ public class AiSuperCluster extends SuperCluster {
         }
 
         long end = System.nanoTime();
+        if (keepTiming) timing.put("total", timing.get("total") + (double) (end - start) / 1000000000.0);
         System.out.println("Approximate incremental SuperCluster loading is done!");
         System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
         System.out.println("Max zoom level clusters # = " + this.advocatorClusters[maxZoom].size());
         if (keepTiming) this.printTiming();
+
+        MyMemory.printMemory();
     }
 
-    public void insert(Cluster c, int zoom) {
-        if (keepTiming) MyTimer.startTimer();
+    private void insert(Cluster c, int zoom) {
         double radius = getRadius(zoom);
-        if (keepTiming) MyTimer.stopTimer();
-        if (keepTiming) {
-            if (timing.containsKey("getRadius")) {
-                timing.put("getRadius", timing.get("getRadius") + MyTimer.durationSeconds());
-            } else {
-                timing.put("getRadius", MyTimer.durationSeconds());
-            }
-        }
 
         if (keepTiming) MyTimer.startTimer();
         // Find all earlier advocators c can merge into
         KDTree<Advocator> advocatorsTree = this.advocatorsTrees[zoom];
         List<Advocator> advocators = advocatorsTree.within(c, radius);
         if (keepTiming) MyTimer.stopTimer();
-        if (keepTiming) {
-            if (timing.containsKey("rangeSearch")) {
-                timing.put("rangeSearch", timing.get("rangeSearch") + MyTimer.durationSeconds());
-            } else {
-                timing.put("rangeSearch", MyTimer.durationSeconds());
-            }
-        }
+        if (keepTiming) timing.put("rangeSearch", timing.get("rangeSearch") + MyTimer.durationSeconds());
 
         // if no group could be merged into, become a new Advocator itself
         if (advocators.isEmpty()) {
-            if (keepTiming) MyTimer.startTimer();
             Advocator newAdvocator = new Advocator(c.getX(), c.getY(), advocatorSeq ++);
             newAdvocator.cluster = c;
-            if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) {
-                if (timing.containsKey("createAdvocator")) {
-                    timing.put("createAdvocator", timing.get("createAdvocator") + MyTimer.durationSeconds());
-                } else {
-                    timing.put("createAdvocator", MyTimer.durationSeconds());
-                }
-            }
+
             if (keepTiming) MyTimer.startTimer();
             advocatorsTree.insert(newAdvocator);
             if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) {
-                if (timing.containsKey("insertTree")) {
-                    timing.put("insertTree", timing.get("insertTree") + MyTimer.durationSeconds());
-                } else {
-                    timing.put("insertTree", MyTimer.durationSeconds());
-                }
-            }
+            if (keepTiming) timing.put("insertTree", timing.get("insertTree") + MyTimer.durationSeconds());
+
             this.advocatorClusters[zoom].add(c);
 
             if (keepLabels) {
@@ -176,13 +153,7 @@ public class AiSuperCluster extends SuperCluster {
                 }
             }
             if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) {
-                if (timing.containsKey("findEarliest")) {
-                    timing.put("findEarliest", timing.get("findEarliest") + MyTimer.durationSeconds());
-                } else {
-                    timing.put("findEarliest", MyTimer.durationSeconds());
-                }
-            }
+            if (keepTiming) timing.put("findEarliest", timing.get("findEarliest") + MyTimer.durationSeconds());
 
             if (keepTiming) MyTimer.startTimer();
             // merge into earliest advocator's group
@@ -214,13 +185,7 @@ public class AiSuperCluster extends SuperCluster {
             }
 
             if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) {
-                if (timing.containsKey("mergeCluster")) {
-                    timing.put("mergeCluster", timing.get("mergeCluster") + MyTimer.durationSeconds());
-                } else {
-                    timing.put("mergeCluster", MyTimer.durationSeconds());
-                }
-            }
+            if (keepTiming) timing.put("mergeCalculation", timing.get("mergeCalculation") + MyTimer.durationSeconds());
 
             if (keepLabels) {
                 this.labels.get(c.getId())[zoom] = cluster.getId();
@@ -309,13 +274,11 @@ public class AiSuperCluster extends SuperCluster {
         return labels;
     }
 
-    public void printTiming() {
-        System.out.println("Timing distribution:");
-        System.out.println("    [get radius] " + timing.get("getRadius") + " seconds");
+    private void printTiming() {
+        System.out.println("[Total Time] " + timing.get("total") + " seconds.");
         System.out.println("    [range search] " + timing.get("rangeSearch") + " seconds");
-        System.out.println("    [create advocator] " + timing.get("createAdvocator") + " seconds");
         System.out.println("    [insert tree] " + timing.get("insertTree") + " seconds");
         System.out.println("    [find earliest] " + timing.get("findEarliest") + " seconds");
-        System.out.println("    [merge cluster] " + timing.get("mergeCluster") + " seconds");
+        System.out.println("    [merge calculation] " + timing.get("mergeCalculation") + " seconds");
     }
 }

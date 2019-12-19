@@ -51,14 +51,14 @@ public class BiSuperCluster extends SuperCluster {
         // initialize the timing map
         if (keepTiming) {
             timing = new HashMap<>();
-            timing.put("maintainClusterTree", 0.0);
-            timing.put("getRadius", 0.0);
-            timing.put("insert-rangeSearch", 0.0);
-            timing.put("maintainAdvocatorTree", 0.0);
+            timing.put("total", 0.0);
             timing.put("findEarliest", 0.0);
-            timing.put("mergeCalculation", 0.0);
+            timing.put("insert-rangeSearch", 0.0);
             timing.put("shift-rangeSearch", 0.0);
+            timing.put("mergeCalculation", 0.0);
             timing.put("splitCalculation", 0.0);
+            timing.put("maintainAdvocatorTree", 0.0);
+            timing.put("maintainClusterTree", 0.0);
         }
 
         MyMemory.printMemory();
@@ -105,11 +105,8 @@ public class BiSuperCluster extends SuperCluster {
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
 
-            if (keepTiming) MyTimer.startTimer();
             // shifting at level z affects clustering results of level (z-1)
             double r = getRadius(z - 1);
-            if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) timing.put("getRadius", timing.get("getRadius") + MyTimer.durationSeconds());
 
             // for current level, shift clusters one by one
             int shiftCountLevel = 0;
@@ -176,6 +173,7 @@ public class BiSuperCluster extends SuperCluster {
         shiftClusters();
 
         long end = System.nanoTime();
+        if (keepTiming) timing.put("total", timing.get("total") + (double) (end - start) / 1000000000.0);
         System.out.println("Batch incremental SuperCluster loading is done!");
         System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
         if (keepTiming) this.printTiming();
@@ -197,11 +195,63 @@ public class BiSuperCluster extends SuperCluster {
         shiftClusters();
 
         long end = System.nanoTime();
+        if (keepTiming) timing.put("total", timing.get("total") + (double) (end - start) / 1000000000.0);
         System.out.println("Batch incremental SuperCluster loading is done!");
         System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
         if (keepTiming) this.printTiming();
 
         MyMemory.printMemory();
+    }
+
+    /**
+     * Get an array of Clusters for given visible region and zoom level
+     * note: search on advocators tree, but return the clusters attached to the advocators
+     *
+     * @param x0
+     * @param y0
+     * @param x1
+     * @param y1
+     * @param zoom
+     * @return
+     */
+    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom) {
+        double minLng = ((x0 + 180) % 360 + 360) % 360 - 180;
+        double minLat = Math.max(-90, Math.min(90, y0));
+        double maxLng = x1 == 180 ? 180 : ((x1 + 180) % 360 + 360) % 360 - 180;
+        double maxLat = Math.max(-90, Math.min(90, y1));
+
+        if (x1 - x0 >= 360) {
+            minLng = -180;
+            maxLng = 180;
+        } else if (minLng > maxLng) {
+            Cluster[] easternHem = this.getClusters(minLng, minLat, 180, maxLat, zoom);
+            Cluster[] westernHem = this.getClusters(-180, minLat, maxLng, maxLat, zoom);
+            return concat(easternHem, westernHem);
+        }
+
+        I2DIndex<Advocator> advocatorsIndex = this.advocatorsIndexes[this._limitZoom(zoom)];
+        Cluster leftBottom = createPointCluster(minLng, maxLat);
+        Cluster rightTop = createPointCluster(maxLng, minLat);
+        List<Advocator> advocators = advocatorsIndex.range(leftBottom, rightTop);
+        Cluster[] clusters = new Cluster[advocators.size()];
+        int i = 0;
+        for (Advocator advocator: advocators) {
+            Cluster cluster = advocator.cluster.clone();
+            cluster.setX(xLng(cluster.getX()));
+            cluster.setY(yLat(cluster.getY()));
+            clusters[i] = cluster;
+            i ++;
+        }
+        //-DEBUG-//
+//        System.out.println("[getClusters] advocatorsTree.size = " + advocatorsTree.size());
+//        System.out.println("[getClusters] result.size = " + clusters.length);
+//        System.out.println("[getClusters] this level advocatorClusters.size = " + this.advocatorClusters[this._limitZoom(zoom)].size());
+//        System.out.println("[getClusters] result: ===============>");
+//        for (Cluster result: clusters) {
+//            System.out.println(result);
+//        }
+        //-DEBUG-//
+        return clusters;
     }
 
     private void insert(Cluster c, int zoom) {
@@ -210,11 +260,7 @@ public class BiSuperCluster extends SuperCluster {
         //System.out.println("insert " + c.getId() + ":[" + c.numPoints + "] into level " + zoom + " ...");
         //-DEBUG-//
 
-        if (keepTiming) MyTimer.startTimer();
         double radius = getRadius(zoom);
-        if (keepTiming) MyTimer.stopTimer();
-        if (keepTiming) timing.put("getRadius", timing.get("getRadius") + MyTimer.durationSeconds());
-
 
         if (keepTiming) MyTimer.startTimer();
         // Find all earlier advocators c can merge into
@@ -352,191 +398,6 @@ public class BiSuperCluster extends SuperCluster {
     }
 
     /**
-     * Get an array of Clusters for given visible region and zoom level
-     * note: search on advocators tree, but return the clusters attached to the advocators
-     *
-     * @param x0
-     * @param y0
-     * @param x1
-     * @param y1
-     * @param zoom
-     * @return
-     */
-    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom) {
-        double minLng = ((x0 + 180) % 360 + 360) % 360 - 180;
-        double minLat = Math.max(-90, Math.min(90, y0));
-        double maxLng = x1 == 180 ? 180 : ((x1 + 180) % 360 + 360) % 360 - 180;
-        double maxLat = Math.max(-90, Math.min(90, y1));
-
-        if (x1 - x0 >= 360) {
-            minLng = -180;
-            maxLng = 180;
-        } else if (minLng > maxLng) {
-            Cluster[] easternHem = this.getClusters(minLng, minLat, 180, maxLat, zoom);
-            Cluster[] westernHem = this.getClusters(-180, minLat, maxLng, maxLat, zoom);
-            return concat(easternHem, westernHem);
-        }
-
-        I2DIndex<Advocator> advocatorsIndex = this.advocatorsIndexes[this._limitZoom(zoom)];
-        Cluster leftBottom = createPointCluster(minLng, maxLat);
-        Cluster rightTop = createPointCluster(maxLng, minLat);
-        List<Advocator> advocators = advocatorsIndex.range(leftBottom, rightTop);
-        Cluster[] clusters = new Cluster[advocators.size()];
-        int i = 0;
-        for (Advocator advocator: advocators) {
-            Cluster cluster = advocator.cluster.clone();
-            cluster.setX(xLng(cluster.getX()));
-            cluster.setY(yLat(cluster.getY()));
-            clusters[i] = cluster;
-            i ++;
-        }
-        //-DEBUG-//
-//        System.out.println("[getClusters] advocatorsTree.size = " + advocatorsTree.size());
-//        System.out.println("[getClusters] result.size = " + clusters.length);
-//        System.out.println("[getClusters] this level advocatorClusters.size = " + this.advocatorClusters[this._limitZoom(zoom)].size());
-//        System.out.println("[getClusters] result: ===============>");
-//        for (Cluster result: clusters) {
-//            System.out.println(result);
-//        }
-        //-DEBUG-//
-        return clusters;
-    }
-
-    private void shift(Cluster c, Advocator from, int zoom) {
-
-        //-DEBUG-//
-        //System.out.println("Shift cluster " + c.getId() + ":[" + c.numPoints + "] at level " + zoom + " ...");
-        //-DEBUG-//
-
-        if (isAdvocatorOfParent(c)) {
-            // Find list of clusters that should merge into c.parent
-            List<Cluster> toMerge = toMerge(c, zoom);
-            // Find list of clusters that should split from c.parent
-            List<Cluster> toSplit = toSplit(c, zoom);
-
-            if (keepTiming) MyTimer.startTimer();
-            // shift the advocator "from"'s location to the centroid of cluster c
-            //TODO - use a index structure that support update location to handle the position shift
-            this.advocatorsIndexes[zoom].delete(from);
-            from.setX(c.getX());
-            from.setY(c.getY());
-            this.advocatorsIndexes[zoom].insert(from);
-            if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) timing.put("maintainAdvocatorTree", timing.get("maintainAdvocatorTree") + MyTimer.durationSeconds());
-
-            for (Cluster m: toMerge) {
-                split(m.parent, m, zoom - 1);
-                c.parent.children.add(m);
-                m.parent = c.parent;
-                m.parentId = c.parentId;
-                merge(c.parent, m, zoom - 1);
-            }
-
-            for (Cluster s: toSplit) {
-                split(c.parent, s, zoom - 1);
-
-                Cluster parent = createCluster(s.getX(), s.getY(), s.getId(), s.numPoints);
-                s.parentId = parent.getId();
-                s.parent = parent;
-                parent.children.add(s);
-                parent.advocatorCluster = s;
-
-                insert(parent, zoom - 1);
-            }
-        }
-        else {
-            // shifting at level zoom affects clustering results of level (zoom-1)
-            double radius = getRadius(zoom - 1);
-            if (c.parent.advocator.distanceTo(c) > radius) {
-                split(c.parent, c, zoom - 1);
-
-                Cluster parent = createCluster(c.getX(), c.getY(), c.getId(), c.numPoints);
-                c.parentId = parent.getId();
-                c.parent = parent;
-                parent.children.add(c);
-                parent.advocatorCluster = c;
-
-                insert(parent, zoom - 1);
-            }
-        }
-    }
-
-    /**
-     * Check whether cluster c is an advocator of its parent
-     *
-     * @param c
-     * @return
-     */
-    private boolean isAdvocatorOfParent(Cluster c) {
-        if (c.parent != null && c == c.parent.advocatorCluster)
-            return true;
-        return false;
-    }
-
-    /**
-     * Find list of clusters that should merge into c.parent
-     *
-     * @param c
-     * @param zoom
-     * @return
-     */
-    private List<Cluster> toMerge(Cluster c, int zoom) {
-        if (keepTiming) MyTimer.startTimer();
-        // shifting at level zoom affects clustering results of level (zoom-1)
-        double r = getRadius(zoom - 1);
-        if (keepTiming) MyTimer.stopTimer();
-        if (keepTiming) timing.put("getRadius", timing.get("getRadius") + MyTimer.durationSeconds());
-
-        if (keepTiming) MyTimer.startTimer();
-        List<Cluster> clusters = this.clustersIndexes[zoom].within(c, r);
-        if (keepTiming) MyTimer.stopTimer();
-        if (keepTiming) timing.put("shift-rangeSearch", timing.get("shift-rangeSearch") + MyTimer.durationSeconds());
-
-        clusters.removeAll(c.parent.children);
-        // remove those:
-        //    (1) already has a parent with smaller id of advocator than c.parent
-        //    (2) that are advocators themselves
-        for (Iterator<Cluster> iter = clusters.iterator(); iter.hasNext(); ) {
-            Cluster curr = iter.next();
-            if (isAdvocatorOfParent(curr)) {
-                iter.remove();
-                continue;
-            }
-            if (curr.parent != null) {
-                Cluster currParent = curr.parent;
-                if (currParent.advocator != null) {
-                    if (currParent.advocator.getId() <= c.parent.advocator.getId()) {
-                        iter.remove();
-                    }
-                }
-            }
-        }
-        return clusters;
-    }
-
-    /**
-     * Find list of clusters that should split from c.parent
-     *
-     * @param c
-     * @param zoom
-     * @return
-     */
-    private List<Cluster> toSplit(Cluster c, int zoom) {
-        if (keepTiming) MyTimer.startTimer();
-        // shifting at level zoom affects clustering results of level (zoom-1)
-        double r = getRadius(zoom - 1);
-        if (keepTiming) MyTimer.stopTimer();
-        if (keepTiming) timing.put("getRadius", timing.get("getRadius") + MyTimer.durationSeconds());
-
-        List<Cluster> children = new ArrayList<>(c.parent.children);
-
-        // remove those who are within r to c
-        children.removeIf(child -> child.distanceTo(c) <= r);
-
-        return children;
-    }
-
-    /**
      * Split c2 from c1, zoom is the level of c1,
      * and recursively split c2 from c1.parent
      *
@@ -599,6 +460,134 @@ public class BiSuperCluster extends SuperCluster {
             }
 
             split(c1.parent, c2, zoom - 1);
+        }
+    }
+
+    /**
+     * Find list of clusters that should merge into c.parent
+     *
+     * @param c
+     * @param zoom
+     * @return
+     */
+    private List<Cluster> toMerge(Cluster c, int zoom) {
+        // shifting at level zoom affects clustering results of level (zoom-1)
+        double r = getRadius(zoom - 1);
+
+        if (keepTiming) MyTimer.startTimer();
+        List<Cluster> clusters = this.clustersIndexes[zoom].within(c, r);
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) timing.put("shift-rangeSearch", timing.get("shift-rangeSearch") + MyTimer.durationSeconds());
+
+        clusters.removeAll(c.parent.children);
+        // remove those:
+        //    (1) already has a parent with smaller id of advocator than c.parent
+        //    (2) that are advocators themselves
+        for (Iterator<Cluster> iter = clusters.iterator(); iter.hasNext(); ) {
+            Cluster curr = iter.next();
+            if (isAdvocatorOfParent(curr)) {
+                iter.remove();
+                continue;
+            }
+            if (curr.parent != null) {
+                Cluster currParent = curr.parent;
+                if (currParent.advocator != null) {
+                    if (currParent.advocator.getId() <= c.parent.advocator.getId()) {
+                        iter.remove();
+                    }
+                }
+            }
+        }
+        return clusters;
+    }
+
+    /**
+     * Find list of clusters that should split from c.parent
+     *   Note: c is at zoom level
+     *
+     * @param c
+     * @param zoom
+     * @return
+     */
+    private List<Cluster> toSplit(Cluster c, int zoom) {
+        // shifting at level zoom affects clustering results of level (zoom-1)
+        double r = getRadius(zoom - 1);
+
+        List<Cluster> children = new ArrayList<>(c.parent.children);
+
+        // remove those who are within r to c
+        children.removeIf(child -> child.distanceTo(c) <= r);
+        return children;
+    }
+
+    /**
+     * Check whether cluster c is an advocator of its parent
+     *
+     * @param c
+     * @return
+     */
+    private boolean isAdvocatorOfParent(Cluster c) {
+        if (c.parent != null && c == c.parent.advocatorCluster)
+            return true;
+        return false;
+    }
+
+    private void shift(Cluster c, Advocator from, int zoom) {
+
+        //-DEBUG-//
+        //System.out.println("Shift cluster " + c.getId() + ":[" + c.numPoints + "] at level " + zoom + " ...");
+        //-DEBUG-//
+
+        if (isAdvocatorOfParent(c)) {
+            // Find list of clusters that should merge into c.parent
+            List<Cluster> toMerge = toMerge(c, zoom);
+            // Find list of clusters that should split from c.parent
+            List<Cluster> toSplit = toSplit(c, zoom);
+
+            if (keepTiming) MyTimer.startTimer();
+            // shift the advocator "from"'s location to the centroid of cluster c
+            //TODO - use a index structure that support update location to handle the position shift
+            this.advocatorsIndexes[zoom].delete(from);
+            from.setX(c.getX());
+            from.setY(c.getY());
+            this.advocatorsIndexes[zoom].insert(from);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainAdvocatorTree", timing.get("maintainAdvocatorTree") + MyTimer.durationSeconds());
+
+            for (Cluster m: toMerge) {
+                split(m.parent, m, zoom - 1);
+                c.parent.children.add(m);
+                m.parent = c.parent;
+                m.parentId = c.parentId;
+                merge(c.parent, m, zoom - 1);
+            }
+
+            for (Cluster s: toSplit) {
+                split(c.parent, s, zoom - 1);
+
+                Cluster parent = createCluster(s.getX(), s.getY(), s.getId(), s.numPoints);
+                s.parentId = parent.getId();
+                s.parent = parent;
+                parent.children.add(s);
+                parent.advocatorCluster = s;
+
+                insert(parent, zoom - 1);
+            }
+        }
+        else {
+            // shifting at level zoom affects clustering results of level (zoom-1)
+            double radius = getRadius(zoom - 1);
+            if (c.parent.advocator.distanceTo(c) > radius) {
+                split(c.parent, c, zoom - 1);
+
+                Cluster parent = createCluster(c.getX(), c.getY(), c.getId(), c.numPoints);
+                c.parentId = parent.getId();
+                c.parent = parent;
+                parent.children.add(c);
+                parent.advocatorCluster = c;
+
+                insert(parent, zoom - 1);
+            }
         }
     }
 
@@ -667,8 +656,7 @@ public class BiSuperCluster extends SuperCluster {
     }
 
     private void printTiming() {
-        System.out.println("Timing distribution:");
-        System.out.println("    [get radius] " + timing.get("getRadius") + " seconds");
+        System.out.println("[Total Time] " + timing.get("total") + " seconds.");
         System.out.println("    [find earliest] " + timing.get("findEarliest") + " seconds");
         System.out.println("    [insert range search] " + timing.get("insert-rangeSearch") + " seconds");
         System.out.println("    [shift range search] " + timing.get("shift-rangeSearch") + " seconds");

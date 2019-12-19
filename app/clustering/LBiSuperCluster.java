@@ -4,10 +4,7 @@ import model.Advocator;
 import model.Cluster;
 import model.ClusterDelta;
 import model.PointTuple;
-import util.Flags;
-import util.I2DIndex;
-import util.IndexCreator;
-import util.MyMemory;
+import util.*;
 
 import java.util.*;
 
@@ -46,6 +43,11 @@ public class LBiSuperCluster extends SuperCluster {
 
     String indexType; // KDTree / GridIndex
 
+    //-Timing-//
+    static final boolean keepTiming = true;
+    Map<String, Double> timing;
+    //-Timing-//
+
     public LBiSuperCluster(int _minZoom, int _maxZoom, String _indexType, boolean _analysis) {
         this.minZoom = _minZoom;
         this.maxZoom = _maxZoom;
@@ -72,6 +74,20 @@ public class LBiSuperCluster extends SuperCluster {
             });
         }
 
+        // initialize the timing map
+        if (keepTiming) {
+            timing = new HashMap<>();
+            timing.put("total", 0.0);
+            timing.put("findEarliest", 0.0);
+            timing.put("insert-rangeSearch", 0.0);
+            timing.put("shift-rangeSearch", 0.0);
+            timing.put("mergeCalculation", 0.0);
+            timing.put("splitCalculation", 0.0);
+            timing.put("maintainAdvocatorTree", 0.0);
+            timing.put("maintainClusterTree", 0.0);
+            timing.put("maintainQueue", 0.0);
+        }
+
         MyMemory.printMemory();
     }
 
@@ -95,11 +111,14 @@ public class LBiSuperCluster extends SuperCluster {
         // handle insert, update and delete of clusters level by level bottom-up
         for (int z = maxZoom; z > minZoom; z --) {
 
+            if (keepTiming) MyTimer.startTimer();
             // update clustersTree for level z
             Cluster pending;
             while ((pending = this.pendingClusters[z].poll()) != null) {
                 this.clustersIndexes[z].insert(pending);
             }
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
 
             // shifting at level z affects clustering results of level (z-1)
             double r = getRadius(z - 1);
@@ -212,6 +231,7 @@ public class LBiSuperCluster extends SuperCluster {
         buildHierarchy();
 
         long end = System.nanoTime();
+        if (keepTiming) timing.put("total", timing.get("total") + (double) (end - start) / 1000000000.0);
         System.out.println("[LBiSC] Level Batch incremental SuperCluster loading is done!");
         System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
         System.out.println("Max zoom level clusters # = " + this.advocatorClusters[maxZoom].size());
@@ -223,6 +243,7 @@ public class LBiSuperCluster extends SuperCluster {
         System.out.println("---------------------------------------------");
         System.out.println("Total handled clusters: " + (this.totalInsertCount + this.totalUpdateCount + this.totalDeleteCount));
         System.out.println("---------------------------------------------");
+        if (keepTiming) this.printTiming();
 
         MyMemory.printMemory();
     }
@@ -241,6 +262,7 @@ public class LBiSuperCluster extends SuperCluster {
         buildHierarchy();
 
         long end = System.nanoTime();
+        if (keepTiming) timing.put("total", timing.get("total") + (double) (end - start) / 1000000000.0);
         System.out.println("[LBiSC] Strict Batch incremental SuperCluster loading is done!");
         System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
         System.out.println("Max zoom level clusters # = " + this.advocatorClusters[maxZoom].size());
@@ -252,8 +274,60 @@ public class LBiSuperCluster extends SuperCluster {
         System.out.println("---------------------------------------------");
         System.out.println("Total handled clusters: " + (this.totalInsertCount + this.totalUpdateCount + this.totalDeleteCount));
         System.out.println("---------------------------------------------");
+        if (keepTiming) this.printTiming();
 
         MyMemory.printMemory();
+    }
+
+    /**
+     * Get an array of Clusters for given visible region and zoom level
+     * note: search on advocators tree, but return the clusters attached to the advocators
+     *
+     * @param x0
+     * @param y0
+     * @param x1
+     * @param y1
+     * @param zoom
+     * @return
+     */
+    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom) {
+        double minLng = ((x0 + 180) % 360 + 360) % 360 - 180;
+        double minLat = Math.max(-90, Math.min(90, y0));
+        double maxLng = x1 == 180 ? 180 : ((x1 + 180) % 360 + 360) % 360 - 180;
+        double maxLat = Math.max(-90, Math.min(90, y1));
+
+        if (x1 - x0 >= 360) {
+            minLng = -180;
+            maxLng = 180;
+        } else if (minLng > maxLng) {
+            Cluster[] easternHem = this.getClusters(minLng, minLat, 180, maxLat, zoom);
+            Cluster[] westernHem = this.getClusters(-180, minLat, maxLng, maxLat, zoom);
+            return concat(easternHem, westernHem);
+        }
+
+        I2DIndex<Advocator> advocatorsIndex = this.advocatorsIndexes[this._limitZoom(zoom)];
+        Cluster leftBottom = createPointCluster(minLng, maxLat);
+        Cluster rightTop = createPointCluster(maxLng, minLat);
+        List<Advocator> advocators = advocatorsIndex.range(leftBottom, rightTop);
+        Cluster[] clusters = new Cluster[advocators.size()];
+        int i = 0;
+        for (Advocator advocator: advocators) {
+            Cluster cluster = advocator.cluster.clone();
+            cluster.setX(xLng(cluster.getX()));
+            cluster.setY(yLat(cluster.getY()));
+            clusters[i] = cluster;
+            i ++;
+        }
+        //-DEBUG-//
+//        System.out.println("[getClusters] advocatorsTree.size = " + advocatorsTree.size());
+//        System.out.println("[getClusters] result.size = " + clusters.length);
+//        System.out.println("[getClusters] this level advocatorClusters.size = " + this.advocatorClusters[this._limitZoom(zoom)].size());
+//        System.out.println("[getClusters] result: ===============>");
+//        for (Cluster result: clusters) {
+//            System.out.println(result);
+//        }
+        //-DEBUG-//
+        return clusters;
     }
 
     protected Cluster createPointCluster(double _x, double _y, int _id, int _seq) {
@@ -269,8 +343,11 @@ public class LBiSuperCluster extends SuperCluster {
     private void insert(Cluster c) {
         double radius = getRadius(maxZoom);
 
+        if (keepTiming) MyTimer.startTimer();
         // Find all earlier advocators c can merge into
         List<Advocator> advocators = this.advocatorsIndexes[maxZoom].within(c, radius);
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) timing.put("insert-rangeSearch", timing.get("insert-rangeSearch") + MyTimer.durationSeconds());
 
         // if no group could be merged into, become a new Advocator itself
         if (advocators.isEmpty()) {
@@ -278,18 +355,28 @@ public class LBiSuperCluster extends SuperCluster {
             newAdvocator.cluster = c;
             c.advocator = newAdvocator;
 
+            if (keepTiming) MyTimer.startTimer();
             this.advocatorsIndexes[maxZoom].insert(newAdvocator);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainAdvocatorTree", timing.get("maintainAdvocatorTree") + MyTimer.durationSeconds());
 
             this.advocatorClusters[maxZoom].add(c);
 
+            if (keepTiming) MyTimer.startTimer();
             this.clustersIndexes[maxZoom].insert(c);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
 
+            if (keepTiming) MyTimer.startTimer();
             c.flag = Flags.INSERTED;
             if (!this.flaggedClusters[maxZoom].contains(c)) // TODO - this case should not happen at all
                 this.flaggedClusters[maxZoom].add(c);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
         }
         // if earlier advocators' groups could be merged into
         else {
+            if (keepTiming) MyTimer.startTimer();
             // find the earliest advocator
             Advocator earliestAdvocator = null;
             for (Advocator advocator: advocators) {
@@ -300,15 +387,21 @@ public class LBiSuperCluster extends SuperCluster {
                     earliestAdvocator = advocator;
                 }
             }
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("findEarliest", timing.get("findEarliest") + MyTimer.durationSeconds());
 
             // merge into earliest advocator's group
             Cluster cluster = earliestAdvocator.cluster;
 
+            if (keepTiming) MyTimer.startTimer();
             // delete cluster from clustersTree
             if (!cluster.dirty) {
                 this.clustersIndexes[maxZoom].delete(cluster);
             }
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
 
+            if (keepTiming) MyTimer.startTimer();
             // encode id if it's first time to be a cluster
             if (cluster.numPoints == 0) {
                 encodeId(cluster, maxZoom);
@@ -316,6 +409,8 @@ public class LBiSuperCluster extends SuperCluster {
 
             // merge c's coordinate into cluster's centroid calculation
             merge(cluster, c.getX(), c.getY(), c.numPoints);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("mergeCalculation", timing.get("mergeCalculation") + MyTimer.durationSeconds());
 
             // keep cluster in pendingClusters
             if (!cluster.dirty) {
@@ -323,6 +418,7 @@ public class LBiSuperCluster extends SuperCluster {
                 cluster.dirty = true;
             }
 
+            if (keepTiming) MyTimer.startTimer();
             // if this cluster is already flagged by earlier operations
             if (this.flaggedClusters[maxZoom].contains(cluster)) {
                 // and if cluster has merged some other points
@@ -337,6 +433,8 @@ public class LBiSuperCluster extends SuperCluster {
                 cluster.updateDelta = new ClusterDelta(c.getX(), c.getY(), 1);
                 this.flaggedClusters[maxZoom].add(cluster);
             }
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
         }
     }
 
@@ -355,11 +453,15 @@ public class LBiSuperCluster extends SuperCluster {
         //System.out.println("Merge " + c2.getId() + ":[" + c2.numPoints + "] into cluster " + c1.getId() + ":[" + c1.numPoints + "] at level " + zoom + " ...");
         //-DEBUG-//
 
+        if (keepTiming) MyTimer.startTimer();
         // delete c1 from clustersTree
         if (!c1.dirty) {
             this.clustersIndexes[zoom].delete(c1);
         }
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
 
+        if (keepTiming) MyTimer.startTimer();
         // encode id if it's first time to be a cluster
         if (c1.numPoints == 0) {
             encodeId(c1, zoom);
@@ -372,6 +474,8 @@ public class LBiSuperCluster extends SuperCluster {
         c1.children.add(c2);
         c2.parent = c1;
         c2.parentId = c1.getId();
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) timing.put("mergeCalculation", timing.get("mergeCalculation") + MyTimer.durationSeconds());
 
         // keep c1 in pendingClusters
         if (!c1.dirty) {
@@ -379,6 +483,7 @@ public class LBiSuperCluster extends SuperCluster {
             c1.dirty = true;
         }
 
+        if (keepTiming) MyTimer.startTimer();
         // if this c1 is already flagged by earlier operations
         if (this.flaggedClusters[zoom].contains(c1)) {
             // if c1 has been flagged as UPDATE
@@ -394,6 +499,8 @@ public class LBiSuperCluster extends SuperCluster {
             c1.updateDelta = new ClusterDelta(c2.getX(), c2.getY(), c2.numPoints == 0? 1: c2.numPoints);
             this.flaggedClusters[zoom].add(c1);
         }
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
     }
 
     /**
@@ -413,19 +520,26 @@ public class LBiSuperCluster extends SuperCluster {
 
         // if c2 is c1's only child, delete c1 directly
         if (c1.children.size() == 1) {
+            if (keepTiming) MyTimer.startTimer();
             // TODO - verify this case
             c1.flag = Flags.DELETED;
             if (!this.flaggedClusters[zoom].contains(c1))
                 this.flaggedClusters[zoom].add(c1);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
         }
         // otherwise, subtract c2's weight from c1
         else {
 
+            if (keepTiming) MyTimer.startTimer();
             // delete c1 from clustersTree
             if (!c1.dirty) {
                 this.clustersIndexes[zoom].delete(c1);
             }
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
 
+            if (keepTiming) MyTimer.startTimer();
             // split c2's coordinate from c1's centroid calculation
             split(c1, c2.getX(), c2.getY(), c2.numPoints);
 
@@ -433,6 +547,8 @@ public class LBiSuperCluster extends SuperCluster {
             c1.children.remove(c2);
             c2.parent = null;
             c2.parentId = -1;
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("splitCalculation", timing.get("splitCalculation") + MyTimer.durationSeconds());
 
             // keep c1 in pendingClusters
             if (!c1.dirty) {
@@ -440,6 +556,7 @@ public class LBiSuperCluster extends SuperCluster {
                 c1.dirty = true;
             }
 
+            if (keepTiming) MyTimer.startTimer();
             // if this c1 is already flagged by earlier operations
             if (this.flaggedClusters[zoom].contains(c1)) {
                 // if c1 has been flagged as UPDATE
@@ -455,6 +572,8 @@ public class LBiSuperCluster extends SuperCluster {
                 c1.updateDelta = new ClusterDelta(c2.getX(), c2.getY(), c2.numPoints == 0? -1: -c2.numPoints);
                 this.flaggedClusters[zoom].add(c1);
             }
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
         }
     }
 
@@ -470,7 +589,10 @@ public class LBiSuperCluster extends SuperCluster {
         // shifting at level zoom affects clustering results of level (zoom-1)
         double r = getRadius(zoom - 1);
 
+        if (keepTiming) MyTimer.startTimer();
         List<Cluster> clusters = this.clustersIndexes[zoom].within(c, r);
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) timing.put("shift-rangeSearch", timing.get("shift-rangeSearch") + MyTimer.durationSeconds());
 
         clusters.removeAll(c.parent.children);
         // remove those:
@@ -539,11 +661,15 @@ public class LBiSuperCluster extends SuperCluster {
         //System.out.println("Apply delta [" + delta.numPoints + "](" + delta.x + "," + delta.y + ") into cluster " + c.getId() + ":[" + c.numPoints + "](" + c.getX() + "," + c.getY() + ") at level " + zoom + " ...");
         //-DEBUG-//
 
+        if (keepTiming) MyTimer.startTimer();
         // delete c from clustersTree
         if (!c.dirty) {
             this.clustersIndexes[zoom].delete(c);
         }
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
 
+        if (keepTiming) MyTimer.startTimer();
         // encode id if it's first time to be a cluster
         if (c.numPoints == 0) {
             encodeId(c, zoom);
@@ -551,6 +677,8 @@ public class LBiSuperCluster extends SuperCluster {
 
         // apply delta to c's centroid calculation
         update(c, delta);
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) timing.put("mergeCalculation", timing.get("mergeCalculation") + MyTimer.durationSeconds());
 
         // keep c in pendingClusters
         if (!c.dirty) {
@@ -562,6 +690,7 @@ public class LBiSuperCluster extends SuperCluster {
         //System.out.println("Updated cluster is " + c.getId() + ":[" + c.numPoints + "](" + c.getX() + "," + c.getY() + ")");
         //-DEBUG-//
 
+        if (keepTiming) MyTimer.startTimer();
         // if this c is already flagged by earlier operations
         if (this.flaggedClusters[zoom].contains(c)) {
             // if c has been flagged as UPDATE
@@ -575,6 +704,8 @@ public class LBiSuperCluster extends SuperCluster {
             c.updateDelta = delta;
             this.flaggedClusters[zoom].add(c);
         }
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
     }
 
     private void onUpdate(Cluster c, int zoom) {
@@ -606,8 +737,11 @@ public class LBiSuperCluster extends SuperCluster {
         if (zoom == minZoom) return;
         double radius = getRadius(zoom - 1);
 
+        if (keepTiming) MyTimer.startTimer();
         // Find all earlier advocators c can merge into
         List<Advocator> advocators = this.advocatorsIndexes[zoom - 1].within(c, radius);
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) timing.put("insert-rangeSearch", timing.get("insert-rangeSearch") + MyTimer.durationSeconds());
 
         // if no group could be merged into, become a new Advocator itself
         if (advocators.isEmpty()) {
@@ -625,13 +759,19 @@ public class LBiSuperCluster extends SuperCluster {
             newAdvocator.cluster = parent;
             parent.advocator = newAdvocator;
 
+            if (keepTiming) MyTimer.startTimer();
             this.advocatorsIndexes[zoom - 1].insert(newAdvocator);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainAdvocatorTree", timing.get("maintainAdvocatorTree") + MyTimer.durationSeconds());
 
             this.advocatorClusters[zoom - 1].add(parent);
 
+            if (keepTiming) MyTimer.startTimer();
             this.clustersIndexes[zoom - 1].insert(parent);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
 
-
+            if (keepTiming) MyTimer.startTimer();
             if (this.flaggedClusters[zoom - 1].contains(parent)) {
                 // TODO - handle existing cases
                 //parent.flag = Flags.INSERTED;
@@ -640,9 +780,13 @@ public class LBiSuperCluster extends SuperCluster {
                 parent.flag = Flags.INSERTED;
                 this.flaggedClusters[zoom - 1].add(parent);
             }
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
         }
         // if earlier advocators' groups could be merged into
         else {
+
+            if (keepTiming) MyTimer.startTimer();
             // find the earliest advocator
             Advocator earliestAdvocator = null;
             for (Advocator advocator: advocators) {
@@ -653,6 +797,8 @@ public class LBiSuperCluster extends SuperCluster {
                     earliestAdvocator = advocator;
                 }
             }
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("findEarliest", timing.get("findEarliest") + MyTimer.durationSeconds());
 
             // merge into earliest advocator's group
             Cluster cluster = earliestAdvocator.cluster;
@@ -673,9 +819,18 @@ public class LBiSuperCluster extends SuperCluster {
      * @param zoom
      */
     private void onDelete(Cluster c, int zoom) {
+        if (keepTiming) MyTimer.startTimer();
         this.advocatorsIndexes[zoom].delete(c.advocator);
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) timing.put("maintainAdvocatorTree", timing.get("maintainAdvocatorTree") + MyTimer.durationSeconds());
+
         this.advocatorClusters[zoom].remove(c);
+
+        if (keepTiming) MyTimer.startTimer();
         this.clustersIndexes[zoom].delete(c);
+        if (keepTiming) MyTimer.stopTimer();
+        if (keepTiming) timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
+
         c.flag = Flags.NONE;
 
         split(c.parent, c, zoom - 1);
@@ -700,23 +855,31 @@ public class LBiSuperCluster extends SuperCluster {
             // Find list of clusters that should split from c.parent
             List<Cluster> toSplit = toSplit(c, zoom);
 
+            if (keepTiming) MyTimer.startTimer();
             // shift the advocator "from"'s location to the centroid of cluster c
             this.advocatorsIndexes[zoom].delete(from);
             from.setX(c.getX());
             from.setY(c.getY());
             this.advocatorsIndexes[zoom].insert(from);
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) timing.put("maintainAdvocatorTree", timing.get("maintainAdvocatorTree") + MyTimer.durationSeconds());
 
             for (Cluster m: toMerge) {
                 split(m.parent, m, zoom - 1);
                 merge(c.parent, m, zoom - 1);
+
+                if (keepTiming) MyTimer.startTimer();
                 // remove cluster m from queue of clusters to be processed
                 if (this.flaggedClusters[zoom].contains(m))
                     this.flaggedClusters[zoom].remove(m);
+                if (keepTiming) MyTimer.stopTimer();
+                if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
             }
 
             for (Cluster s: toSplit) {
                 split(c.parent, s, zoom - 1);
 
+                if (keepTiming) MyTimer.startTimer();
                 if (this.flaggedClusters[zoom].contains(s)) {
                     // TODO - handle existing cases
                 }
@@ -724,6 +887,8 @@ public class LBiSuperCluster extends SuperCluster {
                     s.flag = Flags.INSERTED;
                     this.flaggedClusters[zoom].add(s);
                 }
+                if (keepTiming) MyTimer.stopTimer();
+                if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
             }
 
             c.flag = Flags.NONE;
@@ -734,6 +899,7 @@ public class LBiSuperCluster extends SuperCluster {
             if (c.parent.advocator.distanceTo(c) > radius) {
                 split(c.parent, c, zoom - 1);
 
+                if (keepTiming) MyTimer.startTimer();
                 if (this.flaggedClusters[zoom].contains(c)) {
                     // TODO - handle existing cases
                 }
@@ -741,62 +907,13 @@ public class LBiSuperCluster extends SuperCluster {
                     c.flag = Flags.INSERTED;
                     this.flaggedClusters[zoom].add(c);
                 }
+                if (keepTiming) MyTimer.stopTimer();
+                if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
             }
             else {
                 c.flag = Flags.NONE;
             }
         }
-    }
-
-    /**
-     * Get an array of Clusters for given visible region and zoom level
-     * note: search on advocators tree, but return the clusters attached to the advocators
-     *
-     * @param x0
-     * @param y0
-     * @param x1
-     * @param y1
-     * @param zoom
-     * @return
-     */
-    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom) {
-        double minLng = ((x0 + 180) % 360 + 360) % 360 - 180;
-        double minLat = Math.max(-90, Math.min(90, y0));
-        double maxLng = x1 == 180 ? 180 : ((x1 + 180) % 360 + 360) % 360 - 180;
-        double maxLat = Math.max(-90, Math.min(90, y1));
-
-        if (x1 - x0 >= 360) {
-            minLng = -180;
-            maxLng = 180;
-        } else if (minLng > maxLng) {
-            Cluster[] easternHem = this.getClusters(minLng, minLat, 180, maxLat, zoom);
-            Cluster[] westernHem = this.getClusters(-180, minLat, maxLng, maxLat, zoom);
-            return concat(easternHem, westernHem);
-        }
-
-        I2DIndex<Advocator> advocatorsIndex = this.advocatorsIndexes[this._limitZoom(zoom)];
-        Cluster leftBottom = createPointCluster(minLng, maxLat);
-        Cluster rightTop = createPointCluster(maxLng, minLat);
-        List<Advocator> advocators = advocatorsIndex.range(leftBottom, rightTop);
-        Cluster[] clusters = new Cluster[advocators.size()];
-        int i = 0;
-        for (Advocator advocator: advocators) {
-            Cluster cluster = advocator.cluster.clone();
-            cluster.setX(xLng(cluster.getX()));
-            cluster.setY(yLat(cluster.getY()));
-            clusters[i] = cluster;
-            i ++;
-        }
-        //-DEBUG-//
-//        System.out.println("[getClusters] advocatorsTree.size = " + advocatorsTree.size());
-//        System.out.println("[getClusters] result.size = " + clusters.length);
-//        System.out.println("[getClusters] this level advocatorClusters.size = " + this.advocatorClusters[this._limitZoom(zoom)].size());
-//        System.out.println("[getClusters] result: ===============>");
-//        for (Cluster result: clusters) {
-//            System.out.println(result);
-//        }
-        //-DEBUG-//
-        return clusters;
     }
 
     /**
@@ -933,5 +1050,17 @@ public class LBiSuperCluster extends SuperCluster {
         delta1.x = x / (numPoints == 0? 1: numPoints);
         delta1.y = y / (numPoints == 0? 1: numPoints);
         delta1.numPoints = numPoints;
+    }
+
+    private void printTiming() {
+        System.out.println("[Total Time] " + timing.get("total") + " seconds.");
+        System.out.println("    [find earliest] " + timing.get("findEarliest") + " seconds");
+        System.out.println("    [insert range search] " + timing.get("insert-rangeSearch") + " seconds");
+        System.out.println("    [shift range search] " + timing.get("shift-rangeSearch") + " seconds");
+        System.out.println("    [merge calculation] " + timing.get("mergeCalculation") + " seconds");
+        System.out.println("    [split calculation] " + timing.get("splitCalculation") + " seconds");
+        System.out.println("    [maintain advocator tree] " + timing.get("maintainAdvocatorTree") + " seconds");
+        System.out.println("    [maintain cluster tree] " + timing.get("maintainClusterTree") + " seconds");
+        System.out.println("    [maintain queue] " + timing.get("maintainQueue") + " seconds");
     }
 }
