@@ -513,6 +513,10 @@ public class Agent extends AbstractActor {
                 case "bisc":
                     cluster = new BiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
                     break;
+                case "lbisupercluster":
+                case "lbisc":
+                    cluster = new LBiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
+                    break;
                 case "sbisupercluster":
                 case "sbic":
                     cluster = new SBiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
