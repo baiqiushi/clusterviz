@@ -11,6 +11,16 @@ import util.MyMemory;
 
 import java.util.*;
 
+/**
+ * Strict Batch incremental SuperCluster
+ *
+ * Use Level Batch incremental SuperCluster framework,
+ * consider more complex situations to make the clustering result
+ * consistent with the original SuperCluster algorithm if input order is the same.
+ *
+ * TODO - onInsert to rob other existing clusters unfinished
+ *      - bugs to be fixed for those duplicate flagged clusters in the Queue
+ */
 public class SBiSuperCluster extends SuperCluster {
     // advocators at each level
     I2DIndex<Advocator>[] advocatorsIndexes;
@@ -112,13 +122,13 @@ public class SBiSuperCluster extends SuperCluster {
             while ((flaggedCluster = this.flaggedClusters[z].poll()) != null) {
 
                 if (flaggedCluster.flag == Flags.INSERTED) {
-                    reInsert(flaggedCluster, z);
+                    onInsert(flaggedCluster, z);
                     insertCountLevel ++;
                 }
 
                 if (flaggedCluster.flag == Flags.UPDATED) {
                     updateCountLevel ++;
-                    update(flaggedCluster, z);
+                    onUpdate(flaggedCluster, z);
 
                     if (flaggedCluster.distanceTo(flaggedCluster.advocator) > miu * r) {
                         shift(flaggedCluster, flaggedCluster.advocator, z);
@@ -127,7 +137,7 @@ public class SBiSuperCluster extends SuperCluster {
                 }
 
                 if (flaggedCluster.flag == Flags.DELETED) {
-                    delete(flaggedCluster, z);
+                    onDelete(flaggedCluster, z);
                     deleteCountLevel ++;
                 }
             }
@@ -562,7 +572,7 @@ public class SBiSuperCluster extends SuperCluster {
         }
     }
 
-    private void update(Cluster c, int zoom) {
+    private void onUpdate(Cluster c, int zoom) {
 
         //-DEBUG-//
         //System.out.println("Updating cluster " + c.getId() + ":[" + c.numPoints + "], delta=" + c.updateDelta.numPoints + " at level " + zoom + " ...");
@@ -574,16 +584,16 @@ public class SBiSuperCluster extends SuperCluster {
     }
 
     /**
-     * reInsert cluster c into zoom level
+     * onInsert handler for cluster c into zoom level
      *   Note: information of c itself is already up to date,
      *         grouping relationships at zoom level is also up to date,
-     *         reInsert just wants to update the grouping relationships at zoom-1 level,
+     *         onInsert handler just wants to update the grouping relationships at zoom-1 level,
      *         right now, cluster c has no parent at zoom-1 level
      *
      * @param c
      * @param zoom
      */
-    private void reInsert(Cluster c, int zoom) {
+    private void onInsert(Cluster c, int zoom) {
         //-DEBUG-//
         //System.out.println("reInserting " + c.getId() + ": [" + c.numPoints + "]...");
         //-DEBUG-//
@@ -696,7 +706,7 @@ public class SBiSuperCluster extends SuperCluster {
     }
 
     /**
-     * delete cluster c from zoom level
+     * onDelete handler for cluster c from zoom level
      *   Note: information of c itself is already up to date,
      *         grouping relationships at zoom level is also up to date,
      *         delete just wants to update the grouping relationships at zoom-1 level
@@ -704,7 +714,7 @@ public class SBiSuperCluster extends SuperCluster {
      * @param c
      * @param zoom
      */
-    private void delete(Cluster c, int zoom) {
+    private void onDelete(Cluster c, int zoom) {
         this.advocatorsIndexes[zoom].delete(c.advocator);
         this.advocatorClusters[zoom].remove(c);
         this.clustersIndexes[zoom].delete(c);
