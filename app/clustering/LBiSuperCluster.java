@@ -29,8 +29,10 @@ public class LBiSuperCluster extends SuperCluster {
     // clusters at each level that are pending for insert into tree
     Queue<Cluster>[] pendingClusters;
 
-    // clusters at each level that are flagged for handling insert, update and delete operations
-    PriorityQueue<Cluster>[] flaggedClusters;
+    // clusters at each level that are registered for handling insert, update and delete operations
+    Set<Cluster>[] insertedClusters;
+    Set<Cluster>[] updatedClusters;
+    Set<Cluster>[] deletedClusters;
 
     int pointIdSeq;
     int pointSeqSeq;
@@ -56,7 +58,9 @@ public class LBiSuperCluster extends SuperCluster {
         this.advocatorClusters = new List[maxZoom + 1];
         this.clustersIndexes = IndexCreator.createIndexArray(indexType, maxZoom + 1);
         this.pendingClusters = new Queue[maxZoom + 1];
-        this.flaggedClusters = new PriorityQueue[maxZoom + 1];
+        this.insertedClusters = new HashSet[maxZoom + 1];
+        this.updatedClusters = new HashSet[maxZoom + 1];
+        this.deletedClusters = new HashSet[maxZoom + 1];
         this.pointIdSeq = 0;
         this.pointSeqSeq = 0;
 
@@ -65,13 +69,9 @@ public class LBiSuperCluster extends SuperCluster {
             this.advocatorClusters[z] = new ArrayList<>();
             this.clustersIndexes[z] = IndexCreator.createIndex(indexType, getRadius(z - 1 >= 0? z - 1: 0));
             this.pendingClusters[z] = new LinkedList<>();
-            // make sure a cluster with smaller seq will be returned first
-            this.flaggedClusters[z] = new PriorityQueue<>(new Comparator<Cluster>() {
-                @Override
-                public int compare(Cluster o1, Cluster o2) {
-                    return o1.seq - o2.seq;
-                }
-            });
+            this.insertedClusters[z] = new HashSet<>();
+            this.updatedClusters[z] = new HashSet<>();
+            this.deletedClusters[z] = new HashSet<>();
         }
 
         // initialize the timing map
@@ -85,7 +85,7 @@ public class LBiSuperCluster extends SuperCluster {
             timing.put("splitCalculation", 0.0);
             timing.put("maintainAdvocatorTree", 0.0);
             timing.put("maintainClusterTree", 0.0);
-            timing.put("maintainQueue", 0.0);
+            timing.put("maintainSets", 0.0);
         }
 
         MyMemory.printMemory();
@@ -137,29 +137,31 @@ public class LBiSuperCluster extends SuperCluster {
             int shiftCountLevel = 0;
             int deleteCountLevel = 0;
             // handle all changes at z level to form clusters at (z-1) level
-            Cluster flaggedCluster;
-            while ((flaggedCluster = this.flaggedClusters[z].poll()) != null) {
-
-                if (flaggedCluster.flag == Flags.INSERTED) {
-                    onInsert(flaggedCluster, z);
-                    insertCountLevel ++;
-                }
-
-                if (flaggedCluster.flag == Flags.UPDATED) {
-                    updateCountLevel ++;
-                    onUpdate(flaggedCluster, z);
-
-                    if (flaggedCluster.distanceTo(flaggedCluster.advocator) > miu * r) {
-                        shift(flaggedCluster, flaggedCluster.advocator, z);
-                        shiftCountLevel ++;
-                    }
-                }
-
-                if (flaggedCluster.flag == Flags.DELETED) {
-                    onDelete(flaggedCluster, z);
-                    deleteCountLevel ++;
+            // (1) handle all updated clusters
+            for (Cluster updated: this.updatedClusters[z]) {
+                updateCountLevel ++;
+                onUpdate(updated, z);
+            }
+            // (2) handle all deleted clusters
+            for (Cluster deleted: this.deletedClusters[z]) {
+                onDelete(deleted, z);
+                deleteCountLevel ++;
+            }
+            this.deletedClusters[z].clear();
+            // (3) shift all updated & exceeding threshold clusters
+            for (Cluster updated: this.updatedClusters[z]) {
+                if (updated.distanceTo(updated.advocator) > miu * r) {
+                    shift(updated, updated.advocator, z);
+                    shiftCountLevel ++;
                 }
             }
+            this.updatedClusters[z].clear();
+            // (3) handle all inserted clusters
+            for (Cluster inserted: this.insertedClusters[z]) {
+                onInsert(inserted, z);
+                insertCountLevel ++;
+            }
+            this.insertedClusters[z].clear();
 
             System.out.println("zoom level [" + z + "] inserted " + insertCountLevel + " clusters.");
             System.out.println("zoom level [" + z + "] updated " + updateCountLevel + " clusters.");
@@ -368,11 +370,10 @@ public class LBiSuperCluster extends SuperCluster {
             if (keepTiming) timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
 
             if (keepTiming) MyTimer.startTimer();
-            c.flag = Flags.INSERTED;
-            if (!this.flaggedClusters[maxZoom].contains(c)) // TODO - this case should not happen at all
-                this.flaggedClusters[maxZoom].add(c);
+            // register as newly inserted
+            this.insertedClusters[maxZoom].add(c);
             if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
+            if (keepTiming) timing.put("maintainSets", timing.get("maintainSets") + MyTimer.durationSeconds());
         }
         // if earlier advocators' groups could be merged into
         else {
@@ -419,22 +420,20 @@ public class LBiSuperCluster extends SuperCluster {
             }
 
             if (keepTiming) MyTimer.startTimer();
-            // if this cluster is already flagged by earlier operations
-            if (this.flaggedClusters[maxZoom].contains(cluster)) {
-                // and if cluster has merged some other points
-                if (cluster.flag == Flags.UPDATED) {
+            // only register update handler if this cluster is not newly inserted
+            if (!this.insertedClusters[maxZoom].contains(cluster)) {
+                // if this cluster is already registered as updated
+                if (this.updatedClusters[maxZoom].contains(cluster)) {
                     // update the updateDelta to include this newly merged point
                     merge(cluster.updateDelta, c.getX(), c.getY(), c.numPoints);
+                } else {
+                    // whenever create a ClusterDelta, correct the numPoints
+                    cluster.updateDelta = new ClusterDelta(c.getX(), c.getY(), 1);
+                    this.updatedClusters[maxZoom].add(cluster);
                 }
             }
-            else {
-                cluster.flag = Flags.UPDATED;
-                // whenever create a ClusterDelta, correct the numPoints
-                cluster.updateDelta = new ClusterDelta(c.getX(), c.getY(), 1);
-                this.flaggedClusters[maxZoom].add(cluster);
-            }
             if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
+            if (keepTiming) timing.put("maintainSets", timing.get("maintainSets") + MyTimer.durationSeconds());
         }
     }
 
@@ -484,23 +483,20 @@ public class LBiSuperCluster extends SuperCluster {
         }
 
         if (keepTiming) MyTimer.startTimer();
-        // if this c1 is already flagged by earlier operations
-        if (this.flaggedClusters[zoom].contains(c1)) {
-            // if c1 has been flagged as UPDATE
-            if (c1.flag == Flags.UPDATED) {
+        // only register update handler if c1 is not newly inserted
+        if (!this.insertedClusters[zoom].contains(c1)) {
+            // if this c1 is already registered as updated
+            if (this.updatedClusters[zoom].contains(c1)) {
                 // update c1's updateDelta to merge cluster c2
                 merge(c1.updateDelta, c2.getX(), c2.getY(), c2.numPoints);
+            } else {
+                // whenever create a ClusterDelta, correct the numPoints
+                c1.updateDelta = new ClusterDelta(c2.getX(), c2.getY(), c2.numPoints == 0 ? 1 : c2.numPoints);
+                this.updatedClusters[zoom].add(c1);
             }
-            // TODO - if c1 has been flagged as INSERT/DELETE, should do nothing?
-        }
-        else {
-            c1.flag = Flags.UPDATED;
-            // whenever create a ClusterDelta, correct the numPoints
-            c1.updateDelta = new ClusterDelta(c2.getX(), c2.getY(), c2.numPoints == 0? 1: c2.numPoints);
-            this.flaggedClusters[zoom].add(c1);
         }
         if (keepTiming) MyTimer.stopTimer();
-        if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
+        if (keepTiming) timing.put("maintainSets", timing.get("maintainSets") + MyTimer.durationSeconds());
     }
 
     /**
@@ -521,12 +517,9 @@ public class LBiSuperCluster extends SuperCluster {
         // if c2 is c1's only child, delete c1 directly
         if (c1.children.size() == 1) {
             if (keepTiming) MyTimer.startTimer();
-            // TODO - verify this case
-            c1.flag = Flags.DELETED;
-            if (!this.flaggedClusters[zoom].contains(c1))
-                this.flaggedClusters[zoom].add(c1);
+            this.deletedClusters[zoom].add(c1);
             if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
+            if (keepTiming) timing.put("maintainSets", timing.get("maintainSets") + MyTimer.durationSeconds());
         }
         // otherwise, subtract c2's weight from c1
         else {
@@ -557,23 +550,21 @@ public class LBiSuperCluster extends SuperCluster {
             }
 
             if (keepTiming) MyTimer.startTimer();
-            // if this c1 is already flagged by earlier operations
-            if (this.flaggedClusters[zoom].contains(c1)) {
-                // if c1 has been flagged as UPDATE
-                if (c1.flag == Flags.UPDATED) {
+            // only register update handler if c1 is not newly inserted
+            if (!this.insertedClusters[zoom].contains(c1)) {
+                // if this c1 is already registered as updated
+                if (this.updatedClusters[zoom].contains(c1)) {
                     // update c1's updateDelta to split cluster c2
                     split(c1.updateDelta, c2.getX(), c2.getY(), c2.numPoints);
                 }
-                // TODO - if c1 has been flagged as INSERT/DELETE, should do nothing?
-            }
-            else {
-                c1.flag = Flags.UPDATED;
-                // whenever create a ClusterDelta, correct the numPoints
-                c1.updateDelta = new ClusterDelta(c2.getX(), c2.getY(), c2.numPoints == 0? -1: -c2.numPoints);
-                this.flaggedClusters[zoom].add(c1);
+                else {
+                    // whenever create a ClusterDelta, correct the numPoints
+                    c1.updateDelta = new ClusterDelta(c2.getX(), c2.getY(), c2.numPoints == 0 ? -1 : -c2.numPoints);
+                    this.updatedClusters[zoom].add(c1);
+                }
             }
             if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
+            if (keepTiming) timing.put("maintainSets", timing.get("maintainSets") + MyTimer.durationSeconds());
         }
     }
 
@@ -691,21 +682,21 @@ public class LBiSuperCluster extends SuperCluster {
         //-DEBUG-//
 
         if (keepTiming) MyTimer.startTimer();
-        // if this c is already flagged by earlier operations
-        if (this.flaggedClusters[zoom].contains(c)) {
-            // if c has been flagged as UPDATE
-            if (c.flag == Flags.UPDATED) {
+        // only register update handler if c is not newly inserted
+        if (!this.insertedClusters[zoom].contains(c)) {
+            // if this c is already registered as updated
+            if (this.updatedClusters[zoom].contains(c)) {
+                // combine delta into c's updateDelta
                 combine(c.updateDelta, delta);
             }
-            // TODO - if c has been flagged as INSERT/DELETE, should do nothing?
+            else {
+                c.updateDelta = delta;
+                this.updatedClusters[zoom].add(c);
+            }
         }
-        else {
-            c.flag = Flags.UPDATED;
-            c.updateDelta = delta;
-            this.flaggedClusters[zoom].add(c);
-        }
+
         if (keepTiming) MyTimer.stopTimer();
-        if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
+        if (keepTiming) timing.put("maintainSets", timing.get("maintainSets") + MyTimer.durationSeconds());
     }
 
     private void onUpdate(Cluster c, int zoom) {
@@ -772,16 +763,10 @@ public class LBiSuperCluster extends SuperCluster {
             if (keepTiming) timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
 
             if (keepTiming) MyTimer.startTimer();
-            if (this.flaggedClusters[zoom - 1].contains(parent)) {
-                // TODO - handle existing cases
-                //parent.flag = Flags.INSERTED;
-            }
-            else {
-                parent.flag = Flags.INSERTED;
-                this.flaggedClusters[zoom - 1].add(parent);
-            }
+            // register as newly inserted
+            this.insertedClusters[zoom - 1].add(parent);
             if (keepTiming) MyTimer.stopTimer();
-            if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
+            if (keepTiming) timing.put("maintainSets", timing.get("maintainSets") + MyTimer.durationSeconds());
         }
         // if earlier advocators' groups could be merged into
         else {
@@ -805,8 +790,6 @@ public class LBiSuperCluster extends SuperCluster {
 
             merge(cluster, c, zoom - 1);
         }
-
-        c.flag = Flags.NONE;
     }
 
     /**
@@ -831,7 +814,9 @@ public class LBiSuperCluster extends SuperCluster {
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) timing.put("maintainClusterTree", timing.get("maintainClusterTree") + MyTimer.durationSeconds());
 
-        c.flag = Flags.NONE;
+        // this cluster c has already updated its parent's delta by onUpdate handler,
+        // now should remove it from updated sets to prevent it from shift handler.
+        this.updatedClusters[zoom].remove(c);
 
         split(c.parent, c, zoom - 1);
     }
@@ -869,49 +854,38 @@ public class LBiSuperCluster extends SuperCluster {
                 merge(c.parent, m, zoom - 1);
 
                 if (keepTiming) MyTimer.startTimer();
-                // remove cluster m from queue of clusters to be processed
-                if (this.flaggedClusters[zoom].contains(m))
-                    this.flaggedClusters[zoom].remove(m);
+                // remove cluster m from registered insert sets
+                this.insertedClusters[zoom].remove(m);
                 if (keepTiming) MyTimer.stopTimer();
-                if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
+                if (keepTiming) timing.put("maintainSets", timing.get("maintainSets") + MyTimer.durationSeconds());
             }
 
             for (Cluster s: toSplit) {
                 split(c.parent, s, zoom - 1);
 
                 if (keepTiming) MyTimer.startTimer();
-                if (this.flaggedClusters[zoom].contains(s)) {
-                    // TODO - handle existing cases
-                }
-                else {
-                    s.flag = Flags.INSERTED;
-                    this.flaggedClusters[zoom].add(s);
-                }
+                this.insertedClusters[zoom].add(s);
                 if (keepTiming) MyTimer.stopTimer();
-                if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
+                if (keepTiming) timing.put("maintainSets", timing.get("maintainSets") + MyTimer.durationSeconds());
             }
-
-            c.flag = Flags.NONE;
         }
         else {
             // shifting at level zoom affects clustering results of level (zoom-1)
             double radius = getRadius(zoom - 1);
-            if (c.parent.advocator.distanceTo(c) > radius) {
+            // TODO - debug this case where c.parent is null
+            //-DEBUG-//
+//            if (c.parent == null) {
+//                System.out.println("[Error] [shift] Cluster's parent is null: " + c);
+//                return;
+//            }
+            //-DEBUG-//
+            if (c.parent != null && c.parent.advocator.distanceTo(c) > radius) {
                 split(c.parent, c, zoom - 1);
 
                 if (keepTiming) MyTimer.startTimer();
-                if (this.flaggedClusters[zoom].contains(c)) {
-                    // TODO - handle existing cases
-                }
-                else {
-                    c.flag = Flags.INSERTED;
-                    this.flaggedClusters[zoom].add(c);
-                }
+                this.insertedClusters[zoom].add(c);
                 if (keepTiming) MyTimer.stopTimer();
-                if (keepTiming) timing.put("maintainQueue", timing.get("maintainQueue") + MyTimer.durationSeconds());
-            }
-            else {
-                c.flag = Flags.NONE;
+                if (keepTiming) timing.put("maintainSets", timing.get("maintainSets") + MyTimer.durationSeconds());
             }
         }
     }
@@ -1061,6 +1035,6 @@ public class LBiSuperCluster extends SuperCluster {
         System.out.println("    [split calculation] " + timing.get("splitCalculation") + " seconds");
         System.out.println("    [maintain advocator tree] " + timing.get("maintainAdvocatorTree") + " seconds");
         System.out.println("    [maintain cluster tree] " + timing.get("maintainClusterTree") + " seconds");
-        System.out.println("    [maintain queue] " + timing.get("maintainQueue") + " seconds");
+        System.out.println("    [maintain event sets] " + timing.get("maintainSets") + " seconds");
     }
 }
