@@ -41,7 +41,7 @@ public class LBiSuperCluster extends SuperCluster {
     int totalShiftCount = 0;
     int totalDeleteCount= 0;
 
-    double miu = 0.0;
+    double miu = 0.5;
 
     String indexType; // KDTree / GridIndex
 
