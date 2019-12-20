@@ -106,10 +106,10 @@ public class PostgreSQL {
         List<PointTuple> result = PointTupleListFactory.newPointTupleList();
         int i = 0;
         //-DEBUG-//
-        int size = result.size();
-        if (result.size() > 0) {
-            System.out.println("[Debug] [PostgreSQL] is reusing List<PointTuple> with size = " + result.size());
-        }
+//        int size = result.size();
+//        if (result.size() > 0) {
+//            System.out.println("[Debug] [PostgreSQL] is reusing List<PointTuple> with size = " + result.size());
+//        }
         //-DEBUG-//
         String sql = "SELECT x, y, id FROM tweets WHERE to_tsvector('english', text)@@to_tsquery('english', ?) and create_at between ? and ?";
         long start = System.nanoTime();
@@ -144,9 +144,9 @@ public class PostgreSQL {
             System.err.println(e.getMessage());
         }
         //-DEBUG-//
-        if (result.size() > size) {
-            System.out.println("[Debug] [PostgreSQL] " + (result.size() - size)  + " more PointTuple objects were created to complement the reused list.");
-        }
+//        if (result.size() > size) {
+//            System.out.println("[Debug] [PostgreSQL] " + (result.size() - size)  + " more PointTuple objects were created to complement the reused list.");
+//        }
         //-DEBUG-//
         // remove additional objects in the tail of the list
         while (i < result.size()) {
@@ -172,10 +172,10 @@ public class PostgreSQL {
         List<PointTuple> result = PointTupleListFactory.newPointTupleList();
         int i = 0;
         //-DEBUG-//
-        int size = result.size();
-        if (result.size() > 0) {
-            System.out.println("[Debug] [PostgreSQL] is reusing List<PointTuple> with size = " + result.size());
-        }
+//        int size = result.size();
+//        if (result.size() > 0) {
+//            System.out.println("[Debug] [PostgreSQL] is reusing List<PointTuple> with size = " + result.size());
+//        }
         //-DEBUG-//
         String sql = "SELECT x, y, id FROM tweets WHERE create_at between ? and ?";
         long start = System.nanoTime();
@@ -209,9 +209,9 @@ public class PostgreSQL {
             System.err.println(e.getMessage());
         }
         //-DEBUG-//
-        if (result.size() > size) {
-            System.out.println("[Debug] [PostgreSQL] " + (result.size() - size)  + " more PointTuple objects were created to complement the reused list.");
-        }
+//        if (result.size() > size) {
+//            System.out.println("[Debug] [PostgreSQL] " + (result.size() - size)  + " more PointTuple objects were created to complement the reused list.");
+//        }
         //-DEBUG-//
         // remove additional objects in the tail of the list
         while (i < result.size()) {

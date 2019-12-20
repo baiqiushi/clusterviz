@@ -41,7 +41,7 @@ public class LBiSuperCluster extends SuperCluster {
     int totalShiftCount = 0;
     int totalDeleteCount= 0;
 
-    double miu = 0.5;
+    double miu = 0.0;
 
     String indexType; // KDTree / GridIndex
 
@@ -122,15 +122,6 @@ public class LBiSuperCluster extends SuperCluster {
 
             // shifting at level z affects clustering results of level (z-1)
             double r = getRadius(z - 1);
-
-            //-DEBUG-//
-//            System.out.println("-------------------------------------------");
-//            System.out.println("Priority Queue of level [" + z + "]:");
-//            for (Cluster fc: this.flaggedClusters[z]) {
-//                System.out.println(fc.flag.name() + ": " + fc.seq + ": " + fc.getId() + ": [" + fc.numPoints + "]" + (fc.flag==Flags.UPDATED? " update delta="+fc.updateDelta.numPoints: ""));
-//            }
-//            System.out.println("-------------------------------------------");
-            //-DEBUG-//
 
             int insertCountLevel = 0;
             int updateCountLevel = 0;
@@ -540,6 +531,7 @@ public class LBiSuperCluster extends SuperCluster {
             c1.children.remove(c2);
             c2.parent = null;
             c2.parentId = -1;
+
             if (keepTiming) MyTimer.stopTimer();
             if (keepTiming) timing.put("splitCalculation", timing.get("splitCalculation") + MyTimer.durationSeconds());
 
@@ -676,10 +668,6 @@ public class LBiSuperCluster extends SuperCluster {
             this.pendingClusters[zoom].add(c);
             c.dirty = true;
         }
-
-        //-DEBUG-//
-        //System.out.println("Updated cluster is " + c.getId() + ":[" + c.numPoints + "](" + c.getX() + "," + c.getY() + ")");
-        //-DEBUG-//
 
         if (keepTiming) MyTimer.startTimer();
         // only register update handler if c is not newly inserted
@@ -872,13 +860,7 @@ public class LBiSuperCluster extends SuperCluster {
         else {
             // shifting at level zoom affects clustering results of level (zoom-1)
             double radius = getRadius(zoom - 1);
-            // TODO - debug this case where c.parent is null
-            //-DEBUG-//
-//            if (c.parent == null) {
-//                System.out.println("[Error] [shift] Cluster's parent is null: " + c);
-//                return;
-//            }
-            //-DEBUG-//
+            // TODO - some times c.parent is null because of earlier shifted clusters absorbed updated clusters
             if (c.parent != null && c.parent.advocator.distanceTo(c) > radius) {
                 split(c.parent, c, zoom - 1);
 
@@ -1036,5 +1018,11 @@ public class LBiSuperCluster extends SuperCluster {
         System.out.println("    [maintain advocator tree] " + timing.get("maintainAdvocatorTree") + " seconds");
         System.out.println("    [maintain cluster tree] " + timing.get("maintainClusterTree") + " seconds");
         System.out.println("    [maintain event sets] " + timing.get("maintainSets") + " seconds");
+    }
+
+    private String printCluster(Cluster c) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(c.getId() + ":[" + c.numPoints + "]");
+        return sb.toString();
     }
 }
