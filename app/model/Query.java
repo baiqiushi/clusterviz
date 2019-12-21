@@ -10,4 +10,5 @@ public class Query {
     public double[] bbox; //x0, y0, x1, y1
     public String algorithm; // "SuperCluster"(default) / "SuperClusterInBatch" / "iSuperCluster"
     public String indexType; // "KDTree"(default) / "GridIndex"
+    public boolean preCluster; // true / false
 }

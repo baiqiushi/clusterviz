@@ -21,8 +21,9 @@ public class SuperCluster {
     private double[] radiuses; // store computed radius of each zoom level
 
     private void initRadiuses() {
-        this.radiuses = new double[maxZoom + 1];
-        for (int i = 0; i < this.radiuses.length; i ++) {
+        // store more levels of radius than possible
+        this.radiuses = new double[20];
+        for (int i = 0; i < 20; i ++) {
             this.radiuses[i] = radius / (extent * Math.pow(2, i));
         }
     }
@@ -42,7 +43,7 @@ public class SuperCluster {
         this.initRadiuses();
     }
 
-    private Cluster[] createPointClusters(double[][] points) {
+    protected Cluster[] createPointClusters(double[][] points) {
         Cluster[] clusters = new Cluster[points.length];
         for (int i = 0; i < points.length; i ++) {
             clusters[i] = createPointCluster(points[i][0], points[i][1], i);
@@ -50,7 +51,7 @@ public class SuperCluster {
         return clusters;
     }
 
-    private Cluster[] createPointClusters(List<PointTuple> points) {
+    protected Cluster[] createPointClusters(List<PointTuple> points) {
         Cluster[] clusters = new Cluster[points.size()];
         for (int i = 0; i < points.size(); i ++) {
             clusters[i] = createPointCluster(points.get(i).getX(), points.get(i).getY(), i);
@@ -84,7 +85,7 @@ public class SuperCluster {
         this.clusters[maxZoom + 1] = null;
     }
 
-    public void load(List<PointTuple> points) {
+    public void load(List<PointTuple> points, boolean preCluster) {
         System.out.println("SuperCluster loading " + points.size() + " points ... ...");
         long start = System.nanoTime();
         this.totalNumberOfPoints = points.size();

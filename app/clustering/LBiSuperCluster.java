@@ -34,6 +34,9 @@ public class LBiSuperCluster extends SuperCluster {
     Set<Cluster>[] updatedClusters;
     Set<Cluster>[] deletedClusters;
 
+    // used for pre-cluster points in a batch
+    PreSuperCluster preSuperCluster;
+
     int pointIdSeq;
     int pointSeqSeq;
     int totalInsertCount = 0;
@@ -48,6 +51,10 @@ public class LBiSuperCluster extends SuperCluster {
     //-Timing-//
     static final boolean keepTiming = true;
     Map<String, Double> timing;
+    List<Integer> batchSizes;
+    List<Integer> preClusterSizes;
+    List<Double> preClusterTimes;
+    List<Double> clusterTimes;
     //-Timing-//
 
     public LBiSuperCluster(int _minZoom, int _maxZoom, String _indexType, boolean _analysis) {
@@ -78,6 +85,7 @@ public class LBiSuperCluster extends SuperCluster {
         if (keepTiming) {
             timing = new HashMap<>();
             timing.put("total", 0.0);
+            timing.put("preCluster", 0.0);
             timing.put("findEarliest", 0.0);
             timing.put("insert-rangeSearch", 0.0);
             timing.put("shift-rangeSearch", 0.0);
@@ -86,6 +94,11 @@ public class LBiSuperCluster extends SuperCluster {
             timing.put("maintainAdvocatorTree", 0.0);
             timing.put("maintainClusterTree", 0.0);
             timing.put("maintainSets", 0.0);
+
+            batchSizes = new LinkedList<>();
+            preClusterSizes = new LinkedList<>();
+            preClusterTimes = new LinkedList<>();
+            clusterTimes = new LinkedList<>();
         }
 
         MyMemory.printMemory();
@@ -100,6 +113,18 @@ public class LBiSuperCluster extends SuperCluster {
     private void insertPointClusters(List<PointTuple> points) {
         for (int i = 0; i < points.size(); i ++) {
             insert(createPointCluster(points.get(i).getX(), points.get(i).getY(), this.pointIdSeq ++, this.pointSeqSeq ++));
+        }
+    }
+
+    /**
+     * insert pre-clusters from (maxZoom + 1) level into maxZoom level
+     *
+     * @param clusters
+     * @return total numPoints
+     */
+    private void insertClusters(List<Cluster> clusters) {
+        for (int i = 0; i < clusters.size(); i ++) {
+            insert(clusters.get(i));
         }
     }
 
@@ -241,22 +266,41 @@ public class LBiSuperCluster extends SuperCluster {
         MyMemory.printMemory();
     }
 
-    public void load(List<PointTuple> points) {
+    public void load(List<PointTuple> points, boolean preCluster) {
         System.out.println("Level Batch incremental SuperCluster loading " + points.size() + " points ... ...");
         long start = System.nanoTime();
 
         this.totalNumberOfPoints += points.size();
+        this.batchSizes.add(points.size());
         System.out.println("Total # of points should be " + totalNumberOfPoints + " now.");
 
         // insert points to max zoom level one by one
-        insertPointClusters(points);
+        if (preCluster) {
+            if (keepTiming) MyTimer.startTimer();
+            if (preSuperCluster == null) {
+                preSuperCluster = new PreSuperCluster();
+            }
+            List<Cluster> clusters = preSuperCluster.preCluster(points);
+            this.preClusterSizes.add(clusters.size());
+            if (keepTiming) MyTimer.stopTimer();
+            if (keepTiming) {
+                double preClusterTime = MyTimer.durationSeconds();
+                this.preClusterTimes.add(preClusterTime);
+                timing.put("preCluster", timing.get("preCluster") + preClusterTime);
+            }
+            insertClusters(clusters);
+        }
+        else {
+            insertPointClusters(points);
+        }
 
         // build hierarchy
         buildHierarchy();
 
         long end = System.nanoTime();
         if (keepTiming) timing.put("total", timing.get("total") + (double) (end - start) / 1000000000.0);
-        System.out.println("[LBiSC] Strict Batch incremental SuperCluster loading is done!");
+        this.clusterTimes.add((double) (end - start) / 1000000000.0);
+        System.out.println("[LBiSC] Level Batch incremental SuperCluster loading is done!");
         System.out.println("Clustering time: " + (double) (end - start) / 1000000000.0 + " seconds.");
         System.out.println("Max zoom level clusters # = " + this.advocatorClusters[maxZoom].size());
         System.out.println("---------------------------------------------");
@@ -268,6 +312,7 @@ public class LBiSuperCluster extends SuperCluster {
         System.out.println("Total handled clusters: " + (this.totalInsertCount + this.totalUpdateCount + this.totalDeleteCount));
         System.out.println("---------------------------------------------");
         if (keepTiming) this.printTiming();
+        if (preSuperCluster != null) preSuperCluster.printTiming();
 
         MyMemory.printMemory();
     }
@@ -1010,6 +1055,7 @@ public class LBiSuperCluster extends SuperCluster {
 
     private void printTiming() {
         System.out.println("[Total Time] " + timing.get("total") + " seconds.");
+        System.out.println("    [pre-cluster] " + timing.get("preCluster") + " seconds");
         System.out.println("    [find earliest] " + timing.get("findEarliest") + " seconds");
         System.out.println("    [insert range search] " + timing.get("insert-rangeSearch") + " seconds");
         System.out.println("    [shift range search] " + timing.get("shift-rangeSearch") + " seconds");
@@ -1018,6 +1064,72 @@ public class LBiSuperCluster extends SuperCluster {
         System.out.println("    [maintain advocator tree] " + timing.get("maintainAdvocatorTree") + " seconds");
         System.out.println("    [maintain cluster tree] " + timing.get("maintainClusterTree") + " seconds");
         System.out.println("    [maintain event sets] " + timing.get("maintainSets") + " seconds");
+
+        // for batch analysis
+        System.out.println("------------------------ Batch Analysis ------------------------");
+        int avg_bs = 0;
+        int avg_pcs = 0;
+        double avg_ct = 0.0;
+        double avg_pct = 0.0;
+        int count = 0;
+        StringBuilder row = new StringBuilder();
+        boolean pcs = false, pct = false;
+        if (!this.batchSizes.isEmpty()) {
+            row.append("batch-size");
+        }
+        if (!this.preClusterSizes.isEmpty()) {
+            row.append(",    pre-cluster-size");
+            pcs = true;
+        }
+        if (!this.clusterTimes.isEmpty()) {
+            row.append(",    cluster-time");
+        }
+        if (!this.preClusterTimes.isEmpty()) {
+            row.append(",    pre-cluster-time");
+            pct = true;
+        }
+        System.out.println(row);
+        Iterator<Integer> bsi = this.batchSizes.iterator();
+        Iterator<Integer> pcsi = this.preClusterSizes.iterator();
+        Iterator<Double> cti = this.clusterTimes.iterator();
+        Iterator<Double> pcti = this.preClusterTimes.iterator();
+        while(bsi.hasNext()) {
+            count ++;
+            row = new StringBuilder();
+            int ibs = bsi.next();
+            avg_bs += ibs;
+            row.append(ibs);
+            if (pcs) {
+                int ipcs = pcsi.next();
+                avg_pcs += ipcs;
+                row.append(",    " + ipcs);
+            }
+            double ict = cti.next();
+            avg_ct += ict;
+            row.append(",    " + ict);
+            if (pct) {
+                double ipct = pcti.next();
+                avg_pct += ipct;
+                row.append(",    " + ipct);
+            }
+            System.out.println(row);
+        }
+        System.out.println("----------------------------------------------------------------");
+        row = new StringBuilder();
+        avg_bs = avg_bs / count;
+        row.append(avg_bs);
+        if (pcs) {
+            avg_pcs = avg_pcs / count;
+            row.append(",    " + avg_pcs);
+        }
+        avg_ct = avg_ct / count;
+        row.append(",    " + avg_ct);
+        if (pct) {
+            avg_pct = avg_pct / count;
+            row.append(",    " + avg_pct);
+        }
+        System.out.println(row);
+        System.out.println("----------------------------------------------------------------");
     }
 
     private String printCluster(Cluster c) {

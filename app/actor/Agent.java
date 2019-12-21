@@ -197,7 +197,7 @@ public class Agent extends AbstractActor {
 
                 String clusterOrder = query.order == null ? "original" : query.order;
                 String indexType = query.indexType == null ? "KDTree" : query.indexType;
-                success = clusterData(clusterKey, clusterOrder, "SuperCluster", indexType, false, false);
+                success = clusterData(clusterKey, clusterOrder, "SuperCluster", indexType, false, false, false);
                 if (!success) {
                     // TODO - exception
                 }
@@ -289,7 +289,7 @@ public class Agent extends AbstractActor {
             String clusterOrder = query.order == null ? "original" : query.order;
             String indexType = query.indexType == null ? "KDTree" : query.indexType;
             MyTimer.startTimer();
-            success = clusterData(clusterKey, clusterOrder, query.algorithm, indexType, deltaOnly, _request.analysis != null);
+            success = clusterData(clusterKey, clusterOrder, query.algorithm, indexType, deltaOnly, _request.analysis != null, query.preCluster);
             MyTimer.stopTimer();
             MyTimer.progressTimer.add(MyTimer.durationSeconds());
             MyMemory.progressUsedMemory.add(MyMemory.getUsedMemory());
@@ -447,7 +447,7 @@ public class Agent extends AbstractActor {
      * @param analysis - true - if we need to analysis the rand-index of clustering results, false - otherwise
      * @return
      */
-    private boolean clusterData(String clusterKey, String clusterOrder, String algorithm, String indexType, boolean deltaOnly, boolean analysis) {
+    private boolean clusterData(String clusterKey, String clusterOrder, String algorithm, String indexType, boolean deltaOnly, boolean analysis, boolean preCluster) {
 
         if (analysis) {
             double[][] points = orderPoints(clusterKey, clusterOrder, deltaOnly);
@@ -469,7 +469,7 @@ public class Agent extends AbstractActor {
             }
             else {
                 SuperCluster cluster = getSuperCluster(clusterKey, algorithm, indexType, false);
-                cluster.load(this.pointTuples);
+                cluster.load(this.pointTuples, preCluster);
                 if (deltaOnly) {
                     PointTupleListFactory.recycle(this.pointTuples);
                 }
@@ -551,7 +551,7 @@ public class Agent extends AbstractActor {
                 else {
                     String clusterKey = _cmd.arguments[0];
                     String clusterOrder = _cmd.arguments[1];
-                    success = clusterData(clusterKey, clusterOrder, "SuperCluster", "KDTree", false, false);
+                    success = clusterData(clusterKey, clusterOrder, "SuperCluster", "KDTree", false, false, false);
                     if (success) {
                         respond(buildCmdResponse(_request, _cmd.action, "cluster built for key = " + clusterKey + " order = " + clusterOrder, "done"));
                     }
