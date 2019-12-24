@@ -51,6 +51,9 @@ public class LBiSuperCluster extends SuperCluster {
     //-Timing-//
 
     public LBiSuperCluster(int _minZoom, int _maxZoom, String _indexType, boolean _analysis) {
+
+        super(_minZoom, _maxZoom, _indexType);
+
         this.minZoom = _minZoom;
         this.maxZoom = _maxZoom;
         this.indexType = _indexType;
