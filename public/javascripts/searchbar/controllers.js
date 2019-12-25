@@ -68,6 +68,28 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.radioMiddlewareLabel.style.top = '125px';
         $scope.radioMiddlewareLabel.style.left = '24px';
         document.body.appendChild($scope.radioMiddlewareLabel);
+
+        // Checkbox for numbers in circles
+        $scope.checkboxNumber = document.createElement("input");
+        $scope.checkboxNumber.type = "checkbox";
+        $scope.checkboxNumber.id = "numberInCircle";
+        $scope.checkboxNumber.name = "numberInCircle";
+        $scope.checkboxNumber.checked = true;
+        $scope.checkboxNumber.style.position = 'fixed';
+        $scope.checkboxNumber.style.top = '140px';
+        $scope.checkboxNumber.style.left = '8px';
+        document.body.appendChild($scope.checkboxNumber);
+        $scope.checkboxNumber.addEventListener("change", function() {
+          moduleManager.publishEvent(moduleManager.EVENT.CHANGE_NUMBER_IN_CIRCLE,
+            {numberInCircle: this.checked});
+        });
+        $scope.checkboxNumberLabel = document.createElement("label");
+        $scope.checkboxNumberLabel.innerHTML = "Number in Circle";
+        $scope.checkboxNumberLabel.htmlFor = "numberInCircle";
+        $scope.checkboxNumberLabel.style.position = 'fixed';
+        $scope.checkboxNumberLabel.style.top = '140px';
+        $scope.checkboxNumberLabel.style.left = '24px';
+        document.body.appendChild($scope.checkboxNumberLabel);
     })
     .directive("searchBar", function () {
         return {

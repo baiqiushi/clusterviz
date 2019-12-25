@@ -4,6 +4,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.radius = 40; // cluster radius in pixels
     $scope.zoomShift = 0;
     $scope.mode = "middleware";
+    $scope.numberInCircle = true;
 
     // store total pointsCount for "frontend" mode
     $scope.pointsCount = 0;
@@ -260,6 +261,23 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         }
       });
 
+      moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_NUMBER_IN_CIRCLE, function(e) {
+        console.log("switch number in circle to '" + e.numberInCircle + "'");
+        $scope.numberInCircle = e.numberInCircle;
+        if ($scope.pointsLayer) {
+          $scope.pointsLayer.clearLayers();
+          $scope.map.removeLayer($scope.pointsLayer);
+          $scope.pointsLayer = null;
+          if ($scope.numberInCircle) {
+            $scope.pointsLayer = L.geoJson(null, { pointToLayer: $scope.createClusterIcon}).addTo($scope.map);
+          }
+          else {
+            $scope.pointsLayer = L.geoJson(null, { pointToLayer: $scope.createScatterIcon}).addTo($scope.map);
+          }
+          $scope.drawClusterMap($scope.points);
+        }
+      });
+
       $scope.waitForWS();
     };
 
@@ -332,7 +350,12 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
       // initialize the points layer
       if (!$scope.pointsLayer) {
-        $scope.pointsLayer = L.geoJson(null, { pointToLayer: $scope.createClusterIcon}).addTo($scope.map);
+        if ($scope.numberInCircle) {
+          $scope.pointsLayer = L.geoJson(null, { pointToLayer: $scope.createClusterIcon}).addTo($scope.map);
+        }
+        else {
+          $scope.pointsLayer = L.geoJson(null, { pointToLayer: $scope.createScatterIcon}).addTo($scope.map);
+        }
         $scope.points = [];
       }
 
@@ -421,6 +444,25 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           count < 1000 ? 'medium' : 'large';
       const icon = L.divIcon({
         html: `<div><span>${feature.properties.point_count_abbreviated}</span></div>`,
+        className: `marker-cluster-${zoom_shift} marker-cluster-${size}`,
+        //iconSize: L.point(40, 40)
+        iconSize: L.point(iconSize, iconSize)
+      });
+
+      return L.marker(latlng, {icon: icon, title: feature.properties.id, alt: feature.properties.id});
+    };
+
+    $scope.createScatterIcon = function(feature, latlng) {
+      if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 2, fillColor: 'blue'});
+
+      const zoom_shift = $scope.zoomShift;
+      const iconSize = $scope.radius / Math.pow(2, $scope.zoomShift);
+      const count = feature.properties.point_count;
+      const size =
+        count < 100 ? 'small' :
+          count < 1000 ? 'medium' : 'large';
+      const icon = L.divIcon({
+        html: `<div></div>`,
         className: `marker-cluster-${zoom_shift} marker-cluster-${size}`,
         //iconSize: L.point(40, 40)
         iconSize: L.point(iconSize, iconSize)
