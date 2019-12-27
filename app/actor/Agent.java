@@ -255,6 +255,8 @@ public class Agent extends AbstractActor {
 
         // for experiments analysis
         MyTimer.progressTimer.clear();
+        MyTimer.progressTimer.put("clusterTime",  new ArrayList<>());
+        MyTimer.progressTimer.put("treeCutTime", new ArrayList<>());
         MyMemory.progressUsedMemory.clear();
         MyMemory.porgressTotalMemory.clear();
 
@@ -292,14 +294,17 @@ public class Agent extends AbstractActor {
             MyTimer.startTimer();
             success = clusterData(clusterKey, clusterOrder, query.algorithm, indexType, deltaOnly, _request.analysis != null);
             MyTimer.stopTimer();
-            MyTimer.progressTimer.add(MyTimer.durationSeconds());
+            MyTimer.progressTimer.get("clusterTime").add(MyTimer.durationSeconds());
             MyMemory.progressUsedMemory.add(MyMemory.getUsedMemory());
             MyMemory.porgressTotalMemory.add(MyMemory.getTotalMemory());
             if (!success) {
                 // TODO - exception
             }
 
+            MyTimer.startTimer();
             answerClusterQuery(clusterKey, _request, "in-progress", (int) progress, query.treeCut);
+            MyTimer.stopTimer();
+            MyTimer.progressTimer.get("treeCutTime").add(MyTimer.durationSeconds());
 
             if (_request.analysis != null) {
                 Analysis analysis = _request.analysis;
@@ -351,7 +356,11 @@ public class Agent extends AbstractActor {
         System.out.println("keyword: " + _request.keyword);
         System.out.println("algorithm: " + _request.query.algorithm);
         System.out.println("clustering time for each batch: ");
-        for (double time: MyTimer.progressTimer) {
+        for (double time: MyTimer.progressTimer.get("clusterTime")) {
+            System.out.println(time);
+        }
+        System.out.println("Tree-cut time for each batch: ");
+        for (double time: MyTimer.progressTimer.get("treeCutTime")) {
             System.out.println(time);
         }
         System.out.println("memory usage until each batch (MB): ");

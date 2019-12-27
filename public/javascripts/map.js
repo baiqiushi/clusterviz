@@ -440,12 +440,10 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
     /** middleware mode */
     $scope.createClusterIcon = function(feature, latlng) {
-      if (feature.properties.point_count === 0 || feature.properties.zoom === 17) return L.circleMarker(latlng, {radius: 1, fillColor: 'blue'});
+      if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 1, fillColor: 'blue'});
+      if (feature.properties.zoom >= 17 && $scope.map.getZoom() <= 17) return L.circleMarker(latlng, {radius: 1, fillColor: 'blue'});
 
       const zoom_shift = $scope.zoomShift;
-      // let zoom_shift = feature.properties.zoom - $scope.map.getZoom();
-      // zoom_shift = zoom_shift > 2? 2: zoom_shift;
-      // zoom_shift = zoom_shift < 0? 0: zoom_shift;
       const iconSize = $scope.radius / Math.pow(2, zoom_shift);
       const count = feature.properties.point_count;
       const size =
@@ -462,7 +460,10 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     };
 
     $scope.createScatterIcon = function(feature, latlng) {
-      if (feature.properties.point_count === 0 || feature.properties.zoom === 17) return L.circleMarker(latlng, {radius: 1, fillColor: 'blue'});
+      if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 1, fillColor: 'blue'});
+
+      const zoom_diff = feature.properties.zoom - $scope.map.getZoom();
+      if (feature.properties.zoom >= 17 && $scope.map.getZoom() <= 17) return L.circleMarker(latlng, {radius: 1, fillColor: 'blue'});
 
       const zoom_shift = $scope.zoomShift;
       // let zoom_shift = feature.properties.zoom - $scope.map.getZoom();

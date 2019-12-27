@@ -3,7 +3,7 @@ package util;
 import java.util.*;
 
 public class MyTimer {
-    public static List<Double> progressTimer = new ArrayList<>();
+    public static Map<String, List<Double>> progressTimer = new HashMap<>();
     private static Stack<Long> startTimes = new Stack<>();
     private static Queue<Double> durations = new LinkedList<>();
 
