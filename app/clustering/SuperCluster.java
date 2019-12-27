@@ -263,6 +263,21 @@ public class SuperCluster {
     }
 
     /**
+     * Get an array of Clusters for given visible region and zoom level,
+     *     then run tree-cut algorithm to choose a better subset of clusters to return
+     *
+     * @param x0
+     * @param y0
+     * @param x1
+     * @param y1
+     * @param zoom
+     * @return
+     */
+    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom, boolean treeCut) {
+        return getClusters(x0, y0, x1, y1, zoom);
+    }
+
+    /**
      * Get an array of all clusters for the given zoom level
      *
      * @param zoom

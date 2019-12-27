@@ -119,6 +119,7 @@ public class Agent extends AbstractActor {
             properties.put("point_count_abbreviated", clusters[i].numPoints);
             properties.put("id", clusters[i].getId());
             properties.put("expansionZoom", clusters[i].expansionZoom);
+            properties.put("zoom", clusters[i].zoom);
             feature.set("properties", properties);
 
             ObjectNode geometry = JsonNodeFactory.instance.objectNode();
@@ -203,7 +204,7 @@ public class Agent extends AbstractActor {
                 }
             }
 
-            answerClusterQuery(clusterKey, _request, "done", 100);
+            answerClusterQuery(clusterKey, _request, "done", 100, query.treeCut);
         }
         // handle progressive query
         else {
@@ -213,12 +214,12 @@ public class Agent extends AbstractActor {
             }
             // otherwise, answer the query directly
             else {
-                answerClusterQuery(clusterKey, _request, "done", 100);
+                answerClusterQuery(clusterKey, _request, "done", 100, query.treeCut);
             }
         }
     }
 
-    private void answerClusterQuery(String clusterKey, Request _request, String status, int progress) {
+    private void answerClusterQuery(String clusterKey, Request _request, String status, int progress, boolean treeCut) {
         Query query = _request.query;
 
         // Add hit to querying super cluster
@@ -231,7 +232,7 @@ public class Agent extends AbstractActor {
         if (query.bbox == null) {
             clusters = cluster.getClusters(query.zoom);
         } else {
-            clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom);
+            clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom, treeCut);
         }
 
         // construct the response Json and return
@@ -298,7 +299,7 @@ public class Agent extends AbstractActor {
                 // TODO - exception
             }
 
-            answerClusterQuery(clusterKey, _request, "in-progress", (int) progress);
+            answerClusterQuery(clusterKey, _request, "in-progress", (int) progress, query.treeCut);
 
             if (_request.analysis != null) {
                 Analysis analysis = _request.analysis;
@@ -760,10 +761,6 @@ public class Agent extends AbstractActor {
         }
         switch (_request.analysis.objective) {
             case "distance":
-                if (_request.keyword == null) {
-                    // TODO - exception
-                }
-                keyword = _request.keyword;
                 if (_request.analysis == null) {
                     // TODO - exception
                 }

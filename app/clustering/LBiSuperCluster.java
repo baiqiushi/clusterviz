@@ -326,8 +326,153 @@ public class LBiSuperCluster extends SuperCluster {
         return clusters;
     }
 
+    /**
+     * check if c's children are differentiable for view at zoom level
+     *    because current zoom level's radius is rendered by 20 pixels (diameter = 40px)
+     *        if c's children's average pairwise distance > 1/5 * radius,
+     *            it means the children can be drawn separately by at least 4 pixels,
+     *                then they are differentiable
+     * @param c
+     * @param zoom - current view zoom level
+     * @return
+     */
+    private boolean isDifferentiable(Cluster c, int zoom) {
+        //-DEBUG-//
+        //System.out.println("[Debug]     checking if c " + printCluster(c) + "'s children are differentiable?");
+        //-DEBUG-//
+        // if c has no children, return false
+        if (c.children == null || c.children.isEmpty()) {
+            //System.out.println("[Debug]     No children ~~NO~~");
+            return false;
+        }
+        // if c has only one children, return true
+        if (c.children.size() == 1) {
+            //System.out.println("[Debug]     Single child YES!");
+            return true;
+        }
+        //-DEBUG-//
+//        int sum = 0;
+//        for (Cluster child: c.children) {
+//            sum += child.numPoints == 0? 1: child.numPoints;
+//        }
+//        if (sum < 100) {
+//            System.out.println("[Debug]     Small Cluster YES!");
+//            return true;
+//        }
+        //-DEBUG-//
+        // check if average pairwise distance between all children of c is larger than 1/20 * radius of zoom
+        //double avgDistance = 0.0;
+//        double avgDistance = Double.MAX_VALUE;
+//        for (int i = 0; i < c.children.size() - 1; i ++) {
+//            for (int j = 1; j < c.children.size(); j ++) {
+//                //avgDistance += c.children.get(i).distanceTo(c.children.get(j));
+//                avgDistance = Math.min(avgDistance, c.children.get(i).distanceTo(c.children.get(j)));
+//            }
+//        }
+//        //avgDistance = avgDistance * 2 / (c.children.size() * (c.children.size() -  1));
+//        double radius = getRadius(zoom);
+//        //-DEBUG-//
+//        System.out.println("[Debug]         - average distance of children = " + avgDistance);
+//        System.out.println("[Debug]         - radius for children level = " + radius);
+//        //-DEBUG-//
+//        if (avgDistance >= 0.5 * radius) {
+//            //-DEBUG-//
+//            System.out.println("[Debug]     distance >= radius: Differentiable? YES!");
+//            //-DEBUG-//
+//            return true;
+//        }
+//        else {
+//            //-DEBUG-//
+//            System.out.println("[Debug]     distance < radius: Differentiable? ~~NO~~");
+//            //-DEBUG-//
+//            return false;
+//        }
+        if (c.numPoints < 100) return true;
+        else return false;
+    }
+
+    /**
+     * Get an array of Clusters for given visible region and zoom level,
+     *     then run tree-cut algorithm to choose a better subset of clusters to return
+     * note: search on advocators tree, but return the clusters attached to the advocators
+     *
+     * @param x0
+     * @param y0
+     * @param x1
+     * @param y1
+     * @param zoom
+     * @return
+     */
+    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom, boolean treeCut) {
+        Cluster[] clusters = getClusters(x0, y0, x1, y1, zoom);
+        List<Cluster> betterClusters = new ArrayList<>();
+        // run tree-cut algorithm
+        if (treeCut) {
+            //-DEBUG-//
+            System.out.println("[Debug] [LBiSuperCluster --> getClusters] is running Tree-Cut algorithm ...");
+            //-DEBUG-//
+            // a queue for breadth-first-search
+            Queue<Cluster> frontier = new LinkedList<>();
+            frontier.addAll(Arrays.asList(clusters));
+
+            // check frontier one-by-one,
+            //     if it's not differentiable, add it to results;
+            //     else, add all its children back to queue;
+            while (!frontier.isEmpty()) {
+                Cluster c = frontier.poll();
+                if (isDifferentiable(c, zoom)) {
+                    for (Cluster child: c.children) {
+                        Cluster cluster = child.clone();
+                        cluster.setX(xLng(cluster.getX()));
+                        cluster.setY(yLat(cluster.getY()));
+                        frontier.add(cluster);
+                    }
+                }
+                else {
+                    betterClusters.add(c);
+                }
+            }
+            return betterClusters.toArray(new Cluster[betterClusters.size()]);
+        }
+
+        return clusters;
+    }
+
+    /**
+     * Return the distance between given points/clusters on given zoom level
+     *
+     * @param zoom
+     * @param p1
+     * @param p2
+     * @return
+     */
+    public double getClusterDistance(int zoom, int p1, int p2) {
+        if (zoom < minZoom || zoom  > maxZoom + 1) {
+            return -1.0;
+        }
+
+        List<Cluster> clusters = this.advocatorClusters[zoom];
+        Cluster c1 = null, c2 = null;
+        for (int i = 0; i < clusters.size(); i ++) {
+            if (clusters.get(i).getId() == p1) {
+                c1 = clusters.get(i);
+            }
+            if (clusters.get(i).getId() == p2) {
+                c2 = clusters.get(i);
+            }
+            if (c1 != null && c2 != null) {
+                break;
+            }
+        }
+        if (c1 == null || c2 == null) {
+            return -1.0;
+        }
+        return c1.distanceTo(c2);
+    }
+
     protected Cluster createPointCluster(double _x, double _y, int _id, int _seq) {
         Cluster c = new Cluster(lngX(_x), latY(_y), _id);
+        c.zoom = maxZoom;
         c.seq = _seq;
         return c;
     }
@@ -730,6 +875,7 @@ public class LBiSuperCluster extends SuperCluster {
 
             // create a parent cluster of c, and add it to zoom-1 level
             Cluster parent = createCluster(c.getX(), c.getY(), c.getId(), c.numPoints);
+            parent.zoom = zoom - 1;
             parent.seq = c.seq;
             c.parentId = parent.getId();
             c.parent = parent;

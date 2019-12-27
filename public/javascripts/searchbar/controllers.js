@@ -5,11 +5,27 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.search = function () {
             if ($scope.keyword && $scope.keyword.trim().length > 0) {
                 moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD,
-                    {keyword: $scope.keyword, order: $scope.order, algorithm: $scope.algorithm, indexType: $scope.indexType, zoom: $scope.zoom, analysis: $scope.analysis});
+                    {
+                      keyword: $scope.keyword,
+                      order: $scope.order,
+                      algorithm: $scope.algorithm,
+                      indexType: $scope.indexType,
+                      zoom: $scope.zoom,
+                      analysis: $scope.analysis,
+                      treeCut: $scope.treeCut
+                    });
             }
             else {
               moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD,
-                {keyword: "%", order: $scope.order, algorithm: $scope.algorithm, indexType: $scope.indexType, zoom: $scope.zoom, analysis: $scope.analysis});
+                {
+                  keyword: "%",
+                  order: $scope.order,
+                  algorithm: $scope.algorithm,
+                  indexType: $scope.indexType,
+                  zoom: $scope.zoom,
+                  analysis: $scope.analysis,
+                  treeCut: $scope.treeCut
+                });
             }
         };
 
@@ -23,6 +39,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.indexTypes = ["KDTree", "GridIndex"];
         $scope.zooms = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
         $scope.analysises = ["", "rand-index", "adjusted-rand-index"];
+        $scope.treeCut = false;
 
         // Frontend mode radio
         $scope.radioFrontend = document.createElement("input");
@@ -112,7 +129,8 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                 '<label for="algorithm">Algorithm</label>&nbsp;<select id="algorithm" ng-model="algorithm" ng-options="x for x in algorithms" ng-init="algorithm = algorithms[0]"></select>&nbsp;',
                 '<label for="indexType">IndexType</label>&nbsp;<select id="indexType" ng-model="indexType" ng-options="x for x in indexTypes" ng-init="indexType = indexTypes[0]"></select>&nbsp;',
                 '<label for="zoom">Zoom</label>&nbsp;<select id="zoom" ng-model="zoom" ng-options="x for x in zooms" ng-init="zoom = zooms[0]"></select>&nbsp;',
-                '<label for="analysis">Analysis</label>&nbsp;<select id="analysis" ng-model="analysis" ng-options="x for x in analysises" ng-init="analysis = analysises[0]"></select>&nbsp;'
+                '<label for="analysis">Analysis</label>&nbsp;<select id="analysis" ng-model="analysis" ng-options="x for x in analysises" ng-init="analysis = analysises[0]"></select>&nbsp;',
+                '<label for="treeCut">Tree-Cut</label>&nbsp;<input id="treeCut" type="checkbox" ng-model="treeCut" ></input>&nbsp;'
             ].join('')
         };
     });
