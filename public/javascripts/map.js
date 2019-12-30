@@ -241,7 +241,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       $scope.selectZoomShift.style.position = 'fixed';
       $scope.selectZoomShift.style.top = '90px';
       $scope.selectZoomShift.style.left = '8px';
-      for (let i = 0; i <= 2; i ++) {
+      for (let i = 0; i <= 6; i ++) {
         let option = document.createElement("option");
         option.text = ""+ i;
         $scope.selectZoomShift.add(option);
@@ -292,9 +292,14 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       if(result.data.length > 0) {
         let resultCount = result.data.length;
         let pointsCount = 0;
+        let maxCount = 0;
         for (let i = 0; i < resultCount; i ++) {
-          pointsCount += (result.data[i].properties.point_count===0?1:result.data[i].properties.point_count);
+          let count = (result.data[i].properties.point_count===0?1:result.data[i].properties.point_count);
+          pointsCount += count;
+          maxCount = Math.max(maxCount, count);
         }
+        $scope.pointsCount = pointsCount;
+        $scope.maxCount = maxCount;
         moduleManager.publishEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, {resultCount: resultCount, pointsCount: pointsCount});
         $scope.drawClusterMap(result.data);
       }
@@ -438,10 +443,15 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     //   return L.marker(latlng, {icon: icon, title: feature.properties.id, alt: feature.properties.id});
     // };
 
+    $scope.colorForHeatmap = function (value) {
+      let h = 240 + value * 120;
+      return "hsl(" + h + ", 100%, 50%)";
+    };
+
     /** middleware mode */
     $scope.createClusterIcon = function(feature, latlng) {
-      if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 1, fillColor: 'blue'});
-      if (feature.properties.zoom >= 17 && $scope.map.getZoom() <= 17) return L.circleMarker(latlng, {radius: 1, fillColor: 'blue'});
+      if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 0.5, fillColor: 'blue', fillOpacity: 0.9});
+      if (feature.properties.zoom >= 17 && $scope.map.getZoom() <= 17) return L.circleMarker(latlng, {radius: 0.5, fillColor: 'blue', fillOpacity: 0.9});
 
       const zoom_shift = $scope.zoomShift;
       const iconSize = $scope.radius / Math.pow(2, zoom_shift);
@@ -460,28 +470,13 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     };
 
     $scope.createScatterIcon = function(feature, latlng) {
-      if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 1, fillColor: 'blue'});
-
-      const zoom_diff = feature.properties.zoom - $scope.map.getZoom();
-      if (feature.properties.zoom >= 17 && $scope.map.getZoom() <= 17) return L.circleMarker(latlng, {radius: 1, fillColor: 'blue'});
-
-      const zoom_shift = $scope.zoomShift;
-      // let zoom_shift = feature.properties.zoom - $scope.map.getZoom();
-      // zoom_shift = zoom_shift > 2? 2: zoom_shift;
-      // zoom_shift = zoom_shift < 0? 0: zoom_shift;
-      const iconSize = $scope.radius / Math.pow(2, zoom_shift);
-      const count = feature.properties.point_count;
-      const size =
-        count < 100 ? 'small' :
-          count < 1000 ? 'medium' : 'large';
-      const icon = L.divIcon({
-        html: `<div></div>`,
-        className: `marker-cluster-${zoom_shift} marker-cluster-${size}`,
-        //iconSize: L.point(40, 40)
-        iconSize: L.point(iconSize, iconSize)
-      });
-
-      return L.marker(latlng, {icon: icon, title: feature.properties.id, alt: feature.properties.id});
+      if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 0.5, fillColor: 'blue', fillOpacity: 0.9});
+      let zoom_shift = feature.properties.zoom < 25?
+        feature.properties.zoom - $scope.map.getZoom(): $scope.zoomShift;
+      const circleRadius = 25 / Math.pow(2, zoom_shift + 1);
+      const circleColor = $scope.colorForHeatmap(feature.properties.point_count / $scope.maxCount);
+      return L.circleMarker(latlng, {title: feature.properties.id, alt: feature.properties.id,
+        radius: circleRadius, color: circleColor, opacity: 0.3, fillColor: circleColor, fillOpacity: 0.7, weight: 4});
     };
 
     /** middleware mode */
