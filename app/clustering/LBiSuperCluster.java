@@ -350,40 +350,36 @@ public class LBiSuperCluster extends SuperCluster {
             //System.out.println("[Debug]     Single child YES!");
             return true;
         }
-        //-DEBUG-//
-//        int sum = 0;
-//        for (Cluster child: c.children) {
-//            sum += child.numPoints == 0? 1: child.numPoints;
-//        }
-//        if (sum < 100) {
-//            System.out.println("[Debug]     Small Cluster YES!");
-//            return true;
-//        }
-        //-DEBUG-//
-        // check if average pairwise distance between all children of c is larger than 1/20 * radius of zoom
-        //double avgDistance = 0.0;
-//        double avgDistance = Double.MAX_VALUE;
+//        // current view zoom level's radius
+//        double radius = getRadius(zoom);
+//        // 2 pixels' scaling distance, radius of view zoom level is usually represented by 15 pixels
+//        double differentiableDistance = radius / 7.5;
+//
+//        // check if average pairwise distance between all children of c is larger than differentiableDistance
+//        //double avgDistance = 0.0;
+//        double minDistance = Double.MAX_VALUE;
 //        for (int i = 0; i < c.children.size() - 1; i ++) {
 //            for (int j = 1; j < c.children.size(); j ++) {
 //                //avgDistance += c.children.get(i).distanceTo(c.children.get(j));
-//                avgDistance = Math.min(avgDistance, c.children.get(i).distanceTo(c.children.get(j)));
+//                minDistance = Math.min(minDistance, c.children.get(i).distanceTo(c.children.get(j)));
 //            }
 //        }
 //        //avgDistance = avgDistance * 2 / (c.children.size() * (c.children.size() -  1));
-//        double radius = getRadius(zoom);
+//
 //        //-DEBUG-//
-//        System.out.println("[Debug]         - average distance of children = " + avgDistance);
-//        System.out.println("[Debug]         - radius for children level = " + radius);
+//        //System.out.println("[Debug]         - average distance of children = " + avgDistance);
+//        //System.out.println("[Debug]         - minimum distance of children = " + minDistance);
+//        //System.out.println("[Debug]         - radius for children level = " + radius);
 //        //-DEBUG-//
-//        if (avgDistance >= 0.5 * radius) {
+//        if (minDistance >= differentiableDistance) {
 //            //-DEBUG-//
-//            System.out.println("[Debug]     distance >= radius: Differentiable? YES!");
+//            //System.out.println("[Debug]     distance >= radius: Differentiable? YES!");
 //            //-DEBUG-//
 //            return true;
 //        }
 //        else {
 //            //-DEBUG-//
-//            System.out.println("[Debug]     distance < radius: Differentiable? ~~NO~~");
+//            //System.out.println("[Debug]     distance < radius: Differentiable? ~~NO~~");
 //            //-DEBUG-//
 //            return false;
 //        }

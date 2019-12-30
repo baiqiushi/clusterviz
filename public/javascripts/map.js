@@ -300,6 +300,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         }
         $scope.pointsCount = pointsCount;
         $scope.maxCount = maxCount;
+        $scope.avgPointsCount = pointsCount / resultCount;
         moduleManager.publishEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, {resultCount: resultCount, pointsCount: pointsCount});
         $scope.drawClusterMap(result.data);
       }
@@ -473,10 +474,11 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 0.5, fillColor: 'blue', fillOpacity: 0.9});
       let zoom_shift = feature.properties.zoom < 25?
         feature.properties.zoom - $scope.map.getZoom(): $scope.zoomShift;
-      const circleRadius = 25 / Math.pow(2, zoom_shift + 1);
-      const circleColor = $scope.colorForHeatmap(feature.properties.point_count / $scope.maxCount);
+      let circleRadius = 12 / Math.pow(2, zoom_shift);
+      circleRadius = circleRadius < 1? 1: circleRadius;
+      const circleColor = $scope.colorForHeatmap(Math.log((feature.properties.point_count - 100) < 1? 1: (feature.properties.point_count - 100)) / Math.log($scope.pointsCount));
       return L.circleMarker(latlng, {title: feature.properties.id, alt: feature.properties.id,
-        radius: circleRadius, color: circleColor, opacity: 0.3, fillColor: circleColor, fillOpacity: 0.7, weight: 4});
+        radius: circleRadius, color: circleColor, opacity: 0.3, fillColor: circleColor, fillOpacity: 0.7, weight: circleRadius * 0.4});
     };
 
     /** middleware mode */
