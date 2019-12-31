@@ -120,6 +120,7 @@ public class Agent extends AbstractActor {
             properties.put("id", clusters[i].getId());
             properties.put("expansionZoom", clusters[i].expansionZoom);
             properties.put("zoom", clusters[i].zoom);
+            properties.put("diameter", clusters[i].diameter);
             feature.set("properties", properties);
 
             ObjectNode geometry = JsonNodeFactory.instance.objectNode();
@@ -204,7 +205,7 @@ public class Agent extends AbstractActor {
                 }
             }
 
-            answerClusterQuery(clusterKey, _request, "done", 100, query.treeCut);
+            answerClusterQuery(clusterKey, _request, "done", 100);
         }
         // handle progressive query
         else {
@@ -214,12 +215,12 @@ public class Agent extends AbstractActor {
             }
             // otherwise, answer the query directly
             else {
-                answerClusterQuery(clusterKey, _request, "done", 100, query.treeCut);
+                answerClusterQuery(clusterKey, _request, "done", 100);
             }
         }
     }
 
-    private void answerClusterQuery(String clusterKey, Request _request, String status, int progress, boolean treeCut) {
+    private void answerClusterQuery(String clusterKey, Request _request, String status, int progress) {
         Query query = _request.query;
 
         // Add hit to querying super cluster
@@ -232,7 +233,7 @@ public class Agent extends AbstractActor {
         if (query.bbox == null) {
             clusters = cluster.getClusters(query.zoom);
         } else {
-            clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom, treeCut);
+            clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom, query.treeCut, query.measure, query.pixels);
         }
 
         // construct the response Json and return
@@ -302,7 +303,7 @@ public class Agent extends AbstractActor {
             }
 
             MyTimer.startTimer();
-            answerClusterQuery(clusterKey, _request, "in-progress", (int) progress, query.treeCut);
+            answerClusterQuery(clusterKey, _request, "in-progress", (int) progress);
             MyTimer.stopTimer();
             MyTimer.progressTimer.get("treeCutTime").add(MyTimer.durationSeconds());
 

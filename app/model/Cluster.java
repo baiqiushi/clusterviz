@@ -29,6 +29,9 @@ public class Cluster extends Point {
     // sequence number of this cluster to indicate its processing order
     public int seq = 0;
 
+    // max pairwise distance of all its children centroids
+    public double diameter = -1.0;
+
     public Cluster(double _x, double _y, int _id) {
         super(_x, _y, _id);
     }

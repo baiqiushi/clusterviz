@@ -2,6 +2,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
   .controller("MapCtrl", function($scope, $timeout, leafletData, moduleManager) {
 
     $scope.radius = 40; // cluster radius in pixels
+    $scope.extent = 256; // tile extent (radius is calculated relative to it)
+    $scope.maxZoom = 18;
     $scope.zoomShift = 0;
     $scope.mode = "middleware";
     $scope.numberInCircle = true;
@@ -24,6 +26,12 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
     $scope.ws = new WebSocket("ws://" + location.host + "/ws");
     $scope.pinmapMapResul = [];
+
+    // store computed radius of each zoom level
+    $scope.radiuses = [];
+    for (let i = 0; i < $scope.maxZoom; i ++) {
+      $scope.radiuses[i] = $scope.radius / ($scope.extent * Math.pow(2, i));
+    }
 
     /** middleware mode */
     $scope.sendQuery = function(e) {
@@ -57,6 +65,14 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
       if (e.hasOwnProperty("treeCut")) {
         $scope.query.treeCut = e.treeCut;
+      }
+
+      if (e.measure) {
+        $scope.query.measure = e.measure;
+      }
+
+      if (e.pixels) {
+        $scope.query.pixels = e.pixels;
       }
 
       // only send query when comprised query has enough information, i.e. keyword, order, algorithm
@@ -180,6 +196,47 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         $scope.map.on('moveend', function() {
           moduleManager.publishEvent(moduleManager.EVENT.CHANGE_ZOOM_LEVEL, {zoom: $scope.map.getZoom()});
         });
+
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_MODE, function(e) {
+          if ($scope.mode !== e.mode) {
+            if ($scope.mode === "middleware") {
+              $scope.cleanClusterMap();
+            }
+            else if ($scope.mode === "frontend") {
+              $scope.cleanMarkersLayer();
+            }
+            $scope.mode = e.mode;
+            console.log("switch mode to '" + $scope.mode + "'");
+          }
+        });
+
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_NUMBER_IN_CIRCLE, function(e) {
+          console.log("switch number in circle to '" + e.numberInCircle + "'");
+          $scope.numberInCircle = e.numberInCircle;
+          if ($scope.pointsLayer) {
+            $scope.pointsLayer.clearLayers();
+            $scope.map.removeLayer($scope.pointsLayer);
+            $scope.pointsLayer = null;
+            if ($scope.numberInCircle) {
+              $scope.pointsLayer = L.geoJson(null, { pointToLayer: $scope.createClusterIcon}).addTo($scope.map);
+            }
+            else {
+              $scope.pointsLayer = L.geoJson(null, { pointToLayer: $scope.createScatterIcon}).addTo($scope.map);
+            }
+            $scope.drawClusterMap($scope.points);
+          }
+        });
+
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_PIXELS, function(e) {
+          switch ($scope.mode) {
+            case "frontend":
+              break;
+            case "middleware":
+              $scope.pixels = parseInt(e.pixels);
+              $scope.sendQuery(e);
+              break;
+          }
+        });
       }
     };
 
@@ -254,35 +311,32 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           {zoomShift: $scope.selectZoomShift.value});
       });
 
-      moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_MODE, function(e) {
-        if ($scope.mode !== e.mode) {
-          if ($scope.mode === "middleware") {
-            $scope.cleanClusterMap();
-          }
-          else if ($scope.mode === "frontend") {
-            $scope.cleanMarkersLayer();
-          }
-          $scope.mode = e.mode;
-          console.log("switch mode to '" + $scope.mode + "'");
-        }
+      //Differentiable distance # of pixels Select
+      $scope.selectPixelsLabel = document.createElement("label");
+      $scope.selectPixelsLabel.innerHTML = "Pixels";
+      $scope.selectPixelsLabel.htmlFor = "pixels";
+      $scope.selectPixelsLabel.style.position = 'fixed';
+      $scope.selectPixelsLabel.style.top = '160px';
+      $scope.selectPixelsLabel.style.left = '8px';
+      body.appendChild($scope.selectPixelsLabel);
+      $scope.selectPixels = document.createElement("select");
+      $scope.selectPixels.title = "pixels";
+      $scope.selectPixels.style.position = 'fixed';
+      $scope.selectPixels.style.top = '160px';
+      $scope.selectPixels.style.left = '50px';
+      for (let i = 1; i <= 12; i ++) {
+        let option = document.createElement("option");
+        option.text = ""+ i;
+        $scope.selectPixels.add(option);
+      }
+      $scope.selectPixels.value = "4";
+      body = document.body;
+      body.appendChild($scope.selectPixels);
+      $scope.selectPixels.addEventListener("change", function () {
+        moduleManager.publishEvent(moduleManager.EVENT.CHANGE_PIXELS,
+          {pixels: $scope.selectPixels.value});
       });
 
-      moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_NUMBER_IN_CIRCLE, function(e) {
-        console.log("switch number in circle to '" + e.numberInCircle + "'");
-        $scope.numberInCircle = e.numberInCircle;
-        if ($scope.pointsLayer) {
-          $scope.pointsLayer.clearLayers();
-          $scope.map.removeLayer($scope.pointsLayer);
-          $scope.pointsLayer = null;
-          if ($scope.numberInCircle) {
-            $scope.pointsLayer = L.geoJson(null, { pointToLayer: $scope.createClusterIcon}).addTo($scope.map);
-          }
-          else {
-            $scope.pointsLayer = L.geoJson(null, { pointToLayer: $scope.createScatterIcon}).addTo($scope.map);
-          }
-          $scope.drawClusterMap($scope.points);
-        }
-      });
 
       $scope.waitForWS();
     };
@@ -359,6 +413,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     /** middleware mode */
     // function for drawing clustermap
     $scope.drawClusterMap = function(data) {
+      console.log("Radius for zoom level [" + $scope.map.getZoom() + "] = " + $scope.radiuses[$scope.map.getZoom()]);
 
       // initialize the points layer
       if (!$scope.pointsLayer) {
@@ -475,6 +530,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       let zoom_shift = feature.properties.zoom < 25?
         feature.properties.zoom - $scope.map.getZoom(): $scope.zoomShift;
       let circleRadius = 12 / Math.pow(2, zoom_shift);
+      if (feature.properties.diameter >= 0.0) {
+        circleRadius = feature.properties.diameter * 12 / $scope.radiuses[$scope.map.getZoom()];
+      }
       circleRadius = circleRadius < 1? 1: circleRadius;
       const circleColor = $scope.colorForHeatmap(Math.log((feature.properties.point_count - 100) < 1? 1: (feature.properties.point_count - 100)) / Math.log($scope.pointsCount));
       return L.circleMarker(latlng, {title: feature.properties.id, alt: feature.properties.id,

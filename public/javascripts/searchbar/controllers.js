@@ -12,7 +12,8 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                       indexType: $scope.indexType,
                       zoom: $scope.zoom,
                       analysis: $scope.analysis,
-                      treeCut: $scope.treeCut
+                      treeCut: $scope.treeCut,
+                      measure: $scope.measure
                     });
             }
             else {
@@ -24,7 +25,8 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                   indexType: $scope.indexType,
                   zoom: $scope.zoom,
                   analysis: $scope.analysis,
-                  treeCut: $scope.treeCut
+                  treeCut: $scope.treeCut,
+                  measure: $scope.measure
                 });
             }
         };
@@ -40,6 +42,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.zooms = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
         $scope.analysises = ["", "rand-index", "adjusted-rand-index"];
         $scope.treeCut = false;
+        $scope.measures = ["avg", "min", "max"];
 
         // Frontend mode radio
         $scope.radioFrontend = document.createElement("input");
@@ -130,7 +133,8 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                 '<label for="indexType">IndexType</label>&nbsp;<select id="indexType" ng-model="indexType" ng-options="x for x in indexTypes" ng-init="indexType = indexTypes[0]"></select>&nbsp;',
                 '<label for="zoom">Zoom</label>&nbsp;<select id="zoom" ng-model="zoom" ng-options="x for x in zooms" ng-init="zoom = zooms[0]"></select>&nbsp;',
                 '<label for="analysis">Analysis</label>&nbsp;<select id="analysis" ng-model="analysis" ng-options="x for x in analysises" ng-init="analysis = analysises[0]"></select>&nbsp;',
-                '<label for="treeCut">Tree-Cut</label>&nbsp;<input id="treeCut" type="checkbox" ng-model="treeCut" ></input>&nbsp;'
+                '<label for="treeCut">Tree-Cut</label>&nbsp;<input id="treeCut" type="checkbox" ng-model="treeCut"></input>&nbsp;',
+                '<label for="measure">Measure</label>&nbsp;<select id="measure" ng-model="measure" ng-options="x for x in measures" ng-init="measure = measures[0]" ng-change="search()"></select>&nbsp;',
             ].join('')
         };
     });

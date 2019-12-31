@@ -333,10 +333,11 @@ public class LBiSuperCluster extends SuperCluster {
      *            it means the children can be drawn separately by at least 4 pixels,
      *                then they are differentiable
      * @param c
-     * @param zoom - current view zoom level
+     * @param measure - the measure to compare with differentiable distance, "avg" / "max" / "min"
+     * @param differentiableDistance - real distance that is differentiable given by the user
      * @return
      */
-    private boolean isDifferentiable(Cluster c, int zoom) {
+    private boolean isDifferentiable(Cluster c, String measure, double differentiableDistance) {
         //-DEBUG-//
         //System.out.println("[Debug]     checking if c " + printCluster(c) + "'s children are differentiable?");
         //-DEBUG-//
@@ -350,41 +351,51 @@ public class LBiSuperCluster extends SuperCluster {
             //System.out.println("[Debug]     Single child YES!");
             return true;
         }
-//        // current view zoom level's radius
-//        double radius = getRadius(zoom);
-//        // 2 pixels' scaling distance, radius of view zoom level is usually represented by 15 pixels
-//        double differentiableDistance = radius / 7.5;
-//
-//        // check if average pairwise distance between all children of c is larger than differentiableDistance
-//        //double avgDistance = 0.0;
-//        double minDistance = Double.MAX_VALUE;
-//        for (int i = 0; i < c.children.size() - 1; i ++) {
-//            for (int j = 1; j < c.children.size(); j ++) {
-//                //avgDistance += c.children.get(i).distanceTo(c.children.get(j));
-//                minDistance = Math.min(minDistance, c.children.get(i).distanceTo(c.children.get(j)));
-//            }
-//        }
-//        //avgDistance = avgDistance * 2 / (c.children.size() * (c.children.size() -  1));
-//
-//        //-DEBUG-//
-//        //System.out.println("[Debug]         - average distance of children = " + avgDistance);
-//        //System.out.println("[Debug]         - minimum distance of children = " + minDistance);
-//        //System.out.println("[Debug]         - radius for children level = " + radius);
-//        //-DEBUG-//
-//        if (minDistance >= differentiableDistance) {
-//            //-DEBUG-//
-//            //System.out.println("[Debug]     distance >= radius: Differentiable? YES!");
-//            //-DEBUG-//
-//            return true;
-//        }
-//        else {
-//            //-DEBUG-//
-//            //System.out.println("[Debug]     distance < radius: Differentiable? ~~NO~~");
-//            //-DEBUG-//
-//            return false;
-//        }
-        if (c.numPoints < 100) return true;
-        else return false;
+
+        // check if average pairwise distance between all children of c is larger than differentiableDistance
+        double avgDistance = 0.0;
+        double minDistance = Double.MAX_VALUE;
+        double maxDistance = 0.0;
+        for (int i = 0; i < c.children.size() - 1; i ++) {
+            for (int j = 1; j < c.children.size(); j ++) {
+                avgDistance += c.children.get(i).distanceTo(c.children.get(j));
+                minDistance = Math.min(minDistance, c.children.get(i).distanceTo(c.children.get(j)));
+                maxDistance = Math.max(maxDistance, c.children.get(i).distanceTo(c.children.get(j)));
+            }
+        }
+        c.diameter = maxDistance;
+        avgDistance = avgDistance * 2 / (c.children.size() * (c.children.size() -  1));
+
+        //-DEBUG-//
+        //System.out.println("[Debug]         - average distance of children = " + avgDistance);
+        //System.out.println("[Debug]         - minimum distance of children = " + minDistance);
+        //System.out.println("[Debug]         - radius for children level = " + radius);
+        //-DEBUG-//
+        double metric;
+        switch (measure.toLowerCase()) {
+            case "min":
+                metric = minDistance;
+                break;
+            case "max":
+                metric = maxDistance;
+                break;
+            default:
+                metric = avgDistance;
+        }
+        if (metric >= differentiableDistance) {
+            //-DEBUG-//
+            //System.out.println("[Debug]     distance >= radius: Differentiable? YES!");
+            //-DEBUG-//
+            return true;
+        }
+        else {
+            //-DEBUG-//
+            //System.out.println("[Debug]     distance < radius: Differentiable? ~~NO~~");
+            //-DEBUG-//
+            return false;
+        }
+//        if (c.numPoints < 100) return true;
+//        else return false;
     }
 
     /**
@@ -399,24 +410,35 @@ public class LBiSuperCluster extends SuperCluster {
      * @param zoom
      * @return
      */
-    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom, boolean treeCut) {
+    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom, boolean treeCut, String measure, int pixels) {
         Cluster[] clusters = getClusters(x0, y0, x1, y1, zoom);
         List<Cluster> betterClusters = new ArrayList<>();
         // run tree-cut algorithm
         if (treeCut) {
             //-DEBUG-//
             System.out.println("[Debug] [LBiSuperCluster --> getClusters] is running Tree-Cut algorithm ...");
+            System.out.println("[Debug] [LBiSuperCluster --> getClusters] differentiable radius = " + getRadius(zoom));
             //-DEBUG-//
+            MyTimer.startTimer();
             // a queue for breadth-first-search
             Queue<Cluster> frontier = new LinkedList<>();
             frontier.addAll(Arrays.asList(clusters));
+
+            // current view zoom level's radius
+            double radius = getRadius(zoom);
+            // radius of view zoom level is usually represented by 12 pixels
+            double distancePerPixel = radius / 12;
+            // make sure given pixels distance between [1~12]
+            pixels = pixels > 12? 12: Math.max(pixels, 1);
+            // real distance of given # pixels of differentiable distance
+            double differentiableDistance = distancePerPixel * pixels;
 
             // check frontier one-by-one,
             //     if it's not differentiable, add it to results;
             //     else, add all its children back to queue;
             while (!frontier.isEmpty()) {
                 Cluster c = frontier.poll();
-                if (isDifferentiable(c, zoom)) {
+                if (isDifferentiable(c, measure, differentiableDistance)) {
                     for (Cluster child: c.children) {
                         Cluster cluster = child.clone();
                         cluster.setX(xLng(cluster.getX()));
@@ -428,7 +450,9 @@ public class LBiSuperCluster extends SuperCluster {
                     betterClusters.add(c);
                 }
             }
-            return betterClusters.toArray(new Cluster[betterClusters.size()]);
+            clusters = betterClusters.toArray(new Cluster[betterClusters.size()]);
+            MyTimer.stopTimer();
+            System.out.println("[LBiSuperCluster] tree-cut takes " + MyTimer.durationSeconds() + " seconds.");
         }
 
         return clusters;
