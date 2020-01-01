@@ -47,8 +47,36 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.analysises = ["", "rand-index", "adjusted-rand-index"];
         $scope.treeCut = false;
         $scope.measures = ["max", "min", "avg"];
-        $scope.pixelsOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+        $scope.pixelsOptions = [1, 2, 3, 4, 5, 10, 15, 20];
         $scope.bipartite = false;
+
+        /**
+         * Left side controls
+         * */
+        //Zoom Shift Select
+        $scope.selectZoomShift = document.createElement("select");
+        $scope.selectZoomShift.title = "zoomShift";
+        $scope.selectZoomShift.style.position = 'fixed';
+        $scope.selectZoomShift.style.top = '90px';
+        $scope.selectZoomShift.style.left = '8px';
+        for (let i = 0; i <= 6; i ++) {
+          let option = document.createElement("option");
+          option.text = ""+ i;
+          $scope.selectZoomShift.add(option);
+        }
+        $scope.selectZoomShift.value = "0";
+        document.body.appendChild($scope.selectZoomShift);
+        $scope.selectZoomShift.addEventListener("change", function () {
+          moduleManager.publishEvent(moduleManager.EVENT.CHANGE_ZOOM_SHIFT,
+            {zoomShift: $scope.selectZoomShift.value});
+        });
+        $scope.selectZoomShiftLabel = document.createElement("label");
+        $scope.selectZoomShiftLabel.innerHTML = "Zoom Shift";
+        $scope.selectZoomShiftLabel.htmlFor ="zoomShift";
+        $scope.selectZoomShiftLabel.style.position = 'fixed';
+        $scope.selectZoomShiftLabel.style.top = '90px';
+        $scope.selectZoomShiftLabel.style.left = '45px';
+        document.body.appendChild($scope.selectZoomShiftLabel);
 
         // Frontend mode radio
         $scope.radioFrontend = document.createElement("input");
@@ -138,6 +166,58 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.checkboxColorLabel.style.top = '155px';
         $scope.checkboxColorLabel.style.left = '24px';
         document.body.appendChild($scope.checkboxColorLabel);
+
+        // Circle Radius Select
+        $scope.selectCircleRadius = document.createElement("select");
+        $scope.selectCircleRadius.title = "circleRadius";
+        $scope.selectCircleRadius.style.position = 'fixed';
+        $scope.selectCircleRadius.style.top = '175px';
+        $scope.selectCircleRadius.style.left = '8px';
+        for (let i = 20; i >=5; i -= 5) {
+          let option = document.createElement("option");
+          option.text = ""+ i;
+          $scope.selectCircleRadius.add(option);
+        }
+        for (let i = 4; i >=1 ; i --) {
+          let option = document.createElement("option");
+          option.text = ""+ i;
+          $scope.selectCircleRadius.add(option);
+        }
+        $scope.selectCircleRadius.value = "20";
+        document.body.appendChild($scope.selectCircleRadius);
+        $scope.selectCircleRadius.addEventListener("change", function () {
+          moduleManager.publishEvent(moduleManager.EVENT.CHANGE_CIRCLE_RADIUS,
+            {circleRadius: $scope.selectCircleRadius.value});
+        });
+        $scope.selectCircleRadiusLabel = document.createElement("label");
+        $scope.selectCircleRadiusLabel.innerHTML = "Circle Radius";
+        $scope.selectCircleRadiusLabel.htmlFor ="circleRadius";
+        $scope.selectCircleRadiusLabel.style.position = 'fixed';
+        $scope.selectCircleRadiusLabel.style.top = '175px';
+        $scope.selectCircleRadiusLabel.style.left = '50px';
+        document.body.appendChild($scope.selectCircleRadiusLabel);
+
+        // Checkbox for scale circle radius
+        $scope.checkboxScaleCircleRadius = document.createElement("input");
+        $scope.checkboxScaleCircleRadius.type = "checkbox";
+        $scope.checkboxScaleCircleRadius.id = "scaleCircleRadius";
+        $scope.checkboxScaleCircleRadius.name = "scaleCircleRadius";
+        $scope.checkboxScaleCircleRadius.checked = false;
+        $scope.checkboxScaleCircleRadius.style.position = 'fixed';
+        $scope.checkboxScaleCircleRadius.style.top = '195px';
+        $scope.checkboxScaleCircleRadius.style.left = '8px';
+        document.body.appendChild($scope.checkboxScaleCircleRadius);
+        $scope.checkboxScaleCircleRadius.addEventListener("change", function() {
+          moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SCALE_CIRCLE_RADIUS,
+            {scaleCircleRadius: this.checked});
+        });
+        $scope.checkboxScaleCircleRadiusLabel = document.createElement("label");
+        $scope.checkboxScaleCircleRadiusLabel.innerHTML = "Scale Circle Radius";
+        $scope.checkboxScaleCircleRadiusLabel.htmlFor = "scaleCircleRadius";
+        $scope.checkboxScaleCircleRadiusLabel.style.position = 'fixed';
+        $scope.checkboxScaleCircleRadiusLabel.style.top = '195px';
+        $scope.checkboxScaleCircleRadiusLabel.style.left = '24px';
+        document.body.appendChild($scope.checkboxScaleCircleRadiusLabel);
     })
     .directive("searchBar", function () {
         return {
@@ -157,13 +237,13 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                 '  </div>',
                 '</form>',
                 '<label for="order">Order</label>&nbsp;<select id="order" ng-model="order" ng-options="x for x in orders" ng-init="order = orders[0]"></select>&nbsp;',
-                '<label for="algorithm">Algorithm</label>&nbsp;<select id="algorithm" ng-model="algorithm" ng-options="x for x in algorithms" ng-init="algorithm = algorithms[0]"></select>&nbsp;',
+                '<label for="algorithm">Algorithm</label>&nbsp;<select id="algorithm" ng-model="algorithm" ng-options="x for x in algorithms" ng-init="algorithm = algorithms[5]"></select>&nbsp;',
                 '<label for="indexType">IndexType</label>&nbsp;<select id="indexType" ng-model="indexType" ng-options="x for x in indexTypes" ng-init="indexType = indexTypes[0]"></select>&nbsp;',
                 '<label for="zoom">Zoom</label>&nbsp;<select id="zoom" ng-model="zoom" ng-options="x for x in zooms" ng-init="zoom = zooms[0]"></select>&nbsp;',
                 '<label for="analysis">Analysis</label>&nbsp;<select id="analysis" ng-model="analysis" ng-options="x for x in analysises" ng-init="analysis = analysises[0]"></select>&nbsp;',
                 '<label for="treeCut">Tree-Cut</label>&nbsp;<input id="treeCut" type="checkbox" ng-model="treeCut"></input>&nbsp;',
                 '<label for="measure">Measure</label>&nbsp;<select id="measure" ng-model="measure" ng-options="x for x in measures" ng-init="measure = measures[0]"></select>&nbsp;',
-                '<label for="pixels">Pixels</label>&nbsp;<select id="pixels" ng-model="pixels" ng-options="x for x in pixelsOptions" ng-init="pixels = pixelsOptions[0]"></select>&nbsp;',
+                '<label for="pixels">Pixels</label>&nbsp;<select id="pixels" ng-model="pixels" ng-options="x for x in pixelsOptions" ng-init="pixels = pixelsOptions[1]"></select>&nbsp;',
                 '<label for="bipartite">Bipartite</label>&nbsp;<input id="bipartite" type="checkbox" ng-model="bipartite"></input>&nbsp;'
             ].join('')
         };
