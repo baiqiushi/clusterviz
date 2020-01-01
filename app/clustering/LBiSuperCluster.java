@@ -363,7 +363,7 @@ public class LBiSuperCluster extends SuperCluster {
                 maxDistance = Math.max(maxDistance, c.children.get(i).distanceTo(c.children.get(j)));
             }
         }
-        c.diameter = maxDistance;
+        c.diameter = maxDistance / 2.0;
         avgDistance = avgDistance * 2 / (c.children.size() * (c.children.size() -  1));
 
         //-DEBUG-//
@@ -410,7 +410,7 @@ public class LBiSuperCluster extends SuperCluster {
      * @param zoom
      * @return
      */
-    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom, boolean treeCut, String measure, int pixels) {
+    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom, boolean treeCut, String measure, int pixels, boolean bipartite) {
         Cluster[] clusters = getClusters(x0, y0, x1, y1, zoom);
         List<Cluster> betterClusters = new ArrayList<>();
         // run tree-cut algorithm
@@ -422,7 +422,40 @@ public class LBiSuperCluster extends SuperCluster {
             MyTimer.startTimer();
             // a queue for breadth-first-search
             Queue<Cluster> frontier = new LinkedList<>();
-            frontier.addAll(Arrays.asList(clusters));
+
+            // bipartite the clusters into two groups first, with threshold as the max slope
+            // assume each cluster has the same area (radius);
+            // then max slope = max gap
+            if (bipartite) {
+                //-DEBUG-//
+                System.out.println("[Debug] [LBiSuperCluster --> getClusters] will bipartite the frontier clusters first.");
+                //-DEBUG-//
+                // sort the clusters in descending order by its numPoints
+                Arrays.sort(clusters, (o1, o2) -> o2.numPoints - o1.numPoints);
+                // traverse the array to find the max gap as the bipartite threshold
+                int maxGap = 0;
+                int maxGapIndex = 0;
+                for (int i = 0; i < clusters.length - 1; i ++) {
+                    if (clusters[i].numPoints - clusters[i+1].numPoints > maxGap) {
+                        maxGap = clusters[i].numPoints - clusters[i+1].numPoints;
+                        maxGapIndex = i;
+                    }
+                }
+                //-DEBUG-//
+                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Total # of frontier clusters = " + clusters.length);
+                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Max-gap happens at index [" + maxGapIndex + "] with gap = " + maxGap);
+                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Left = " + printCluster(clusters[maxGapIndex]));
+                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Right = " + printCluster(clusters[maxGapIndex+1]));
+                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Will expand # of frontier clusters = " + (clusters.length - maxGapIndex - 1));
+                //-DEBUG-//
+                // put all clusters after maxGap into frontier for further expansion
+                frontier.addAll(Arrays.asList(Arrays.copyOfRange(clusters, maxGapIndex+1, clusters.length)));
+                // put all clusters before maxGap into result
+                betterClusters.addAll(Arrays.asList(Arrays.copyOfRange(clusters, 0, maxGapIndex+1)));
+            }
+            else {
+                frontier.addAll(Arrays.asList(clusters));
+            }
 
             // current view zoom level's radius
             double radius = getRadius(zoom);

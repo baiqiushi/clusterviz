@@ -13,7 +13,8 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                       zoom: $scope.zoom,
                       analysis: $scope.analysis,
                       treeCut: $scope.treeCut,
-                      measure: $scope.measure
+                      measure: $scope.measure,
+                      bipartite: $scope.bipartite
                     });
             }
             else {
@@ -26,7 +27,8 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                   zoom: $scope.zoom,
                   analysis: $scope.analysis,
                   treeCut: $scope.treeCut,
-                  measure: $scope.measure
+                  measure: $scope.measure,
+                  bipartite: $scope.bipartite
                 });
             }
         };
@@ -43,6 +45,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.analysises = ["", "rand-index", "adjusted-rand-index"];
         $scope.treeCut = false;
         $scope.measures = ["avg", "min", "max"];
+        $scope.bipartite = false;
 
         // Frontend mode radio
         $scope.radioFrontend = document.createElement("input");
@@ -135,6 +138,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                 '<label for="analysis">Analysis</label>&nbsp;<select id="analysis" ng-model="analysis" ng-options="x for x in analysises" ng-init="analysis = analysises[0]"></select>&nbsp;',
                 '<label for="treeCut">Tree-Cut</label>&nbsp;<input id="treeCut" type="checkbox" ng-model="treeCut"></input>&nbsp;',
                 '<label for="measure">Measure</label>&nbsp;<select id="measure" ng-model="measure" ng-options="x for x in measures" ng-init="measure = measures[0]" ng-change="search()"></select>&nbsp;',
+                '<label for="bipartite">Bipartite</label>&nbsp;<input id="bipartite" type="checkbox" ng-model="bipartite"></input>&nbsp;'
             ].join('')
         };
     });

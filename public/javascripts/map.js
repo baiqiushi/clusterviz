@@ -75,6 +75,10 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         $scope.query.pixels = e.pixels;
       }
 
+      if (e.hasOwnProperty("bipartite")) {
+        $scope.query.bipartite = e.bipartite;
+      }
+
       // only send query when comprised query has enough information, i.e. keyword, order, algorithm
       if ($scope.query.keyword && $scope.query.order && $scope.query.algorithm) {
         $scope.query.cluster = $scope.query.keyword + "-" + $scope.query.order + "-" + $scope.query.algorithm;
@@ -500,8 +504,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     // };
 
     $scope.colorForHeatmap = function (value) {
-      let h = 240 + value * 120;
-      return "hsl(" + h + ", 100%, 50%)";
+      let h = 100 - value * 100;
+      let s = 60 + value * 30;
+      return "hsl(" + h + ", " + s + "%, 50%)";
     };
 
     /** middleware mode */

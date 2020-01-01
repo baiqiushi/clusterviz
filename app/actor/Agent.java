@@ -233,7 +233,7 @@ public class Agent extends AbstractActor {
         if (query.bbox == null) {
             clusters = cluster.getClusters(query.zoom);
         } else {
-            clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom, query.treeCut, query.measure, query.pixels);
+            clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom, query.treeCut, query.measure, query.pixels, query.bipartite);
         }
 
         // construct the response Json and return

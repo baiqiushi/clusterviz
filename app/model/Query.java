@@ -13,4 +13,5 @@ public class Query {
     public boolean treeCut;  // true / false
     public String measure; // for treeCut: "avg" / "min" / "max" distance of children
     public int pixels; // for treeCut: number of pixels for differentiable distance in tree-cut algorithm
+    public boolean bipartite; // for treeCut: true / false
 }

@@ -273,7 +273,7 @@ public class SuperCluster {
      * @param zoom
      * @return
      */
-    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom, boolean treeCut, String measure, int pixels) {
+    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom, boolean treeCut, String measure, int pixels, boolean bipartite) {
         return getClusters(x0, y0, x1, y1, zoom);
     }
 
