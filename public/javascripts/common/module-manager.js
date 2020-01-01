@@ -60,7 +60,7 @@ angular.module("clustermap.common", [])
                 CHANGE_ZOOM_SHIFT: "CHANGE_ZOOM_SHIFT",
                 CHANGE_MODE: "CHANGE_MODE",
                 CHANGE_NUMBER_IN_CIRCLE: "CHNAGE_NUMBER_IN_CIRCLE",
-                CHANGE_PIXELS: "CHANGE_PIXELS"
+                CHANGE_COLOR_ENCODING: "CHANGE_COLOR_ENCODING"
             },
 
             /**

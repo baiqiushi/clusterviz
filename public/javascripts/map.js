@@ -7,6 +7,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.zoomShift = 0;
     $scope.mode = "middleware";
     $scope.numberInCircle = true;
+    $scope.colorEncoding = true;
 
     // store total pointsCount for "frontend" mode
     $scope.pointsCount = 0;
@@ -231,16 +232,30 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           }
         });
 
-        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_PIXELS, function(e) {
-          switch ($scope.mode) {
-            case "frontend":
-              break;
-            case "middleware":
-              $scope.pixels = parseInt(e.pixels);
-              $scope.sendQuery(e);
-              break;
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_COLOR_ENCODING, function(e) {
+          console.log("switch color encoding to '" + e.colorEncoding + "'");
+          $scope.colorEncoding = e.colorEncoding;
+          // only affects no-number in circle mode
+          if (!$scope.numberInCircle) {
+            if ($scope.pointsLayer) {
+              $scope.pointsLayer.clearLayers();
+              $scope.map.removeLayer($scope.pointsLayer);
+              $scope.pointsLayer = $scope.pointsLayer = L.geoJson(null, {pointToLayer: $scope.createScatterIcon}).addTo($scope.map);
+              $scope.drawClusterMap($scope.points);
+            }
           }
         });
+
+        // moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_PIXELS, function(e) {
+        //   switch ($scope.mode) {
+        //     case "frontend":
+        //       break;
+        //     case "middleware":
+        //       $scope.pixels = parseInt(e.pixels);
+        //       $scope.sendQuery(e);
+        //       break;
+        //   }
+        // });
       }
     };
 
@@ -315,32 +330,31 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           {zoomShift: $scope.selectZoomShift.value});
       });
 
-      //Differentiable distance # of pixels Select
-      $scope.selectPixelsLabel = document.createElement("label");
-      $scope.selectPixelsLabel.innerHTML = "Pixels";
-      $scope.selectPixelsLabel.htmlFor = "pixels";
-      $scope.selectPixelsLabel.style.position = 'fixed';
-      $scope.selectPixelsLabel.style.top = '160px';
-      $scope.selectPixelsLabel.style.left = '8px';
-      body.appendChild($scope.selectPixelsLabel);
-      $scope.selectPixels = document.createElement("select");
-      $scope.selectPixels.title = "pixels";
-      $scope.selectPixels.style.position = 'fixed';
-      $scope.selectPixels.style.top = '160px';
-      $scope.selectPixels.style.left = '50px';
-      for (let i = 1; i <= 12; i ++) {
-        let option = document.createElement("option");
-        option.text = ""+ i;
-        $scope.selectPixels.add(option);
-      }
-      $scope.selectPixels.value = "4";
-      body = document.body;
-      body.appendChild($scope.selectPixels);
-      $scope.selectPixels.addEventListener("change", function () {
-        moduleManager.publishEvent(moduleManager.EVENT.CHANGE_PIXELS,
-          {pixels: $scope.selectPixels.value});
-      });
-
+      // //Differentiable distance # of pixels Select
+      // $scope.selectPixelsLabel = document.createElement("label");
+      // $scope.selectPixelsLabel.innerHTML = "Pixels";
+      // $scope.selectPixelsLabel.htmlFor = "pixels";
+      // $scope.selectPixelsLabel.style.position = 'fixed';
+      // $scope.selectPixelsLabel.style.top = '160px';
+      // $scope.selectPixelsLabel.style.left = '8px';
+      // body.appendChild($scope.selectPixelsLabel);
+      // $scope.selectPixels = document.createElement("select");
+      // $scope.selectPixels.title = "pixels";
+      // $scope.selectPixels.style.position = 'fixed';
+      // $scope.selectPixels.style.top = '160px';
+      // $scope.selectPixels.style.left = '50px';
+      // for (let i = 1; i <= 12; i ++) {
+      //   let option = document.createElement("option");
+      //   option.text = ""+ i;
+      //   $scope.selectPixels.add(option);
+      // }
+      // $scope.selectPixels.value = "4";
+      // body = document.body;
+      // body.appendChild($scope.selectPixels);
+      // $scope.selectPixels.addEventListener("change", function () {
+      //   moduleManager.publishEvent(moduleManager.EVENT.CHANGE_PIXELS,
+      //     {pixels: $scope.selectPixels.value});
+      // });
 
       $scope.waitForWS();
     };
@@ -531,17 +545,46 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     };
 
     $scope.createScatterIcon = function(feature, latlng) {
-      if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 0.5, fillColor: 'blue', fillOpacity: 0.9});
-      let zoom_shift = feature.properties.zoom < 25?
-        feature.properties.zoom - $scope.map.getZoom(): $scope.zoomShift;
-      let circleRadius = 12 / Math.pow(2, zoom_shift);
-      if (feature.properties.diameter >= 0.0) {
-        circleRadius = feature.properties.diameter * 12 / $scope.radiuses[$scope.map.getZoom()];
+      if (!$scope.colorEncoding) {
+        const circleRadius = $scope.query.pixels;
+        const circleColor = 'blue';
+        return L.circleMarker(latlng, {
+          title: feature.properties.id,
+          alt: feature.properties.id,
+          radius: circleRadius,
+          color: circleColor,
+          opacity: 0.3,
+          fillColor: circleColor,
+          fillOpacity: 0.7,
+          weight: circleRadius * 0.4
+        });
       }
-      circleRadius = circleRadius < 1? 1: circleRadius;
-      const circleColor = $scope.colorForHeatmap(Math.log((feature.properties.point_count - 100) < 1? 1: (feature.properties.point_count - 100)) / Math.log($scope.pointsCount));
-      return L.circleMarker(latlng, {title: feature.properties.id, alt: feature.properties.id,
-        radius: circleRadius, color: circleColor, opacity: 0.3, fillColor: circleColor, fillOpacity: 0.7, weight: circleRadius * 0.4});
+      else {
+        if (feature.properties.point_count === 0) return L.circleMarker(latlng, {
+          radius: 0.5,
+          fillColor: 'blue',
+          fillOpacity: 0.9
+        });
+        let zoom_shift = feature.properties.zoom < 25 ?
+          feature.properties.zoom - $scope.map.getZoom() : $scope.zoomShift;
+        let circleRadius = 12 / Math.pow(2, zoom_shift);
+        if (feature.properties.diameter >= 0.0) {
+          circleRadius = feature.properties.diameter * 12 / $scope.radiuses[$scope.map.getZoom()];
+        }
+        circleRadius = circleRadius < 1? 1: circleRadius;
+        const circleColor = $scope.colorForHeatmap(Math.log((feature.properties.point_count - 100) < 1 ?
+            1 : (feature.properties.point_count - 100)) / Math.log($scope.pointsCount));
+        return L.circleMarker(latlng, {
+          title: feature.properties.id,
+          alt: feature.properties.id,
+          radius: circleRadius,
+          color: circleColor,
+          opacity: 0.3,
+          fillColor: circleColor,
+          fillOpacity: 0.7,
+          weight: circleRadius * 0.4
+        });
+      }
     };
 
     /** middleware mode */

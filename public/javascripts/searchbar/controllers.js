@@ -14,6 +14,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                       analysis: $scope.analysis,
                       treeCut: $scope.treeCut,
                       measure: $scope.measure,
+                      pixels: $scope.pixels,
                       bipartite: $scope.bipartite
                     });
             }
@@ -28,6 +29,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                   analysis: $scope.analysis,
                   treeCut: $scope.treeCut,
                   measure: $scope.measure,
+                  pixels: $scope.pixels,
                   bipartite: $scope.bipartite
                 });
             }
@@ -44,7 +46,8 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.zooms = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
         $scope.analysises = ["", "rand-index", "adjusted-rand-index"];
         $scope.treeCut = false;
-        $scope.measures = ["avg", "min", "max"];
+        $scope.measures = ["max", "min", "avg"];
+        $scope.pixelsOptions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         $scope.bipartite = false;
 
         // Frontend mode radio
@@ -113,6 +116,28 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.checkboxNumberLabel.style.top = '140px';
         $scope.checkboxNumberLabel.style.left = '24px';
         document.body.appendChild($scope.checkboxNumberLabel);
+
+        // Checkbox for color encoding
+        $scope.checkboxColor = document.createElement("input");
+        $scope.checkboxColor.type = "checkbox";
+        $scope.checkboxColor.id = "colorEncoding";
+        $scope.checkboxColor.name = "colorEncoding";
+        $scope.checkboxColor.checked = true;
+        $scope.checkboxColor.style.position = 'fixed';
+        $scope.checkboxColor.style.top = '155px';
+        $scope.checkboxColor.style.left = '8px';
+        document.body.appendChild($scope.checkboxColor);
+        $scope.checkboxColor.addEventListener("change", function() {
+          moduleManager.publishEvent(moduleManager.EVENT.CHANGE_COLOR_ENCODING,
+            {colorEncoding: this.checked});
+        });
+        $scope.checkboxColorLabel = document.createElement("label");
+        $scope.checkboxColorLabel.innerHTML = "Color Encoding";
+        $scope.checkboxColorLabel.htmlFor = "colorEncoding";
+        $scope.checkboxColorLabel.style.position = 'fixed';
+        $scope.checkboxColorLabel.style.top = '155px';
+        $scope.checkboxColorLabel.style.left = '24px';
+        document.body.appendChild($scope.checkboxColorLabel);
     })
     .directive("searchBar", function () {
         return {
@@ -137,7 +162,8 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                 '<label for="zoom">Zoom</label>&nbsp;<select id="zoom" ng-model="zoom" ng-options="x for x in zooms" ng-init="zoom = zooms[0]"></select>&nbsp;',
                 '<label for="analysis">Analysis</label>&nbsp;<select id="analysis" ng-model="analysis" ng-options="x for x in analysises" ng-init="analysis = analysises[0]"></select>&nbsp;',
                 '<label for="treeCut">Tree-Cut</label>&nbsp;<input id="treeCut" type="checkbox" ng-model="treeCut"></input>&nbsp;',
-                '<label for="measure">Measure</label>&nbsp;<select id="measure" ng-model="measure" ng-options="x for x in measures" ng-init="measure = measures[0]" ng-change="search()"></select>&nbsp;',
+                '<label for="measure">Measure</label>&nbsp;<select id="measure" ng-model="measure" ng-options="x for x in measures" ng-init="measure = measures[0]"></select>&nbsp;',
+                '<label for="pixels">Pixels</label>&nbsp;<select id="pixels" ng-model="pixels" ng-options="x for x in pixelsOptions" ng-init="pixels = pixelsOptions[0]"></select>&nbsp;',
                 '<label for="bipartite">Bipartite</label>&nbsp;<input id="bipartite" type="checkbox" ng-model="bipartite"></input>&nbsp;'
             ].join('')
         };
