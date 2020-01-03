@@ -423,35 +423,47 @@ public class LBiSuperCluster extends SuperCluster {
             // a queue for breadth-first-search
             Queue<Cluster> frontier = new LinkedList<>();
 
-            // bipartite the clusters into two groups first, with threshold as the max slope
-            // assume each cluster has the same area (radius);
-            // then max slope = max gap
+            // bipartite the clusters into two groups first
             if (bipartite) {
                 //-DEBUG-//
                 System.out.println("[Debug] [LBiSuperCluster --> getClusters] will bipartite the frontier clusters first.");
                 //-DEBUG-//
-                // sort the clusters in descending order by its numPoints
-                Arrays.sort(clusters, (o1, o2) -> o2.numPoints - o1.numPoints);
-                // traverse the array to find the max gap as the bipartite threshold
-                int maxGap = 0;
-                int maxGapIndex = 0;
+
+                // sort the clusters by numPoints in descending order
+                Arrays.sort(clusters, (o1, o2) -> (o2.numPoints - o1.numPoints));
+
+                //-DEBUG-//
+                System.out.println("==== Before bipartite ====");
+                for (Cluster cluster: clusters) System.out.print(cluster.numPoints + ", ");
+                System.out.println();
+                //-DEBUG-//
+
+                // bipartite the clusters with leftSum >= rightSum
+                long leftSum = 0;
+                long rightSum = 0;
+                // calculate rightSum first
+                for (Cluster cluster: clusters) rightSum += cluster.numPoints == 0? 1: cluster.numPoints;
+                int index = 0;
+                // find the bipartite index
                 for (int i = 0; i < clusters.length - 1; i ++) {
-                    if (clusters[i].numPoints - clusters[i+1].numPoints > maxGap) {
-                        maxGap = clusters[i].numPoints - clusters[i+1].numPoints;
-                        maxGapIndex = i;
+                    leftSum += clusters[i].numPoints == 0? 1: clusters[i].numPoints;
+                    rightSum -= clusters[i].numPoints == 0? 1: clusters[i].numPoints;
+                    if (leftSum >= rightSum) {
+                        index = i;
+                        break;
                     }
                 }
                 //-DEBUG-//
                 System.out.println("[Debug] [LBiSuperCluster --> getClusters] Total # of frontier clusters = " + clusters.length);
-                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Max-gap happens at index [" + maxGapIndex + "] with gap = " + maxGap);
-                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Left = " + printCluster(clusters[maxGapIndex]));
-                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Right = " + printCluster(clusters[maxGapIndex+1]));
-                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Will expand # of frontier clusters = " + (clusters.length - maxGapIndex - 1));
+                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Bipartite the clusters at index [" + index + "] with leftSum = " + leftSum + " & rightSum = " + rightSum);
+                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Left = " + printCluster(clusters[index]));
+                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Right = " + printCluster(clusters[index + 1]));
+                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Will expand # of frontier clusters = " + (clusters.length - index));
                 //-DEBUG-//
                 // put all clusters after maxGap into frontier for further expansion
-                frontier.addAll(Arrays.asList(Arrays.copyOfRange(clusters, maxGapIndex+1, clusters.length)));
+                frontier.addAll(Arrays.asList(Arrays.copyOfRange(clusters, index + 1, clusters.length)));
                 // put all clusters before maxGap into result
-                betterClusters.addAll(Arrays.asList(Arrays.copyOfRange(clusters, 0, maxGapIndex+1)));
+                betterClusters.addAll(Arrays.asList(Arrays.copyOfRange(clusters, 0, index + 1)));
             }
             else {
                 frontier.addAll(Arrays.asList(clusters));

@@ -526,7 +526,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         if (feature.properties.diameter >= 0.0) {
           circleRadius = feature.properties.diameter * $scope.circleRadius / $scope.radiuses[$scope.map.getZoom()];
         }
-        circleRadius = circleRadius < 1? 1: circleRadius;
+        circleRadius = circleRadius < 1.5 * $scope.query.pixels? 1.5 * $scope.query.pixels: circleRadius;
       }
 
       let markerRadius = circleRadius * 0.7;
