@@ -398,6 +398,17 @@ public class LBiSuperCluster extends SuperCluster {
 //        else return false;
     }
 
+    private double getDifferentiableDistance(int pixels, int zoom) {
+        // current view zoom level's radius
+        double radius = getRadius(zoom);
+        // radius of view zoom level is usually represented by 12 pixels
+        double distancePerPixel = radius / 20;
+        // make sure given pixels distance between [1~12]
+        //pixels = pixels > 12? 12: Math.max(pixels, 1);
+        // real distance of given # pixels of differentiable distance
+        return distancePerPixel * pixels;
+    }
+
     /**
      * Get an array of Clusters for given visible region and zoom level,
      *     then run tree-cut algorithm to choose a better subset of clusters to return
@@ -420,8 +431,9 @@ public class LBiSuperCluster extends SuperCluster {
             System.out.println("[Debug] [LBiSuperCluster --> getClusters] differentiable radius = " + getRadius(zoom));
             //-DEBUG-//
             MyTimer.startTimer();
-            // a queue for breadth-first-search
-            Queue<Cluster> frontier = new LinkedList<>();
+
+            // real distance of given # pixels of differentiable distance
+            double differentiableDistance = getDifferentiableDistance(pixels, zoom);
 
             // bipartite the clusters into two groups first
             if (bipartite) {
@@ -429,54 +441,64 @@ public class LBiSuperCluster extends SuperCluster {
                 System.out.println("[Debug] [LBiSuperCluster --> getClusters] will bipartite the frontier clusters first.");
                 //-DEBUG-//
 
-                // sort the clusters by numPoints in descending order
-                Arrays.sort(clusters, (o1, o2) -> (o2.numPoints - o1.numPoints));
+                // keep bipartite and expand until clusters is empty
+                while (clusters.length > 3) {
+                    // sort the clusters by numPoints in descending order
+                    Arrays.sort(clusters, (o1, o2) -> (o2.numPoints - o1.numPoints));
 
-                //-DEBUG-//
-                System.out.println("==== Before bipartite ====");
-                for (Cluster cluster: clusters) System.out.print(cluster.numPoints + ", ");
-                System.out.println();
-                //-DEBUG-//
+                    //-DEBUG-//
+                    System.out.println("==== Before bipartite ====");
+                    for (Cluster cluster : clusters) System.out.print(cluster.numPoints + ", ");
+                    System.out.println();
+                    //-DEBUG-//
 
-                // bipartite the clusters with leftSum >= rightSum
-                long leftSum = 0;
-                long rightSum = 0;
-                // calculate rightSum first
-                for (Cluster cluster: clusters) rightSum += cluster.numPoints == 0? 1: cluster.numPoints;
-                int index = 0;
-                // find the bipartite index
-                for (int i = 0; i < clusters.length - 1; i ++) {
-                    leftSum += clusters[i].numPoints == 0? 1: clusters[i].numPoints;
-                    rightSum -= clusters[i].numPoints == 0? 1: clusters[i].numPoints;
-                    if (leftSum >= rightSum) {
-                        index = i;
-                        break;
+                    // bipartite the clusters with leftSum >= rightSum
+                    long leftSum = 0;
+                    long rightSum = 0;
+                    // calculate rightSum first
+                    for (Cluster cluster : clusters) rightSum += cluster.numPoints == 0 ? 1 : cluster.numPoints;
+                    int index = 0;
+                    // find the bipartite index
+                    for (int i = 0; i < clusters.length - 1; i++) {
+                        leftSum += clusters[i].numPoints == 0 ? 1 : clusters[i].numPoints;
+                        rightSum -= clusters[i].numPoints == 0 ? 1 : clusters[i].numPoints;
+                        if (leftSum >= rightSum) {
+                            index = i;
+                            break;
+                        }
                     }
+                    //-DEBUG-//
+                    System.out.println("[Debug] [LBiSuperCluster --> getClusters] Total # of frontier clusters = " + clusters.length);
+                    System.out.println("[Debug] [LBiSuperCluster --> getClusters] Bipartite the clusters at index [" + index + "] with leftSum = " + leftSum + " & rightSum = " + rightSum);
+                    System.out.println("[Debug] [LBiSuperCluster --> getClusters] Left = " + printCluster(clusters[index]));
+                    System.out.println("[Debug] [LBiSuperCluster --> getClusters] Right = " + printCluster(clusters[index + 1]));
+                    System.out.println("[Debug] [LBiSuperCluster --> getClusters] Will expand # of frontier clusters = " + (clusters.length - index));
+                    //-DEBUG-//
+                    // put all clusters before maxGap into result
+                    betterClusters.addAll(Arrays.asList(Arrays.copyOfRange(clusters, 0, index + 1)));
+
+                    // expand all clusters after maxGap to their children if it isDifferentiable
+                    List<Cluster> nextRound = new ArrayList<>();
+                    for (int i = index + 1; i < clusters.length; i++) {
+                        if (isDifferentiable(clusters[i], measure, differentiableDistance)) {
+                            for (Cluster child : clusters[i].children) {
+                                Cluster cluster = child.clone();
+                                cluster.setX(xLng(cluster.getX()));
+                                cluster.setY(yLat(cluster.getY()));
+                                nextRound.add(cluster);
+                            }
+                        } else {
+                            betterClusters.add(clusters[i]);
+                        }
+                    }
+                    clusters = nextRound.toArray(new Cluster[nextRound.size()]);
                 }
-                //-DEBUG-//
-                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Total # of frontier clusters = " + clusters.length);
-                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Bipartite the clusters at index [" + index + "] with leftSum = " + leftSum + " & rightSum = " + rightSum);
-                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Left = " + printCluster(clusters[index]));
-                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Right = " + printCluster(clusters[index + 1]));
-                System.out.println("[Debug] [LBiSuperCluster --> getClusters] Will expand # of frontier clusters = " + (clusters.length - index));
-                //-DEBUG-//
-                // put all clusters after maxGap into frontier for further expansion
-                frontier.addAll(Arrays.asList(Arrays.copyOfRange(clusters, index + 1, clusters.length)));
-                // put all clusters before maxGap into result
-                betterClusters.addAll(Arrays.asList(Arrays.copyOfRange(clusters, 0, index + 1)));
-            }
-            else {
-                frontier.addAll(Arrays.asList(clusters));
             }
 
-            // current view zoom level's radius
-            double radius = getRadius(zoom);
-            // radius of view zoom level is usually represented by 12 pixels
-            double distancePerPixel = radius / 12;
-            // make sure given pixels distance between [1~12]
-            pixels = pixels > 12? 12: Math.max(pixels, 1);
-            // real distance of given # pixels of differentiable distance
-            double differentiableDistance = distancePerPixel * pixels;
+            // a queue for breadth-first-search
+            Queue<Cluster> frontier = new LinkedList<>();
+
+            frontier.addAll(Arrays.asList(clusters));
 
             // check frontier one-by-one,
             //     if it's not differentiable, add it to results;

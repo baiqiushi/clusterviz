@@ -1,7 +1,7 @@
 angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
   .controller("MapCtrl", function($scope, $timeout, leafletData, moduleManager) {
 
-    $scope.radius = 40; // cluster radius in pixels
+    $scope.radius = 20; // cluster radius in pixels
     $scope.extent = 256; // tile extent (radius is calculated relative to it)
     $scope.maxZoom = 18;
     $scope.zoomShift = 0;

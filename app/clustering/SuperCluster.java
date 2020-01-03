@@ -11,8 +11,8 @@ public class SuperCluster {
 
     int minZoom; // min zoom to generate clusters on
     int maxZoom; // max zoom level to cluster the points on
-    int radius = 40; // cluster radius in pixels
-    int extent = 256;  // tile extent (radius is calculated relative to it)
+    int radius = 20; // cluster radius in pixels
+    int extent = 128;  // tile extent (radius is calculated relative to it)
     int totalNumberOfPoints = 0;
     String indexType; // KDTree / GridIndex
     I2DIndex<Cluster>[] indexes;
