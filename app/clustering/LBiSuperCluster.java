@@ -452,6 +452,9 @@ public class LBiSuperCluster extends SuperCluster {
                     System.out.println();
                     //-DEBUG-//
 
+                    // if all clusters are points, just expand them all
+                    if (clusters[0].numPoints == 0) break;
+
                     // bipartite the clusters with leftSum >= rightSum
                     long leftSum = 0;
                     long rightSum = 0;
