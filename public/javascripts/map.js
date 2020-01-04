@@ -5,7 +5,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.extent = 256; // tile extent (radius is calculated relative to it)
     $scope.maxZoom = 18;
     $scope.zoomShift = 0;
-    $scope.mode = "middleware";
+    $scope.mode = "middleware"; // "frontend" / "middleware"
     $scope.numberInCircle = true;
     $scope.colorEncoding = true;
     $scope.circleRadius = 20;
@@ -28,7 +28,6 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     };
 
     $scope.ws = new WebSocket("ws://" + location.host + "/ws");
-    $scope.pinmapMapResul = [];
 
     // store computed radius of each zoom level
     $scope.radiuses = [];
@@ -293,6 +292,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         custom: []
       }
     });
+
+    /** colored map style */
     // angular.extend($scope, {
     //   tiles: {
     //     name: 'OpenStreetMap',
@@ -387,18 +388,6 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
             }
             break;
         }
-        /** Backup */
-        // if (response.type === "query") {
-        //   $scope.handleResult(response.result);
-        //   if (typeof response.progress == "number") {
-        //     document.getElementById("myBar").style.width = response.progress + "%";
-        //   }
-        // }
-        // else {
-        //   if (response.id === "console") {
-        //     moduleManager.publishEvent(moduleManager.EVENT.CONSOLE_OUTPUT, response);
-        //   }
-        // }
       });
     };
 
@@ -471,26 +460,6 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       return 0;
     };
 
-    /** Backup rendering different sizes for different counts*/
-    // $scope.createClusterIcon = function(feature, latlng) {
-    //   if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 2, fillColor: 'blue'});
-    //
-    //   const count = feature.properties.point_count;
-    //   const size =
-    //     count < 20 ? 'point' :
-    //       count < 100 ? 'small' :
-    //         count < 1000 ? 'medium' : 'large';
-    //   //const iconSize = Math.max(10, count / 100);
-    //   const icon = L.divIcon({
-    //     html: `<div><span>${feature.properties.point_count_abbreviated}</span></div>`,
-    //     className: `marker-cluster marker-cluster-${size}`,
-    //     iconSize: L.point(40, 40)
-    //     //iconSize: L.point(iconSize, iconSize)
-    //   });
-    //
-    //   return L.marker(latlng, {icon: icon, title: feature.properties.id, alt: feature.properties.id});
-    // };
-
     $scope.colorForHeatmap = function (value) {
       let h = 100 - value * 100;
       let s = 60 + value * 30;
@@ -502,7 +471,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       if (feature.properties.point_count === 0) return L.circleMarker(latlng, {radius: 2, fillColor: 'blue', fillOpacity: 0.9});
 
       const zoom_shift = $scope.zoomShift;
-      const iconSize = $scope.radius / Math.pow(2, zoom_shift);
+      const iconSize = 2 * $scope.radius / Math.pow(2, zoom_shift);
       const count = feature.properties.point_count;
       const size =
         count < 100 ? 'small' :

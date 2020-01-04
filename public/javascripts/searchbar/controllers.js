@@ -49,10 +49,9 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.measures = ["max", "min", "avg"];
         $scope.pixelsOptions = [1, 2, 3, 4, 5, 10, 15, 20];
         $scope.bipartite = false;
+        $scope.mwVisualizationTypes = ["Scatter", "Heat"];
 
-        /**
-         * Left side controls
-         * */
+        /** Left side controls */
         //Zoom Shift Select
         $scope.selectZoomShift = document.createElement("select");
         $scope.selectZoomShift.title = "zoomShift";
@@ -99,6 +98,46 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.radioFrontendLabel.style.top = '110px';
         $scope.radioFrontendLabel.style.left = '24px';
         document.body.appendChild($scope.radioFrontendLabel);
+
+        // Select for Visualization Types under Middleware mode
+        $scope.addSelectMWVisualizationTypes = function() {
+          // Select for middleware mode visualization types
+          $scope.selectMWVisualizationTypes = document.createElement("select");
+          $scope.selectMWVisualizationTypes.id = "mwVisualizationTypes";
+          $scope.selectMWVisualizationTypes.title = "mwVisualizationTypes";
+          $scope.selectMWVisualizationTypes.style.position = 'fixed';
+          $scope.selectMWVisualizationTypes.style.top = '125px';
+          $scope.selectMWVisualizationTypes.style.left = '105px';
+          for (let i = 0; i < $scope.mwVisualizationTypes.length; i ++) {
+            let option = document.createElement("option");
+            option.text = $scope.mwVisualizationTypes[i];
+            $scope.selectMWVisualizationTypes.add(option);
+          }
+          $scope.selectMWVisualizationTypes.value = $scope.mwVisualizationTypes[0];
+          document.body.appendChild($scope.selectMWVisualizationTypes);
+          $scope.selectMWVisualizationTypes.addEventListener("change", function () {
+            moduleManager.publishEvent(moduleManager.EVENT.CHANGE_MW_VISUALIZATION_TYPE,
+              {mwVisualizationType: $scope.selectMWVisualizationTypes.value});
+          });
+        };
+        // by default show it, since by default mode = "middleware";
+        $scope.addSelectMWVisualizationTypes();
+        // only show it when mode is "middleware"
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_MODE, function(e) {
+          if (e.mode === "middleware") {
+            // if select element does not exist, create it
+            if (document.getElementById("mwVisualizationTypes") === null) {
+              $scope.addSelectMWVisualizationTypes();
+            }
+          }
+          else {
+            // if select element exists, remove it
+            if (document.getElementById("mwVisualizationTypes")) {
+              document.body.removeChild($scope.selectMWVisualizationTypes);
+              $scope.selectMWVisualizationTypes = null;
+            }
+          }
+        });
 
         // Middleware mode radio
         $scope.radioMiddleware = document.createElement("input");
