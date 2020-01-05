@@ -49,7 +49,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.measures = ["max", "min", "avg"];
         $scope.pixelsOptions = [1, 2, 3, 4, 5, 10, 15, 20];
         $scope.bipartite = false;
-        $scope.mwVisualizationTypes = ["Scatter", "Heat"];
+        $scope.mwVisualizationTypes = ["scatter", "heat"];
 
         /** Left side controls */
         //Zoom Shift Select

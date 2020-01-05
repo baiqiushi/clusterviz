@@ -6,6 +6,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.maxZoom = 18;
     $scope.zoomShift = 0;
     $scope.mode = "middleware"; // "frontend" / "middleware"
+    $scope.mwVisualizationType = "scatter"; // "scatter" / "heat"
     $scope.numberInCircle = true;
     $scope.colorEncoding = true;
     $scope.circleRadius = 20;
@@ -250,14 +251,24 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_CIRCLE_RADIUS, function(e) {
           console.log("switch circle radius to " + e.circleRadius);
           $scope.circleRadius = e.circleRadius;
-          // only affects no-number in circle mode
-          if (!$scope.numberInCircle) {
-            if ($scope.pointsLayer) {
-              $scope.pointsLayer.clearLayers();
-              $scope.map.removeLayer($scope.pointsLayer);
-              $scope.pointsLayer = $scope.pointsLayer = L.geoJson(null, {pointToLayer: $scope.createScatterIcon}).addTo($scope.map);
-              $scope.drawClusterMap($scope.points);
-            }
+          switch ($scope.mwVisualizationType) {
+            case "scatter":
+              // only affects no-number in circle mode
+              if (!$scope.numberInCircle) {
+                if ($scope.pointsLayer) {
+                  $scope.pointsLayer.clearLayers();
+                  $scope.map.removeLayer($scope.pointsLayer);
+                  $scope.pointsLayer = $scope.pointsLayer = L.geoJson(null, {pointToLayer: $scope.createScatterIcon}).addTo($scope.map);
+                  $scope.drawClusterMap($scope.points);
+                }
+              }
+              break;
+            case "heat":
+              if ($scope.heatLayer) {
+                $scope.map.removeLayer($scope.heatLayer);
+                $scope.heatLayer = null;
+                $scope.drawHeatMap($scope.points);
+              }
           }
         });
 
@@ -272,6 +283,45 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
               $scope.pointsLayer = $scope.pointsLayer = L.geoJson(null, {pointToLayer: $scope.createScatterIcon}).addTo($scope.map);
               $scope.drawClusterMap($scope.points);
             }
+          }
+        });
+
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_MW_VISUALIZATION_TYPE, function(e) {
+          console.log("switch middleware visualization type to " + e.mwVisualizationType);
+          $scope.mwVisualizationType = e.mwVisualizationType;
+          switch ($scope.mode) {
+            case "frontend":
+              break;
+            case "middleware":
+              switch (e.mwVisualizationType) {
+                case "scatter":
+                  if ($scope.heatLayer) {
+                    $scope.map.removeLayer($scope.heatLayer);
+                  }
+                  if ($scope.pointsLayer) {
+                    $scope.pointsLayer.addTo($scope.map);
+                  }
+                  else {
+                    if ($scope.points) {
+                      $scope.drawClusterMap($scope.points);
+                    }
+                  }
+                  break;
+                case "heat":
+                  if ($scope.pointsLayer) {
+                    $scope.map.removeLayer($scope.pointsLayer);
+                  }
+                  if ($scope.heatLayer) {
+                    $scope.heatLayer.addTo($scope.map);
+                  }
+                  else {
+                    if ($scope.points) {
+                      $scope.drawHeatMap($scope.points);
+                    }
+                  }
+                  break;
+              }
+              break;
           }
         });
       }
@@ -349,7 +399,14 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         $scope.maxCount = maxCount;
         $scope.avgPointsCount = pointsCount / resultCount;
         moduleManager.publishEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, {resultCount: resultCount, pointsCount: pointsCount});
-        $scope.drawClusterMap(result.data);
+        switch ($scope.mwVisualizationType) {
+          case "scatter":
+            $scope.drawClusterMap(result.data);
+            break;
+          case "heat":
+            $scope.drawHeatMap(result.data);
+            break;
+        }
       }
     };
 
@@ -460,7 +517,35 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       return 0;
     };
 
-    $scope.colorForHeatmap = function (value) {
+    /** middleware mode */
+    // function for drawing heatmap
+    $scope.drawHeatMap = function(data) {
+      // initialize the heat layer
+      if (!$scope.heatLayer) {
+        let circleRadius = $scope.circleRadius * 0.7;
+        $scope.heatLayer = L.heatLayer([], {radius: circleRadius}).addTo($scope.map);
+        $scope.points = [];
+      }
+
+      // update the heat layer
+      if (data.length > 0) {
+        $scope.points = data;
+        console.log("drawing points size = " + $scope.points.length);
+        // transform geojson into array of points for heat layer
+        let points = [];
+        for (let i = 0; i < $scope.points.length; i ++) {
+          let point = $scope.points[i];
+          points.push([point.geometry.coordinates[1],
+            point.geometry.coordinates[0],
+            (point.properties.point_count == 0? 1: point.properties.point_count) * 10]);
+        }
+        // redraw heat layer
+        $scope.heatLayer.setLatLngs(points);
+        $scope.heatLayer.redraw();
+      }
+    };
+
+    $scope.encodeColor = function (value) {
       let h = 100 - value * 100;
       let s = 60 + value * 30;
       return "hsl(" + h + ", " + s + "%, 50%)";
@@ -502,7 +587,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       let markerRadius = circleRadius * 0.7;
       let markerEdge = circleRadius * 0.3;
 
-      const markerColor = $scope.colorEncoding? $scope.colorForHeatmap(Math.log((feature.properties.point_count - 100) < 1 ?
+      const markerColor = $scope.colorEncoding? $scope.encodeColor(Math.log((feature.properties.point_count - 100) < 1 ?
           1 : (feature.properties.point_count - 100)) / Math.log($scope.pointsCount)) : 'blue';
 
       return L.circleMarker(latlng, {
