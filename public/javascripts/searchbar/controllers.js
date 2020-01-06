@@ -50,6 +50,8 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.pixelsOptions = [1, 2, 3, 4, 5, 10, 15, 20];
         $scope.bipartite = false;
         $scope.mwVisualizationTypes = ["scatter", "heat"];
+        $scope.recording = false;
+        $scope.replaying = false;
 
         /** Left side controls */
         //Zoom Shift Select
@@ -257,6 +259,91 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.checkboxScaleCircleRadiusLabel.style.top = '195px';
         $scope.checkboxScaleCircleRadiusLabel.style.left = '24px';
         document.body.appendChild($scope.checkboxScaleCircleRadiusLabel);
+
+        // Button for recording actions
+        $scope.buttonRecord = document.createElement("button");
+        $scope.buttonRecord.id = "record";
+        $scope.buttonRecord.name = "record";
+        $scope.buttonRecord.innerHTML = "record";
+        $scope.buttonRecord.style.position = "fixed";
+        $scope.buttonRecord.style.top = "9px";
+        $scope.buttonRecord.style.left = "50px";
+        $scope.buttonRecord.className = "record";
+        document.body.appendChild($scope.buttonRecord);
+        $scope.buttonRecord.addEventListener("click", function() {
+          $scope.recording = !$scope.recording;
+          console.log("[Button] recording? " + $scope.recording);
+          $scope.buttonRecord.innerHTML = $scope.recording? "recording...": "record";
+          moduleManager.publishEvent(moduleManager.EVENT.CHANGE_RECORDING,
+            {recording: $scope.recording});
+        });
+
+        // Button for replaying actions
+        $scope.buttonReplay = document.createElement("button");
+        $scope.buttonReplay.id = "replay";
+        $scope.buttonReplay.name = "replay";
+        $scope.buttonReplay.innerHTML = "replay";
+        $scope.buttonReplay.style.position = "fixed";
+        $scope.buttonReplay.style.top = "36px";
+        $scope.buttonReplay.style.left = "50px";
+        $scope.buttonReplay.className = "record";
+        document.body.appendChild($scope.buttonReplay);
+        $scope.buttonReplay.addEventListener("click", function() {
+          $scope.replaying = !$scope.replaying;
+          console.log("[Button] replaying? " + $scope.replaying);
+          $scope.buttonReplay.innerHTML = $scope.replaying? "replaying...": "replay";
+          moduleManager.publishEvent(moduleManager.EVENT.CHANGE_REPLAYING,
+            {replaying: $scope.replaying});
+        });
+
+        // Input for loading actions json file
+        $scope.fileActions = document.createElement("input");
+        $scope.fileActions.type = "file";
+        $scope.fileActions.id = "fileActions";
+        $scope.fileActions.style.position = "fixed";
+        $scope.fileActions.style.top = "9px";
+        $scope.fileActions.style.left = "140px";
+        document.body.appendChild($scope.fileActions);
+        // Input button loading actions json file
+        $scope.buttonLoad = document.createElement("button");
+        $scope.buttonLoad.id = "load";
+        $scope.buttonLoad.name = "load";
+        $scope.buttonLoad.innerHTML = "load";
+        $scope.buttonLoad.style.position = "fixed";
+        $scope.buttonLoad.style.top = "36px";
+        $scope.buttonLoad.style.left = "140px";
+        $scope.buttonLoad.className = "load";
+        document.body.appendChild($scope.buttonLoad);
+        $scope.buttonLoad.addEventListener("click", function() {
+          if (typeof window.FileReader !== 'function') {
+            alert("The file API isn't supported on this browser yet.");
+            return;
+          }
+          let input = document.getElementById('fileActions');
+          if (!input) {
+            alert("Um, couldn't find the fileActions element.");
+          }
+          else if (!input.files) {
+            alert("This browser doesn't seem to support the `files` property of file inputs.");
+          }
+          else if (!input.files[0]) {
+            alert("Please select a file before clicking 'Load'");
+          }
+          else {
+            let file = input.files[0];
+            let fr = new FileReader();
+            fr.onload = receivedText;
+            fr.readAsText(file);
+          }
+
+          function receivedText(e) {
+            let lines = e.target.result;
+            let actions = JSON.parse(lines);
+            // console.log("===== file loaded =====");
+            // console.log(JSON.stringify(actions));
+            moduleManager.publishEvent(moduleManager.EVENT.LOAD_ACTIONS, {actions: actions});
+          }
+        });
     })
     .directive("searchBar", function () {
         return {

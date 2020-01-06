@@ -555,6 +555,42 @@ div.sticky {
   opacity: 0.8;
 }
 
+/* record button */
+.record{
+  width:84px;
+  height:25px;
+  background-color: white;
+  opacity: 0.7;
+  color: #008CBA;
+  border: 2px solid #008CBA;
+  border-radius:4px;
+  text-align:center;
+}
+
+.record:hover {
+  background-color: #008CBA;
+  color: white;
+  opacity: 0.8;
+}
+
+/* load button */
+.load{
+  width:50px;
+  height:25px;
+  background-color: white;
+  opacity: 0.7;
+  color: #008CBA;
+  border: 2px solid #008CBA;
+  border-radius:4px;
+  text-align:center;
+}
+
+.load:hover {
+  background-color: #008CBA;
+  color: white;
+  opacity: 0.8;
+}
+
 /* progress bar*/
 #myProgress {
   background-color: lightgrey;

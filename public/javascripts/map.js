@@ -11,6 +11,10 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.colorEncoding = true;
     $scope.circleRadius = 20;
     $scope.scaleCircleRadius = false;
+    $scope.recording = false; // whether it's recording zoom/pan actions
+    $scope.actions = []; // zoom/pan actions recorded
+    $scope.replaying = false; // whether it's replaying recorded zoom/pan actions
+    $scope.replayingIndex = 0; // keep current index of replaying
 
     // store total pointsCount for "frontend" modec
     $scope.pointsCount = 0;
@@ -201,6 +205,13 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         });
 
         $scope.map.on('moveend', function() {
+          // record zoom/pan actions
+          if ($scope.recording) {
+            $scope.actions.push({center: $scope.map.getCenter(), zoom: $scope.map.getZoom()});
+          }
+          if ($scope.replaying) {
+            moduleManager.publishEvent(moduleManager.EVENT.FINISH_ACTION, {});
+          }
           moduleManager.publishEvent(moduleManager.EVENT.CHANGE_ZOOM_LEVEL, {zoom: $scope.map.getZoom()});
         });
 
@@ -370,7 +381,6 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       var text = document.createTextNode("Reset");
       button.appendChild(text);
       button.title = "Reset";
-      button.href = "#";
       button.style.position = 'fixed';
       button.style.top = '70px';
       button.style.left = '8px';
@@ -378,7 +388,74 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       var body = document.body;
       body.appendChild(button);
       button.addEventListener("click", function () {
-        $scope.map.setView([$scope.lat, $scope.lng], 4);
+        $scope.map.setView([$scope.lat, $scope.lng], 4, {animate: true});
+      });
+
+      // handler for record button
+      moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_RECORDING, function(e) {
+        console.log("recording status changed: " + e.recording);
+        $scope.recording = e.recording;
+        if (!$scope.recording) {
+          console.log("===== recorded actions =====");
+          for (let i = 0; i < $scope.actions.length; i ++) {
+            console.log("[" + i + "] " + JSON.stringify($scope.actions[i]));
+          }
+          console.log("===== recorded actions json =====");
+          console.log(JSON.stringify($scope.actions));
+
+          function saveText(text, filename){
+            let a = document.createElement('a');
+            a.setAttribute('href', 'data:text/plain;charset=utf-u,'+encodeURIComponent(text));
+            a.setAttribute('download', filename);
+            a.click();
+          }
+
+          saveText(JSON.stringify($scope.actions), "actions.json");
+        }
+      });
+
+      // handler for replay button
+      moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_REPLAYING, function(e) {
+
+        function replayNextAction() {
+          if ($scope.replayingIndex >= $scope.actions.length) {
+            console.log("Stop replaying!");
+            moduleManager.unsubscribeEvent(moduleManager.EVENT.FINISH_ACTION, finishAction);
+            $scope.replayingIndex = 0;
+            return;
+          }
+          let action = $scope.actions[$scope.replayingIndex];
+          console.log("[" + $scope.replayingIndex + "] replaying action : " + JSON.stringify(action));
+          $scope.replayingIndex ++;
+          $scope.map.setView(action.center, action.zoom, {animate: true});
+        }
+
+        function finishAction(e) {
+          console.log("Action [" + $scope.replayingIndex + "] is done!");
+          setTimeout(replayNextAction, 2000);
+        }
+
+        console.log("replaying status changed: " + e.replaying);
+        $scope.replaying = e.replaying;
+        if ($scope.replaying) {
+          // start replaying zoom/pan actions
+          console.log("Now start replaying actions ...");
+          moduleManager.subscribeEvent(moduleManager.EVENT.FINISH_ACTION, finishAction);
+          replayNextAction();
+        }
+        else {
+          // stop replaying
+          console.log("Stop replaying!");
+          moduleManager.unsubscribeEvent(moduleManager.EVENT.FINISH_ACTION, finishAction);
+          $scope.replayingIndex = 0;
+        }
+      });
+
+      // handler for load button
+      moduleManager.subscribeEvent(moduleManager.EVENT.LOAD_ACTIONS, function(e) {
+        $scope.actions = e.actions;
+        console.log("===== Actions loaded =====");
+        console.log(JSON.stringify($scope.actions));
       });
 
       $scope.waitForWS();
@@ -510,7 +587,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       $scope.pointsLayer.on('click', (e) => {
         // zoom in if click on a cluster
         if (e.layer.feature.properties.point_count) {
-          $scope.map.setView(e.latlng, e.layer.feature.properties.expansionZoom);
+          $scope.map.setView(e.latlng, e.layer.feature.properties.expansionZoom, {animate: true});
         }
       });
 
