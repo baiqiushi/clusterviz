@@ -316,6 +316,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
               break;
             case "middleware":
               switch (e.mwVisualizationType) {
+                case "cluster":
                 case "scatter":
                   if ($scope.heatLayer) {
                     $scope.map.removeLayer($scope.heatLayer);
@@ -444,7 +445,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
         function finishAction(e) {
           console.log("Action [" + ($scope.replayingIndex - 1) + "] is done!");
-          setTimeout(replayNextAction, 2000);
+          setTimeout(replayNextAction, 4000);
         }
 
         console.log("replaying status changed: " + e.replaying);

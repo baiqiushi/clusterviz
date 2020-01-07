@@ -49,7 +49,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.measures = ["max", "min", "avg"];
         $scope.pixelsOptions = [1, 2, 3, 4, 5, 10, 15, 20];
         $scope.bipartite = false;
-        $scope.mwVisualizationTypes = ["scatter", "heat"];
+        $scope.mwVisualizationTypes = ["cluster", "scatter", "heat"];
         $scope.recording = false;
         $scope.replaying = false;
 
@@ -120,6 +120,51 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
           $scope.selectMWVisualizationTypes.addEventListener("change", function () {
             moduleManager.publishEvent(moduleManager.EVENT.CHANGE_MW_VISUALIZATION_TYPE,
               {mwVisualizationType: $scope.selectMWVisualizationTypes.value});
+            switch ($scope.selectMWVisualizationTypes.value) {
+              case "cluster":
+                $scope.checkboxNumber.checked = true;
+                moduleManager.publishEvent(moduleManager.EVENT.CHANGE_NUMBER_IN_CIRCLE,
+                  {numberInCircle: $scope.checkboxNumber.checked});
+                $scope.treeCut = false;
+                break;
+              case "scatter":
+                $scope.checkboxNumber.checked = false;
+                moduleManager.publishEvent(moduleManager.EVENT.CHANGE_NUMBER_IN_CIRCLE,
+                  {numberInCircle: $scope.checkboxNumber.checked});
+                $scope.checkboxColor.checked = false;
+                moduleManager.publishEvent(moduleManager.EVENT.CHANGE_COLOR_ENCODING,
+                  {colorEncoding: $scope.checkboxColor.checked});
+                $scope.selectCircleRadius.value = "2";
+                moduleManager.publishEvent(moduleManager.EVENT.CHANGE_CIRCLE_RADIUS,
+                  {circleRadius: $scope.selectCircleRadius.value});
+                $scope.checkboxScaleCircleRadius.checked = false;
+                moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SCALE_CIRCLE_RADIUS,
+                  {scaleCircleRadius: $scope.checkboxScaleCircleRadius.checked});
+                $scope.treeCut = true;
+                $scope.measure = "max";
+                $scope.pixels = 2;
+                $scope.bipartite = false;
+                break;
+              case "heat":
+                $scope.checkboxNumber.checked = false;
+                moduleManager.publishEvent(moduleManager.EVENT.CHANGE_NUMBER_IN_CIRCLE,
+                  {numberInCircle: $scope.checkboxNumber.checked});
+                $scope.checkboxColor.checked = false;
+                moduleManager.publishEvent(moduleManager.EVENT.CHANGE_COLOR_ENCODING,
+                  {colorEncoding: $scope.checkboxColor.checked});
+                $scope.selectCircleRadius.value = "20";
+                moduleManager.publishEvent(moduleManager.EVENT.CHANGE_CIRCLE_RADIUS,
+                  {circleRadius: $scope.selectCircleRadius.value});
+                $scope.checkboxScaleCircleRadius.checked = false;
+                moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SCALE_CIRCLE_RADIUS,
+                  {scaleCircleRadius: $scope.checkboxScaleCircleRadius.checked});
+                $scope.treeCut = true;
+                $scope.measure = "max";
+                $scope.pixels = 2;
+                $scope.bipartite = false;
+                break;
+            }
+            $scope.search();
           });
         };
         // by default show it, since by default mode = "middleware";
