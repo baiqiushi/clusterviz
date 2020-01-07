@@ -16,10 +16,18 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.replaying = false; // whether it's replaying recorded zoom/pan actions
     $scope.replayingIndex = 0; // keep current index of replaying
 
-    // store total pointsCount for "frontend" modec
+    // store total pointsCount for "frontend" mode
     $scope.pointsCount = 0;
     // timing for "frontend" mode
     $scope.timings = [];
+    // timing for query
+    $scope.queryStart = 0.0;
+    // timing for rendering
+    $scope.renderStart = 0.0;
+    // timing for actions
+    $scope.timeActions = false;
+    $scope.actionTime = {};
+    $scope.actionTimings = [];
 
     // store query object for "middleware" mode
     $scope.query = {
@@ -111,6 +119,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
         console.log("sending query:");
         console.log(JSON.stringify(request));
+
+        // timing query
+        $scope.queryStart = performance.now();
 
         $scope.ws.send(JSON.stringify(request));
 
@@ -422,6 +433,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
             console.log("Stop replaying!");
             moduleManager.unsubscribeEvent(moduleManager.EVENT.FINISH_ACTION, finishAction);
             $scope.replayingIndex = 0;
+            moduleManager.publishEvent(moduleManager.EVENT.FINISH_REPLAY, {});
             return;
           }
           let action = $scope.actions[$scope.replayingIndex];
@@ -431,7 +443,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         }
 
         function finishAction(e) {
-          console.log("Action [" + $scope.replayingIndex + "] is done!");
+          console.log("Action [" + ($scope.replayingIndex - 1) + "] is done!");
           setTimeout(replayNextAction, 2000);
         }
 
@@ -440,6 +452,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         if ($scope.replaying) {
           // start replaying zoom/pan actions
           console.log("Now start replaying actions ...");
+          $scope.timeActions = true;
           moduleManager.subscribeEvent(moduleManager.EVENT.FINISH_ACTION, finishAction);
           replayNextAction();
         }
@@ -456,6 +469,22 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         $scope.actions = e.actions;
         console.log("===== Actions loaded =====");
         console.log(JSON.stringify($scope.actions));
+      });
+
+      // handler for finish replay
+      moduleManager.subscribeEvent(moduleManager.EVENT.FINISH_REPLAY, function(e) {
+        console.log("===== Actions timings (json) =====");
+        console.log(JSON.stringify($scope.actionTimings));
+        console.log("===== Actions timings (csv) =====");
+        let output = "zoom,    treeCutTime,    networkTime,    renderTime\n";
+        for (let i = 0; i < $scope.actionTimings.length; i ++) {
+          output += $scope.actions[i].zoom + ",    " +
+            $scope.actionTimings[i].treeCutTime + ",    " +
+            $scope.actionTimings[i].networkTime + ",    " +
+            $scope.actionTimings[i].renderTime + "\n";
+        }
+        console.log(output);
+        console.log("===========================");
       });
 
       $scope.waitForWS();
@@ -498,10 +527,26 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
     $scope.ws.onmessage = function(event) {
       $timeout(function() {
+
+        // timing for actions
+        let queryEnd = performance.now();
+        let queryTime = (queryEnd - $scope.queryStart) / 1000.0; // seconds
+
         const response = JSON.parse(event.data);
 
         console.log("===== websocket response =====");
         console.log(JSON.stringify(response));
+
+        const serverTime = response.totalTime;
+        const treeCutTime = response.treeCutTime;
+        const networkTime = queryTime - serverTime;
+        console.log("===== query time =====");
+        console.log("serverTime: " + serverTime + " seconds.");
+        console.log("treeCutTime: " + treeCutTime + " seconds.");
+        console.log("networkTime: " + networkTime + " seconds.");
+        if ($scope.timeActions) {
+          $scope.actionTime = {serverTime: serverTime, treeCutTime: treeCutTime, networkTime: networkTime};
+        }
 
         switch (response.type) {
           case "query":
@@ -529,6 +574,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     // function for drawing clustermap
     $scope.drawClusterMap = function(data) {
       console.log("Radius for zoom level [" + $scope.map.getZoom() + "] = " + $scope.radiuses[$scope.map.getZoom()]);
+
+      // timing for rendering
+      $scope.renderStart = performance.now();
 
       // initialize the points layer
       if (!$scope.pointsLayer) {
@@ -591,12 +639,24 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         }
       });
 
+      // timing for rendering
+      let renderEnd = performance.now();
+      let renderTime = (renderEnd - $scope.renderStart) / 1000.0; // seconds
+      console.log("renderTime: " + renderTime + " seconds.");
+      if ($scope.timeActions) {
+        $scope.actionTime.renderTime = renderTime;
+        $scope.actionTimings.push($scope.actionTime);
+      }
+
       return 0;
     };
 
     /** middleware mode */
     // function for drawing heatmap
     $scope.drawHeatMap = function(data) {
+      // timing for rendering
+      $scope.renderStart = performance.now();
+
       // initialize the heat layer
       if (!$scope.heatLayer) {
         let circleRadius = $scope.circleRadius * 0.7;
@@ -619,6 +679,15 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         // redraw heat layer
         $scope.heatLayer.setLatLngs(points);
         $scope.heatLayer.redraw();
+      }
+
+      // timing for rendering
+      let renderEnd = performance.now();
+      let renderTime = (renderEnd - $scope.renderStart) / 1000.0; // seconds
+      console.log("renderTime: " + renderTime + " seconds.");
+      if ($scope.timeActions) {
+        $scope.actionTime.renderTime = renderTime;
+        $scope.actionTimings.push($scope.actionTime);
       }
     };
 

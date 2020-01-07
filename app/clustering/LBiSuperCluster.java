@@ -522,7 +522,9 @@ public class LBiSuperCluster extends SuperCluster {
             }
             clusters = betterClusters.toArray(new Cluster[betterClusters.size()]);
             MyTimer.stopTimer();
-            System.out.println("[LBiSuperCluster] tree-cut takes " + MyTimer.durationSeconds() + " seconds.");
+            double treeCutTime = MyTimer.durationSeconds();
+            MyTimer.temporaryTimer.put("treeCut", treeCutTime);
+            System.out.println("[LBiSuperCluster] tree-cut takes " + treeCutTime + " seconds.");
         }
 
         return clusters;

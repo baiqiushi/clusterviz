@@ -4,6 +4,7 @@ import java.util.*;
 
 public class MyTimer {
     public static Map<String, List<Double>> progressTimer = new HashMap<>();
+    public static Map<String, Double> temporaryTimer = new HashMap<>();
     private static Stack<Long> startTimes = new Stack<>();
     private static Queue<Double> durations = new LinkedList<>();
 

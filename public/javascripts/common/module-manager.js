@@ -67,7 +67,8 @@ angular.module("clustermap.common", [])
                 CHANGE_RECORDING: "CHANGE_RECORDING",
                 CHANGE_REPLAYING: "CHANGE_REPLAYING",
                 FINISH_ACTION: "FINISH_ACTION",
-                LOAD_ACTIONS: "LOAD_ACTIONS"
+                LOAD_ACTIONS: "LOAD_ACTIONS",
+                FINISH_REPLAY: "FINISH_REPLAY"
             },
 
             /**

@@ -295,6 +295,11 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
           moduleManager.publishEvent(moduleManager.EVENT.CHANGE_REPLAYING,
             {replaying: $scope.replaying});
         });
+        moduleManager.subscribeEvent(moduleManager.EVENT.FINISH_REPLAY, function(e) {
+          $scope.replaying = false;
+          console.log("[Button] replaying is done!");
+          $scope.buttonReplay.innerHTML = "replay";
+        });
 
         // Input for loading actions json file
         $scope.fileActions = document.createElement("input");

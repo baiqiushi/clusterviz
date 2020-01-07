@@ -221,6 +221,9 @@ public class Agent extends AbstractActor {
     }
 
     private void answerClusterQuery(String clusterKey, Request _request, String status, int progress) {
+        MyTimer.temporaryTimer.clear();
+        MyTimer.temporaryTimer.put("treeCut", 0.0);
+        MyTimer.startTimer();
         Query query = _request.query;
 
         // Add hit to querying super cluster
@@ -245,10 +248,15 @@ public class Agent extends AbstractActor {
         if (clusters != null) {
             buildGeoJsonArrayCluster(clusters, data);
         }
+        MyTimer.stopTimer();
+        double totalTime = MyTimer.durationSeconds();
+        double treeCutTime = MyTimer.temporaryTimer.get("treeCut");
 
         ((ObjectNode) response).put("status", status);
         ((ObjectNode) response).put("progress", progress);
         ((ObjectNode) response).set("result", result);
+        ((ObjectNode) response).put("totalTime", totalTime);
+        ((ObjectNode) response).put("treeCutTime", treeCutTime);
         respond(response);
     }
 
