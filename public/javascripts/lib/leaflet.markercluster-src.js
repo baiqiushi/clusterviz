@@ -1790,7 +1790,7 @@ Retrieved from: http://en.literateprograms.org/Quickhull_(Javascript)?oldid=1843
 		 * @param {Array} baseLine a two-element array of latlng objects
 		 *   representing the baseline to project from
 		 * @param {Array} latLngs an array of latlng objects
-		 * @returns {Object} the maximum point and all new points to stay
+		 * @returns {Object} the maximum point and all new clusters to stay
 		 *   in consideration for the hull.
 		 */
 		findMostDistantPointFromBaseLine: function (baseLine, latLngs) {

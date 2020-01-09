@@ -100,7 +100,7 @@ public class KDTree<PointType extends I2DPoint> implements I2DIndex<PointType> {
             }
             align = !align;
         }
-        // parentNode points to the parent of new node
+        // parentNode clusters to the parent of new node
         currentNode = new Node(point, align, parentNode.depth + 1);
         if (currentNode.depth + 1 > height) {
             height = currentNode.depth + 1;

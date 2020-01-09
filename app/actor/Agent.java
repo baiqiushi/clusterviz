@@ -32,9 +32,9 @@ public class Agent extends AbstractActor {
     private PostgreSQL postgreSQL;
     private List<PointTuple> pointTuples;
     /**
-     * maps from ordering of points to tid
+     * maps from ordering of clusters to tid
      * key - clusterKey
-     * value - map array with the same order as Double[][] points,
+     * value - map array with the same order as Double[][] clusters,
      *         value[i] is the tid of point at ith position
      */
     private Map<String, Long[]> orderMaps;
@@ -153,12 +153,22 @@ public class Agent extends AbstractActor {
         }
     }
 
-    private void buildDataArrayPoint(List<PointTuple> points, ArrayNode dataArray) {
+    private void buildDataArrayPointWithId(List<PointTuple> points, ArrayNode dataArray) {
         for (int i = 0; i < points.size(); i ++) {
             ArrayNode pointTuple = JsonNodeFactory.instance.arrayNode();
             pointTuple.add(points.get(i).getX());
             pointTuple.add(points.get(i).getY());
             pointTuple.add(points.get(i).getId());
+            dataArray.add(pointTuple);
+        }
+    }
+
+    private void buildDataArrayPointWithCount(Cluster[] points, ArrayNode dataArray) {
+        for (int i = 0; i < points.length; i ++) {
+            ArrayNode pointTuple = JsonNodeFactory.instance.arrayNode();
+            pointTuple.add(points[i].getX());
+            pointTuple.add(points[i].getY());
+            pointTuple.add(points[i].numPoints);
             dataArray.add(pointTuple);
         }
     }
@@ -246,7 +256,14 @@ public class Agent extends AbstractActor {
         ArrayNode data = result.putArray("data");
 
         if (clusters != null) {
-            buildGeoJsonArrayCluster(clusters, data);
+            switch (_request.format) {
+                case "geojson":
+                    buildGeoJsonArrayCluster(clusters, data);
+                    break;
+                case "array":
+                    buildDataArrayPointWithCount(clusters, data);
+                    break;
+            }
         }
         MyTimer.stopTimer();
         double totalTime = MyTimer.durationSeconds();
@@ -640,7 +657,7 @@ public class Agent extends AbstractActor {
 
     /**
      * Calculate rand index between given (clusterKey1/2) two clustering results
-     * for data points within given range ([x0, y0] - [x1, y1]) at given zoom level
+     * for data clusters within given range ([x0, y0] - [x1, y1]) at given zoom level
      *
      * @param clusterKey1
      * @param clusterKey2
@@ -760,7 +777,7 @@ public class Agent extends AbstractActor {
             JsonNode response = Json.toJson(_request);
             ObjectNode result = JsonNodeFactory.instance.objectNode();
             ArrayNode data = result.putArray("data");
-            buildDataArrayPoint(pointTuples, data);
+            buildDataArrayPointWithId(pointTuples, data);
             ((ObjectNode) response).put("progress", progress);
             ((ObjectNode) response).set("result", result);
             respond(response);

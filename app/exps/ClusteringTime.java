@@ -24,7 +24,7 @@ public class ClusteringTime {
 
             for (int k = 0; k < scales.length; k++) {
 
-                System.out.println("========== Experiment for " + scales[k] + " points starts! ==========");
+                System.out.println("========== Experiment for " + scales[k] + " clusters starts! ==========");
 
                 // 1) Load original data from PostgreSQL
                 PointTuple[] pointTuples = postgreSQL.queryPointTuplesForLimit(scales[k]);
@@ -33,19 +33,19 @@ public class ClusteringTime {
                     pointTuples[i].setId(i);
                 }
 
-                // 2) Compose the input points array
+                // 2) Compose the input clusters array
                 double[][] points = new double[length][2];
                 for (int i = 0; i < length; i++) {
                     points[i][0] = pointTuples[i].getX();
                     points[i][1] = pointTuples[i].getY();
                 }
 
-                // 3) Load the points into SuperCluster
+                // 3) Load the clusters into SuperCluster
                 SuperCluster superCluster = new SuperCluster();
                 long start = System.nanoTime();
                 superCluster.load(points);
                 long end = System.nanoTime();
-                System.out.println("Loading " + scales[k] + " points into SuperCluster is done! ");
+                System.out.println("Loading " + scales[k] + " clusters into SuperCluster is done! ");
                 System.out.println("Takes time: " + ((double) (end - start)) / 1000000000.0 + " seconds");
                 times[k] = ((double) (end - start)) / 1000000000.0;
             }
@@ -65,7 +65,7 @@ public class ClusteringTime {
                 System.out.print(times[i]);
             }
         } else {
-            System.out.println("========== Experiment for " + limit + " points starts! ==========");
+            System.out.println("========== Experiment for " + limit + " clusters starts! ==========");
 
             // 1) Load original data from PostgreSQL
             PointTuple[] pointTuples = postgreSQL.queryPointTuplesForLimit(limit);
@@ -74,19 +74,19 @@ public class ClusteringTime {
                 pointTuples[i].setId(i);
             }
 
-            // 2) Compose the input points array
+            // 2) Compose the input clusters array
             double[][] points = new double[length][2];
             for (int i = 0; i < length; i++) {
                 points[i][0] = pointTuples[i].getX();
                 points[i][1] = pointTuples[i].getY();
             }
 
-            // 3) Load the points into SuperCluster
+            // 3) Load the clusters into SuperCluster
             SuperCluster superCluster = new SuperCluster();
             long start = System.nanoTime();
             superCluster.load(points);
             long end = System.nanoTime();
-            System.out.println("Loading " + limit + " points into SuperCluster is done! ");
+            System.out.println("Loading " + limit + " clusters into SuperCluster is done! ");
             System.out.println("Takes time: " + ((double) (end - start)) / 1000000000.0 + " seconds");
         }
     }

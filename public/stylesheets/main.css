@@ -213,7 +213,7 @@ time-series {
   position: relative;
   overflow: hidden;
 }
-/*For the popup box of tweets in points map*/
+/*For the popup box of tweets in clusters map*/
 .tweet {
   padding: 8px 8px 4px 8px;
   font-size: 12px; }

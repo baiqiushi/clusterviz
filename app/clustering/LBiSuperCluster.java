@@ -193,7 +193,7 @@ public class LBiSuperCluster extends SuperCluster {
 //                }
 //            }
 //            if (totalPointsCount != this.totalNumberOfPoints) {
-//                System.out.println("[Error] zoom level [" + (z - 1) + "] has totally ====> " + totalPointsCount + " <==== points. Correct should be " + this.totalNumberOfPoints);
+//                System.out.println("[Error] zoom level [" + (z - 1) + "] has totally ====> " + totalPointsCount + " <==== clusters. Correct should be " + this.totalNumberOfPoints);
 //            }
             //-DEBUG-//
         }
@@ -214,13 +214,13 @@ public class LBiSuperCluster extends SuperCluster {
     }
 
     public void load(double[][] points) {
-        System.out.println("Level Batch incremental SuperCluster loading " + points.length + " points ... ...");
+        System.out.println("Level Batch incremental SuperCluster loading " + points.length + " clusters ... ...");
         long start = System.nanoTime();
 
         this.totalNumberOfPoints += points.length;
-        System.out.println("Total # of points should be " + totalNumberOfPoints + " now.");
+        System.out.println("Total # of clusters should be " + totalNumberOfPoints + " now.");
 
-        // insert points to max zoom level one by one
+        // insert clusters to max zoom level one by one
         insertPointClusters(points);
 
         // build hierarchy
@@ -245,13 +245,13 @@ public class LBiSuperCluster extends SuperCluster {
     }
 
     public void load(List<PointTuple> points) {
-        System.out.println("Level Batch incremental SuperCluster loading " + points.size() + " points ... ...");
+        System.out.println("Level Batch incremental SuperCluster loading " + points.size() + " clusters ... ...");
         long start = System.nanoTime();
 
         this.totalNumberOfPoints += points.size();
-        System.out.println("Total # of points should be " + totalNumberOfPoints + " now.");
+        System.out.println("Total # of clusters should be " + totalNumberOfPoints + " now.");
 
-        // insert points to max zoom level one by one
+        // insert clusters to max zoom level one by one
         insertPointClusters(points);
 
         // build hierarchy
@@ -452,7 +452,7 @@ public class LBiSuperCluster extends SuperCluster {
                     System.out.println();
                     //-DEBUG-//
 
-                    // if all clusters are points, just expand them all
+                    // if all clusters are clusters, just expand them all
                     if (clusters[0].numPoints == 0) break;
 
                     // bipartite the clusters with leftSum >= rightSum
@@ -531,7 +531,7 @@ public class LBiSuperCluster extends SuperCluster {
     }
 
     /**
-     * Return the distance between given points/clusters on given zoom level
+     * Return the distance between given clusters/clusters on given zoom level
      *
      * @param zoom
      * @param p1

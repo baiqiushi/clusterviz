@@ -10,7 +10,7 @@ import java.util.List;
 public class SuperCluster {
 
     int minZoom; // min zoom to generate clusters on
-    int maxZoom; // max zoom level to cluster the points on
+    int maxZoom; // max zoom level to cluster the clusters on
     int radius = 20; // cluster radius in pixels
     int extent = 128;  // tile extent (radius is calculated relative to it)
     int totalNumberOfPoints = 0;
@@ -61,15 +61,15 @@ public class SuperCluster {
     /**
      * build hierarchy of the super cluster
      *
-     * @param clusters - point clusters created from raw points
+     * @param clusters - point clusters created from raw clusters
      */
     private void buildHierarchy(Cluster[] clusters) {
-        // index input points into a KD-tree
+        // index input clusters into a KD-tree
         this.indexes[maxZoom + 1] = IndexCreator.createIndex(this.indexType, getRadius(maxZoom));
         this.indexes[maxZoom + 1].load(clusters);
         this.clusters[maxZoom + 1] = clusters;
 
-        // cluster points on max zoom, then cluster the results on previous zoom, etc.;
+        // cluster clusters on max zoom, then cluster the results on previous zoom, etc.;
         // results in a cluster hierarchy across zoom levels
         for (int z = maxZoom; z >= minZoom; z --) {
             // create a new set of clusters for the zoom and index them with a KD-tree
@@ -85,13 +85,13 @@ public class SuperCluster {
     }
 
     public void load(List<PointTuple> points) {
-        System.out.println("SuperCluster loading " + points.size() + " points ... ...");
+        System.out.println("SuperCluster loading " + points.size() + " clusters ... ...");
         long start = System.nanoTime();
         this.totalNumberOfPoints = points.size();
         // generate a cluster object for each point
         Cluster[] clusters = createPointClusters(points);
 
-        // build hierarchy of clusters based on the clusters for raw points
+        // build hierarchy of clusters based on the clusters for raw clusters
         buildHierarchy(clusters);
 
         long end = System.nanoTime();
@@ -102,16 +102,16 @@ public class SuperCluster {
 
     /**
      * @param points, an array of coordinates,
-     *                at point[i] must be x = points[i][0], y = points[i][1]
+     *                at point[i] must be x = clusters[i][0], y = clusters[i][1]
      */
     public void load(double[][] points) {
-        System.out.println("SuperCluster loading " + points.length + " points ... ...");
+        System.out.println("SuperCluster loading " + points.length + " clusters ... ...");
         long start = System.nanoTime();
         this.totalNumberOfPoints = points.length;
         // generate a cluster object for each point
         Cluster[] clusters = createPointClusters(points);
 
-        // build hierarchy of clusters based on the clusters for raw points
+        // build hierarchy of clusters based on the clusters for raw clusters
         buildHierarchy(clusters);
 
         long end = System.nanoTime();
@@ -135,7 +135,7 @@ public class SuperCluster {
             }
             p.zoom = zoom;
 
-            // find all nearby points
+            // find all nearby clusters
             I2DIndex<Cluster> tree = this.indexes[zoom + 1];
             List<Cluster> neighbors = tree.within(p, r);
 
@@ -298,8 +298,8 @@ public class SuperCluster {
     }
 
     /**
-     * Get the clustering labels of given zoom level for all points loaded,
-     * in the same order as when points array was loaded.
+     * Get the clustering labels of given zoom level for all clusters loaded,
+     * in the same order as when clusters array was loaded.
      *
      * @param zoom
      * @return
@@ -338,7 +338,7 @@ public class SuperCluster {
     }
 
     /**
-     * Return the distance between given points/clusters on given zoom level
+     * Return the distance between given clusters/clusters on given zoom level
      *
      * @param zoom
      * @param p1

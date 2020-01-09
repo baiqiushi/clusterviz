@@ -56,12 +56,12 @@ public class AiSuperCluster extends SuperCluster {
     }
 
     public void load(List<PointTuple> points) {
-        System.out.println("Approximate incremental SuperCluster loading " + points.size() + " points ... ...");
+        System.out.println("Approximate incremental SuperCluster loading " + points.size() + " clusters ... ...");
         long start = System.nanoTime();
 
         this.totalNumberOfPoints += points.size();
 
-        // insert points to max zoom level one by one
+        // insert clusters to max zoom level one by one
         for (int i = 0; i < points.size(); i ++) {
             if (keepLabels) {
                 this.labels.add(new int[maxZoom + 1]);
@@ -80,12 +80,12 @@ public class AiSuperCluster extends SuperCluster {
     }
 
     public void load(double[][] points) {
-        System.out.println("Approximate incremental SuperCluster loading " + points.length + " points ... ...");
+        System.out.println("Approximate incremental SuperCluster loading " + points.length + " clusters ... ...");
         long start = System.nanoTime();
 
         this.totalNumberOfPoints += points.length;
 
-        // insert points to max zoom level one by one
+        // insert clusters to max zoom level one by one
         for (int i = 0; i < points.length; i ++) {
             if (keepLabels) {
                 this.labels.add(new int[maxZoom + 1]);
@@ -250,8 +250,8 @@ public class AiSuperCluster extends SuperCluster {
     }
 
     /**
-     * Get the clustering labels of given zoom level for all points loaded,
-     * in the same order as when points array was loaded.
+     * Get the clustering labels of given zoom level for all clusters loaded,
+     * in the same order as when clusters array was loaded.
      *
      * @param zoom
      * @return

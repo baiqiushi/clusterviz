@@ -86,7 +86,7 @@ public class BiSuperCluster extends SuperCluster {
 //                totalPointsCount += allClusters[i].numPoints == 0 ? 1 : allClusters[i].numPoints;
 //            }
 //            if (totalPointsCount != this.totalNumberOfPoints) {
-//                System.out.println("[Error] zoom level [" + z + "] has totally ====> " + totalPointsCount + " <==== points.");
+//                System.out.println("[Error] zoom level [" + z + "] has totally ====> " + totalPointsCount + " <==== clusters.");
 //            }
 //        }
 //        //-DEBUG-//
@@ -147,7 +147,7 @@ public class BiSuperCluster extends SuperCluster {
 //                }
 //            }
 //            if (totalPointsCount != this.totalNumberOfPoints) {
-//                System.out.println("[Error] zoom level [" + (z - 1) + "] has totally ====> " + totalPointsCount + " <==== points, while correct = " + this.totalNumberOfPoints);
+//                System.out.println("[Error] zoom level [" + (z - 1) + "] has totally ====> " + totalPointsCount + " <==== clusters, while correct = " + this.totalNumberOfPoints);
 //            }
 //            //-DEBUG-//
         }
@@ -160,13 +160,13 @@ public class BiSuperCluster extends SuperCluster {
     }
 
     public void load(double[][] points) {
-        System.out.println("Batch incremental SuperCluster loading " + points.length + " points ... ...");
+        System.out.println("Batch incremental SuperCluster loading " + points.length + " clusters ... ...");
         long start = System.nanoTime();
 
         this.totalNumberOfPoints += points.length;
-        System.out.println("Total # of points should be " + totalNumberOfPoints + " now.");
+        System.out.println("Total # of clusters should be " + totalNumberOfPoints + " now.");
 
-        // insert points to max zoom level one by one
+        // insert clusters to max zoom level one by one
         insertPointClusters(points);
 
         // shift clusters that are necessary
@@ -182,13 +182,13 @@ public class BiSuperCluster extends SuperCluster {
     }
 
     public void load(List<PointTuple> points) {
-        System.out.println("Batch incremental SuperCluster loading " + points.size() + " points ... ...");
+        System.out.println("Batch incremental SuperCluster loading " + points.size() + " clusters ... ...");
         long start = System.nanoTime();
 
         this.totalNumberOfPoints += points.size();
-        System.out.println("Total # of points should be " + totalNumberOfPoints + " now.");
+        System.out.println("Total # of clusters should be " + totalNumberOfPoints + " now.");
 
-        // insert points to max zoom level one by one
+        // insert clusters to max zoom level one by one
         insertPointClusters(points);
 
         // shift clusters that are necessary

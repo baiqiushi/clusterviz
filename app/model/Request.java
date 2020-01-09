@@ -12,10 +12,10 @@ public class Request {
      *   - Execute commands
      *
      * - transfer
-     *   - Transfer raw data of given keyword in GeoJson format
+     *   - Transfer raw data of given keyword in indicated "format"
      *
      * - progress-transfer
-     *   - Transfer raw data of given keyword in GeoJson format progressively
+     *   - Transfer raw data of given keyword in indicated "format" progressively
      *
      * - analysis
      *   - Query statistics of clusters for given keyword
@@ -26,4 +26,5 @@ public class Request {
     public Query query;
     public Command[] cmds;
     public Analysis analysis;
+    public String format; // result data format: "geojson"/"array"
 }

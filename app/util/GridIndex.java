@@ -149,7 +149,7 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
         double inRight = (inRightX - minX) / step;
         double inTop = (inTopY - minY) / step;
 
-        // find those inside grids and add their points directly into result list
+        // find those inside grids and add their clusters directly into result list
         for (int i = (int) Math.ceil(inLeft); i < (int) Math.floor(inRight); i ++) {
             for (int j = (int) Math.ceil(inBottom); j < (int) Math.floor(inTop); j ++) {
                 if (i < 0 || i >= m || j < 0 || j >= n) continue;
@@ -252,7 +252,7 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
         double right = (rightTop.getX() - minX) / step;
         double top = (rightTop.getY() - minY) / step;
 
-        // find those inside grids and add their points directly into result list
+        // find those inside grids and add their clusters directly into result list
         for (int i = (int) Math.ceil(left); i < (int) Math.floor(right); i ++) {
             for (int j = (int) Math.ceil(bottom); j < (int) Math.floor(top); j ++) {
                 if (i < 0 || i >= m || j < 0 || j >= n) continue;
@@ -261,7 +261,7 @@ public class GridIndex<PointType extends I2DPoint> implements I2DIndex<PointType
             }
         }
 
-        /** traverse points in those edge grids and add points that within the rectangle range */
+        /** traverse clusters in those edge grids and add clusters that within the rectangle range */
         // left edge does not align with edge of grids
         if (left % 1 != 0.0) {
             int i = (int) Math.floor(left);

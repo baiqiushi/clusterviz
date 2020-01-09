@@ -50,7 +50,7 @@ public class iSuperClusterTest {
         int batchCount = 10;
         int batchSize = total / batchCount;
         for (int i = 0; i < batchCount; i ++) {
-            // slice points array to a new array for this batch
+            // slice clusters array to a new array for this batch
             int start = i * batchSize;
             int end = Math.min(i * batchSize + batchSize - 1, total);
             double[][] batchPoints = new double[end - start + 1][2];

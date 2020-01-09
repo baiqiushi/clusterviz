@@ -14,8 +14,8 @@ import java.util.Map;
 
 public class iSuperCluster extends SuperCluster {
 
-    // switch of keeping data points or not,
-    // turn it on when we need to return the labels for all data points
+    // switch of keeping data clusters or not,
+    // turn it on when we need to return the labels for all data clusters
     public boolean keepPoints = false;
 
     List<Cluster> maxZoomClusters;
@@ -87,13 +87,13 @@ public class iSuperCluster extends SuperCluster {
     }
 
     public void load(double[][] points) {
-        System.out.println("incremental SuperCluster loading " + points.length + " points ... ...");
+        System.out.println("incremental SuperCluster loading " + points.length + " clusters ... ...");
         long start = System.nanoTime();
 
         this.totalNumberOfPoints += points.length;
 
         if (keepTiming) MyTimer.startTimer();
-        // merge all points into the maxZoom level clusters
+        // merge all clusters into the maxZoom level clusters
         mergePointClusters(points);
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) timing.put("mergePoint", timing.get("mergePoint") + MyTimer.durationSeconds());
@@ -114,13 +114,13 @@ public class iSuperCluster extends SuperCluster {
     }
 
     public void load(List<PointTuple> points) {
-        System.out.println("incremental SuperCluster loading " + points.size() + " points ... ...");
+        System.out.println("incremental SuperCluster loading " + points.size() + " clusters ... ...");
         long start = System.nanoTime();
 
         this.totalNumberOfPoints += points.size();
 
         if (keepTiming) MyTimer.startTimer();
-        // merge all points into the maxZoom level clusters
+        // merge all clusters into the maxZoom level clusters
         mergePointClusters(points);
         if (keepTiming) MyTimer.stopTimer();
         if (keepTiming) timing.put("mergePoint", timing.get("mergePoint") + MyTimer.durationSeconds());
@@ -185,7 +185,7 @@ public class iSuperCluster extends SuperCluster {
             // create a parent cluster instance attached to advocator,
             // and add both this advocator cluster and this new point to parent's children
             if (cluster.numPoints == 0) {
-                // only if keepPoints switch turned on, store children as the raw data points
+                // only if keepPoints switch turned on, store children as the raw data clusters
                 if (keepPoints) {
                     // keep previous single point cluster as a new child point
                     Cluster point = cluster.clone();
@@ -220,7 +220,7 @@ public class iSuperCluster extends SuperCluster {
                 cluster.numPoints = cluster.numPoints + 1;
                 cluster.setX( wx / cluster.numPoints);
                 cluster.setY(wy / cluster.numPoints);
-                // only if keepPoints switch turned on, store children as the raw data points
+                // only if keepPoints switch turned on, store children as the raw data clusters
                 if (keepPoints) {
                     cluster.children.add(c);
                     c.expansionZoom = maxZoom + 1;

@@ -178,7 +178,7 @@ public class SBiSuperCluster extends SuperCluster {
 //                }
 //            }
 //            if (totalPointsCount != this.totalNumberOfPoints) {
-//                System.out.println("[Error] zoom level [" + (z - 1) + "] has totally ====> " + totalPointsCount + " <==== points. Correct should be " + this.totalNumberOfPoints);
+//                System.out.println("[Error] zoom level [" + (z - 1) + "] has totally ====> " + totalPointsCount + " <==== clusters. Correct should be " + this.totalNumberOfPoints);
 //            }
             //-DEBUG-//
         }
@@ -199,13 +199,13 @@ public class SBiSuperCluster extends SuperCluster {
     }
 
     public void load(double[][] points) {
-        System.out.println("Strict Batch incremental SuperCluster loading " + points.length + " points ... ...");
+        System.out.println("Strict Batch incremental SuperCluster loading " + points.length + " clusters ... ...");
         long start = System.nanoTime();
 
         this.totalNumberOfPoints += points.length;
-        System.out.println("Total # of points should be " + totalNumberOfPoints + " now.");
+        System.out.println("Total # of clusters should be " + totalNumberOfPoints + " now.");
 
-        // insert points to max zoom level one by one
+        // insert clusters to max zoom level one by one
         insertPointClusters(points);
 
         // build hierarchy
@@ -228,13 +228,13 @@ public class SBiSuperCluster extends SuperCluster {
     }
 
     public void load(List<PointTuple> points) {
-        System.out.println("Strict Batch incremental SuperCluster loading " + points.size() + " points ... ...");
+        System.out.println("Strict Batch incremental SuperCluster loading " + points.size() + " clusters ... ...");
         long start = System.nanoTime();
 
         this.totalNumberOfPoints += points.size();
-        System.out.println("Total # of points should be " + totalNumberOfPoints + " now.");
+        System.out.println("Total # of clusters should be " + totalNumberOfPoints + " now.");
 
-        // insert points to max zoom level one by one
+        // insert clusters to max zoom level one by one
         insertPointClusters(points);
 
         // build hierarchy
@@ -325,7 +325,7 @@ public class SBiSuperCluster extends SuperCluster {
 
             // if this cluster is already flagged by earlier operations
             if (this.flaggedClusters[maxZoom].contains(cluster)) {
-                // and if cluster has merged some other points
+                // and if cluster has merged some other clusters
                 if (cluster.flag == Flags.UPDATED) {
                     // update the updateDelta to include this newly merged point
                     merge(cluster.updateDelta, c.getX(), c.getY(), c.numPoints);
