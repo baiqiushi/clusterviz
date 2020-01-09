@@ -484,6 +484,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           // start replaying zoom/pan actions
           console.log("Now start replaying actions ...");
           $scope.timeActions = true;
+          $scope.actionTimings = [];
           moduleManager.subscribeEvent(moduleManager.EVENT.FINISH_ACTION, finishAction);
           replayNextAction();
         }
