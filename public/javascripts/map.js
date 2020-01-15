@@ -7,6 +7,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.zoomShift = 0;
     $scope.mode = "middleware"; // "frontend" / "middleware"
     $scope.mwVisualizationType = "cluster"; // "cluster" / "heat" / "scatter"
+    $scope.feVisualizationType = "cluster"; // "cluster" / "heat" / "scatter"
     $scope.numberInCircle = true;
     $scope.colorEncoding = true;
     $scope.circleRadius = 20;
@@ -179,11 +180,11 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD, function(e) {
           switch ($scope.mode) {
             case "frontend":
-              $scope.cleanMarkersLayer();
+              $scope.cleanMWLayers();
               $scope.sendProgressTransfer(e);
               break;
             case "middleware":
-              $scope.cleanClusterMap();
+              $scope.cleanFELayers();
               $scope.sendQuery(e);
               break;
           }
@@ -230,10 +231,10 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_MODE, function(e) {
           if ($scope.mode !== e.mode) {
             if ($scope.mode === "middleware") {
-              $scope.cleanClusterMap();
+              $scope.cleanMWLayers();
             }
             else if ($scope.mode === "frontend") {
-              $scope.cleanMarkersLayer();
+              $scope.cleanFELayers();
             }
             $scope.mode = e.mode;
             console.log("switch mode to '" + $scope.mode + "'");
@@ -243,17 +244,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_NUMBER_IN_CIRCLE, function(e) {
           console.log("switch number in circle to '" + e.numberInCircle + "'");
           $scope.numberInCircle = e.numberInCircle;
-          if ($scope.clusterLayer) {
-            $scope.clusterLayer.clearLayers();
-            $scope.map.removeLayer($scope.clusterLayer);
-            $scope.clusterLayer = null;
-            if ($scope.numberInCircle) {
-              $scope.clusterLayer = L.geoJson(null, { pointToLayer: $scope.createFixedSizedClusterIcon}).addTo($scope.map);
-            }
-            else {
-              $scope.clusterLayer = L.geoJson(null, { pointToLayer: $scope.createVariedSizedClusterIcon}).addTo($scope.map);
-            }
-            $scope.drawClusterMap($scope.clusters);
+          $scope.cleanClusterLayer();
+          if ($scope.clusters) {
+            $scope.drawMWClusterLayer($scope.clusters);
           }
         });
 
@@ -262,11 +255,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           $scope.colorEncoding = e.colorEncoding;
           // only affects no-number in circle mode
           if (!$scope.numberInCircle) {
-            if ($scope.clusterLayer) {
-              $scope.clusterLayer.clearLayers();
-              $scope.map.removeLayer($scope.clusterLayer);
-              $scope.clusterLayer = L.geoJson(null, {pointToLayer: $scope.createVariedSizedClusterIcon}).addTo($scope.map);
-              $scope.drawClusterMap($scope.clusters);
+            $scope.cleanClusterLayer();
+            if ($scope.clusters) {
+              $scope.drawMWClusterLayer($scope.clusters);
             }
           }
         });
@@ -278,26 +269,22 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
             case "cluster":
               // only affects no-number in circle mode
               if (!$scope.numberInCircle) {
-                if ($scope.clusterLayer) {
-                  $scope.clusterLayer.clearLayers();
-                  $scope.map.removeLayer($scope.clusterLayer);
-                  $scope.clusterLayer = L.geoJson(null, {pointToLayer: $scope.createVariedSizedClusterIcon}).addTo($scope.map);
-                  $scope.drawClusterMap($scope.clusters);
+                $scope.cleanClusterLayer();
+                if ($scope.clusters) {
+                  $scope.drawMWClusterLayer($scope.clusters);
                 }
               }
               break;
             case "heat":
-              if ($scope.heatLayer) {
-                $scope.map.removeLayer($scope.heatLayer);
-                $scope.heatLayer = null;
-                $scope.drawHeatMap($scope.points);
+              $scope.cleanHeatLayer();
+              if ($scope.points) {
+                $scope.drawMWHeatLayer($scope.points);
               }
               break;
             case "scatter":
-              if ($scope.scatterLayer) {
-                $scope.map.removeLayer($scope.scatterLayer);
-                $scope.scatterLayer = null;
-                $scope.drawScatterplot($scope.points);
+              $scope.cleanScatterLayer();
+              if ($scope.points) {
+                $scope.drawMWScatterLayer($scope.points);
               }
               break;
           }
@@ -308,11 +295,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           $scope.scaleCircleRadius = e.scaleCircleRadius;
           // only affects no-number in circle mode
           if (!$scope.numberInCircle) {
-            if ($scope.clusterLayer) {
-              $scope.clusterLayer.clearLayers();
-              $scope.map.removeLayer($scope.clusterLayer);
-              $scope.clusterLayer = L.geoJson(null, {pointToLayer: $scope.createVariedSizedClusterIcon}).addTo($scope.map);
-              $scope.drawClusterMap($scope.clusters);
+            $scope.cleanClusterLayer();
+            if ($scope.clusters) {
+              $scope.drawMWClusterLayer($scope.clusters);
             }
           }
         });
@@ -320,61 +305,60 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_MW_VISUALIZATION_TYPE, function(e) {
           console.log("switch middleware visualization type to " + e.mwVisualizationType);
           $scope.mwVisualizationType = e.mwVisualizationType;
-          switch ($scope.mode) {
-            case "frontend":
-              break;
-            case "middleware":
-              switch (e.mwVisualizationType) {
-                case "cluster":
-                  if ($scope.heatLayer) {
-                    $scope.map.removeLayer($scope.heatLayer);
-                  }
-                  if ($scope.scatterLayer) {
-                    $scope.map.removeLayer($scope.scatterLayer);
-                  }
-                  if ($scope.clusterLayer) {
-                    $scope.clusterLayer.addTo($scope.map);
-                  }
-                  else {
-                    if ($scope.clusters) {
-                      $scope.drawClusterMap($scope.clusters);
-                    }
-                  }
-                  break;
-                case "heat":
-                  if ($scope.clusterLayer) {
-                    $scope.map.removeLayer($scope.clusterLayer);
-                  }
-                  if ($scope.scatterLayer) {
-                    $scope.map.removeLayer($scope.scatterLayer);
-                  }
-                  if ($scope.heatLayer) {
-                    $scope.heatLayer.addTo($scope.map);
-                  }
-                  else {
-                    if ($scope.points) {
-                      $scope.drawHeatMap($scope.points);
-                    }
-                  }
-                  break;
-                case "scatter":
-                  if ($scope.clusterLayer) {
-                    $scope.map.removeLayer($scope.clusterLayer);
-                  }
-                  if ($scope.heatLayer) {
-                    $scope.map.removeLayer($scope.heatLayer);
-                  }
-                  if ($scope.scatterLayer) {
-                    $scope.scatterLayer.addTo($scope.map);
-                  }
-                  else {
-                    if ($scope.points) {
-                      $scope.drawScatterplot($scope.points);
-                    }
-                  }
-                  break;
-              }
-              break;
+          if ($scope.mode === "middleware") {
+            switch (e.mwVisualizationType) {
+              case "cluster":
+                $scope.cleanHeatLayer();
+                $scope.cleanScatterLayer();
+                if ($scope.clusters) {
+                  $scope.drawMWClusterLayer($scope.clusters);
+                }
+                break;
+              case "heat":
+                $scope.cleanClusterLayer();
+                $scope.cleanScatterLayer();
+                if ($scope.points) {
+                  $scope.drawMWHeatLayer($scope.points);
+                }
+                break;
+              case "scatter":
+                $scope.cleanClusterLayer();
+                $scope.cleanHeatLayer();
+                if ($scope.points) {
+                  $scope.drawMWScatterLayer($scope.points);
+                }
+                break;
+            }
+          }
+        });
+
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_FE_VISUALIZATION_TYPE, function(e) {
+          console.log("switch frontend visualization type to " + e.feVisualizationType);
+          $scope.feVisualizationType = e.feVisualizationType;
+          if ($scope.mode === "frontend") {
+            switch (e.feVisualizationType) {
+              case "cluster":
+                $scope.cleanHeatLayer();
+                $scope.cleanScatterLayer();
+                if ($scope.rawData) {
+                  $scope.drawFEClusterLayer($scope.rawData);
+                }
+                break;
+              case "heat":
+                $scope.cleanClusterLayer();
+                $scope.cleanScatterLayer();
+                if ($scope.rawData) {
+                  $scope.drawFEHeatLayer($scope.rawData);
+                }
+                break;
+              case "scatter":
+                $scope.cleanClusterLayer();
+                $scope.cleanHeatLayer();
+                if ($scope.rawData) {
+                  $scope.drawFEScatterLayer($scope.rawData);
+                }
+                break;
+            }
           }
         });
       }
@@ -545,13 +529,13 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         moduleManager.publishEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, {resultCount: resultCount, pointsCount: pointsCount});
         switch ($scope.mwVisualizationType) {
           case "cluster":
-            $scope.drawClusterMap(result.data);
-            break;
-          case "scatter":
-            $scope.drawScatterplot(result.data);
+            $scope.drawMWClusterLayer(result.data);
             break;
           case "heat":
-            $scope.drawHeatMap(result.data);
+            $scope.drawMWHeatLayer(result.data);
+            break;
+          case "scatter":
+            $scope.drawMWScatterLayer(result.data);
             break;
         }
       }
@@ -562,7 +546,17 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       if(result.data.length > 0) {
         $scope.pointsCount += result.data.length;
         moduleManager.publishEvent(moduleManager.EVENT.CHANGE_RESULT_COUNT, {pointsCount: $scope.pointsCount});
-        $scope.appendPointsToClusters(result.data);
+        switch ($scope.feVisualizationType) {
+          case "cluster":
+            $scope.drawFEClusterLayer(result.data);
+            break;
+          case "heat":
+            $scope.drawFEHeatLayer(result.data);
+            break;
+          case "scatter":
+            $scope.drawFEScatterLayer(result.data);
+            break;
+        }
       }
     };
 
@@ -612,8 +606,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     };
 
     /** middleware mode */
-    // function for drawing clustermap
-    $scope.drawClusterMap = function(data) {
+    // function for drawing cluster plot layer
+    $scope.drawMWClusterLayer = function(data) {
       console.log("Radius for zoom level [" + $scope.map.getZoom() + "] = " + $scope.radiuses[$scope.map.getZoom()]);
 
       // timing for rendering
@@ -633,10 +627,10 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       // update the clusters layer
       if (data.length > 0) {
         $scope.clusters = data;
-        console.log("drawing clusters size = " + $scope.clusters.length);
+        console.log("drawing clusters size = " + data.length);
         //console.log($scope.clusters);
         $scope.clusterLayer.clearLayers();
-        $scope.clusterLayer.addData($scope.clusters);
+        $scope.clusterLayer.addData(data);
       }
 
       // analysis of distance between clicked clusters
@@ -693,8 +687,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     };
 
     /** middleware mode */
-    // function for drawing heatmap
-    $scope.drawHeatMap = function(data) {
+    // function for drawing heatmap layer
+    $scope.drawMWHeatLayer = function(data) {
       // timing for rendering
       $scope.renderStart = performance.now();
 
@@ -708,11 +702,11 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       // update the heat layer
       if (data.length > 0) {
         $scope.points = data; // [lng, lat, point_count]
-        console.log("[draw heatmap] drawing points size = " + $scope.points.length);
+        console.log("[draw heatmap] drawing points size = " + data.length);
         // construct consumable points array for heat layer
         let points = [];
-        for (let i = 0; i < $scope.points.length; i ++) {
-          let point = $scope.points[i];
+        for (let i = 0; i < data.length; i ++) {
+          let point = data[i];
           points.push([point[1], point[0], (point[2] == 0? 1: point[2]) * 10]);
         }
         // redraw heat layer
@@ -731,8 +725,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     };
 
     /** middleware mode */
-    // function for drawing heatmap
-    $scope.drawScatterplot = function(data) {
+    // function for drawing scatter plot layer
+    $scope.drawMWScatterLayer = function(data) {
       // timing for rendering
       $scope.renderStart = performance.now();
 
@@ -740,7 +734,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       if (!$scope.scatterLayer) {
         let circleRadius = $scope.circleRadius;
         $scope.scatterLayer = L.TileLayer.maskCanvas({
-          radius: circleRadius * 0.5,  // radius in pixels or in meters (see useAbsoluteRadius)
+          radius: circleRadius,  // radius in pixels or in meters (see useAbsoluteRadius)
           useAbsoluteRadius: false,  // true: r in meters, false: r in pixels
           color: 'blue',  // the color of the layer
           opacity: 0.8,  // opacity of the not covered area
@@ -753,11 +747,11 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       // update the scatter layer
       if (data.length > 0) {
         $scope.points = data; // [lng, lat, point_count]
-        console.log("[draw scatterplot] drawing points size = " + $scope.points.length);
+        console.log("[draw scatterplot] drawing points size = " + data.length);
         // construct consumable points array for scatter layer
         let points = [];
-        for (let i = 0; i < $scope.points.length; i ++) {
-          let point = $scope.points[i];
+        for (let i = 0; i < data.length; i ++) {
+          let point = data[i];
           points.push([point[1], point[0]]);
         }
         // redraw scatter layer
@@ -831,36 +825,54 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       });
     };
 
-    /** middleware mode */
-    $scope.cleanClusterMap = function() {
-      $scope.clusters = [];
-      if($scope.clusterLayer != null) {
+    $scope.cleanClusterLayer = function () {
+      if($scope.clusterLayer) {
         $scope.clusterLayer.clearLayers();
         $scope.map.removeLayer($scope.clusterLayer);
         $scope.clusterLayer = null;
       }
     };
 
-    /** frontend mode */
-    $scope.cleanMarkersLayer = function() {
-      $scope.clusters = [];
-      if($scope.markersLayer != null) {
-        $scope.markersLayer.clearLayers();
-        $scope.map.removeLayer($scope.markersLayer);
-        $scope.markersLayer = null;
+    $scope.cleanHeatLayer = function () {
+      if ($scope.heatLayer) {
+        $scope.map.removeLayer($scope.heatLayer);
+        $scope.heatLayer = null;
       }
     };
 
+    $scope.cleanScatterLayer = function () {
+      if ($scope.scatterLayer) {
+        $scope.map.removeLayer($scope.scatterLayer);
+        $scope.scatterLayer = null;
+      }
+    };
+
+    /** middleware mode */
+    $scope.cleanMWLayers = function() {
+      $scope.cleanClusterLayer();
+      $scope.cleanHeatLayer();
+      $scope.cleanScatterLayer();
+    };
+
     /** frontend mode */
-    $scope.appendPointsToClusters = function (data) {
-      // initialize the markers layer
-      if (!$scope.markersLayer) {
-        $scope.markersLayer = L.markerClusterGroup({maxClusterRadius: 40, chunkedLoading: true });
+    $scope.cleanFELayers = function() {
+      $scope.cleanClusterLayer();
+      $scope.cleanHeatLayer();
+      $scope.cleanScatterLayer();
+    };
+
+    /** frontend mode */
+    $scope.drawFEClusterLayer = function (data) {
+      // initialize the cluster layer
+      if (!$scope.clusterLayer) {
+        $scope.clusterLayer = L.markerClusterGroup({maxClusterRadius: 40, chunkedLoading: true });
+        $scope.rawData = [];
       }
 
-      // update the makers layer
+      // update the cluster layer
       if (data.length > 0) {
-        console.log("[marker-cluster] drawing clusters size = " + $scope.clusters.length);
+        $scope.rawData.push(...data);
+        console.log("[marker-cluster] drawing clusters size = " + data.length);
         let markersList = [];
         let start = performance.now();
         for (let i = 0; i < data.length; i ++) {
@@ -869,13 +881,75 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           let marker = L.marker(L.latLng(p[1], p[0]), { title: title });
           markersList.push(marker);
         }
-        $scope.markersLayer.addLayers(markersList);
+        $scope.clusterLayer.addLayers(markersList);
         let end = performance.now();
         $scope.timings.push((end - start) / 1000.0);
         console.log("Until now, the clustering timings of [marker-cluster] for keyword \"" + $scope.query.keyword + "\" are: ");
         console.log($scope.timings);
-        $scope.map.removeLayer($scope.markersLayer);
-        $scope.map.addLayer($scope.markersLayer);
+        $scope.map.removeLayer($scope.clusterLayer);
+        $scope.map.addLayer($scope.clusterLayer);
+      }
+    };
+
+    /** frontend mode */
+    $scope.drawFEHeatLayer = function(data) {
+      // initialize the heat layer
+      if (!$scope.heatLayer) {
+        let circleRadius = $scope.circleRadius * 0.7;
+        $scope.heatLayer = L.heatLayer([], {radius: circleRadius}).addTo($scope.map);
+        $scope.rawData = [];
+      }
+
+      // update the heat layer
+      if (data.length > 0) {
+        $scope.rawData.push(...data); // [lng, lat, id]
+        console.log("[Frontend - heatmap] drawing points size = " + $scope.rawData.length);
+        let start = performance.now();
+        // construct consumable points array for heat layer
+        let points = [];
+        for (let i = 0; i < $scope.rawData.length; i ++) {
+          let point = $scope.rawData[i];
+          points.push([point[1], point[0], 10]);
+        }
+        // redraw heat layer
+        $scope.heatLayer.setLatLngs(points);
+        $scope.heatLayer.redraw();
+        let end = performance.now();
+        console.log("[Frontend - heatmap] takes " + ((end - start) / 1000.0) + " seconds.");
+      }
+    };
+
+    /** frontend mode */
+    $scope.drawFEScatterLayer = function(data) {
+      // initialize the scatter layer
+      if (!$scope.scatterLayer) {
+        let circleRadius = $scope.circleRadius;
+        $scope.scatterLayer = L.TileLayer.maskCanvas({
+          radius: circleRadius,  // radius in pixels or in meters (see useAbsoluteRadius)
+          useAbsoluteRadius: false,  // true: r in meters, false: r in pixels
+          color: 'blue',  // the color of the layer
+          opacity: 0.8,  // opacity of the not covered area
+          noMask: true,  // true results in normal (filled) circled, instead masked circles
+          lineColor: 'blue'   // color of the circle outline if noMask is true
+        }).addTo($scope.map);
+        $scope.rawData = [];
+      }
+
+      // update the scatter layer
+      if (data.length > 0) {
+        $scope.rawData.push(...data); // [lng, lat, id]
+        console.log("[Frontend - scatter-plot] drawing points size = " + $scope.rawData.length);
+        let start = performance.now();
+        // construct consumable points array for scatter layer
+        let points = [];
+        for (let i = 0; i < $scope.rawData.length; i ++) {
+          let point = $scope.rawData[i];
+          points.push([point[1], point[0]]);
+        }
+        // redraw scatter layer
+        $scope.scatterLayer.setData(points);
+        let end = performance.now();
+        console.log("[Frontend - scatter-plot] takes " + ((end - start) / 1000.0) + " seconds.");
       }
     };
   })

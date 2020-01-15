@@ -47,9 +47,10 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.analysises = ["", "rand-index", "adjusted-rand-index"];
         $scope.treeCut = false;
         $scope.measures = ["max", "min", "avg"];
-        $scope.pixelsOptions = [1, 2, 3, 4, 5, 10, 15, 20];
+        $scope.pixelsOptions = [0.25, 0.5, 1, 2, 3, 4, 5, 10, 15, 20];
         $scope.bipartite = false;
         $scope.mwVisualizationTypes = ["cluster", "scatter", "heat"];
+        $scope.feVisualizationTypes = ["cluster", "scatter", "heat"];
         $scope.recording = false;
         $scope.replaying = false;
 
@@ -79,6 +80,57 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.selectZoomShiftLabel.style.left = '45px';
         document.body.appendChild($scope.selectZoomShiftLabel);
 
+        /** Frontend mode */
+        // Select for Visualization Types under Frontend mode
+        $scope.addSelectFEVisualizationTypes = function() {
+          // Select for frontend mode visualization types
+          $scope.selectFEVisualizationTypes = document.createElement("select");
+          $scope.selectFEVisualizationTypes.id = "feVisualizationTypes";
+          $scope.selectFEVisualizationTypes.title = "feVisualizationTypes";
+          $scope.selectFEVisualizationTypes.style.position = 'fixed';
+          $scope.selectFEVisualizationTypes.style.top = '110px';
+          $scope.selectFEVisualizationTypes.style.left = '85px';
+          for (let i = 0; i < $scope.feVisualizationTypes.length; i ++) {
+            let option = document.createElement("option");
+            option.text = $scope.feVisualizationTypes[i];
+            $scope.selectFEVisualizationTypes.add(option);
+          }
+          $scope.selectFEVisualizationTypes.value = $scope.feVisualizationTypes[0];
+          document.body.appendChild($scope.selectFEVisualizationTypes);
+          $scope.selectFEVisualizationTypes.addEventListener("change", function () {
+            moduleManager.publishEvent(moduleManager.EVENT.CHANGE_FE_VISUALIZATION_TYPE,
+              {feVisualizationType: $scope.selectFEVisualizationTypes.value});
+            switch ($scope.selectFEVisualizationTypes.value) {
+              case "scatter":
+                $scope.selectCircleRadius.value = "2";
+                moduleManager.publishEvent(moduleManager.EVENT.CHANGE_CIRCLE_RADIUS,
+                  {circleRadius: $scope.selectCircleRadius.value});
+                break;
+              case "heat":
+                $scope.selectCircleRadius.value = "20";
+                moduleManager.publishEvent(moduleManager.EVENT.CHANGE_CIRCLE_RADIUS,
+                  {circleRadius: $scope.selectCircleRadius.value});
+                break;
+            }
+          });
+        };
+        // only show it when mode is "frontend"
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_MODE, function(e) {
+          if (e.mode === "frontend") {
+            // if select element does not exist, create it
+            if (document.getElementById("feVisualizationTypes") === null) {
+              $scope.addSelectFEVisualizationTypes();
+            }
+          }
+          else {
+            // if select element exists, remove it
+            if (document.getElementById("feVisualizationTypes")) {
+              document.body.removeChild($scope.selectFEVisualizationTypes);
+              $scope.selectFEVisualizationTypes = null;
+            }
+          }
+        });
+
         // Frontend mode radio
         $scope.radioFrontend = document.createElement("input");
         $scope.radioFrontend.type = "radio";
@@ -101,6 +153,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.radioFrontendLabel.style.left = '24px';
         document.body.appendChild($scope.radioFrontendLabel);
 
+        /** Middleware mode */
         // Select for Visualization Types under Middleware mode
         $scope.addSelectMWVisualizationTypes = function() {
           // Select for middleware mode visualization types
