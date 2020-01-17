@@ -18,21 +18,21 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                       bipartite: $scope.bipartite
                     });
             }
-            else {
-              moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD,
-                {
-                  keyword: "%",
-                  order: $scope.order,
-                  algorithm: $scope.algorithm,
-                  indexType: $scope.indexType,
-                  zoom: $scope.zoom,
-                  analysis: $scope.analysis,
-                  treeCut: $scope.treeCut,
-                  measure: $scope.measure,
-                  pixels: $scope.pixels,
-                  bipartite: $scope.bipartite
-                });
-            }
+            // else {
+            //   moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SEARCH_KEYWORD,
+            //     {
+            //       keyword: "%",
+            //       order: $scope.order,
+            //       algorithm: $scope.algorithm,
+            //       indexType: $scope.indexType,
+            //       zoom: $scope.zoom,
+            //       analysis: $scope.analysis,
+            //       treeCut: $scope.treeCut,
+            //       measure: $scope.measure,
+            //       pixels: $scope.pixels,
+            //       bipartite: $scope.bipartite
+            //     });
+            // }
         };
 
         moduleManager.subscribeEvent(moduleManager.EVENT.WS_READY, function(e) {
@@ -47,7 +47,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.analysises = ["", "rand-index", "adjusted-rand-index"];
         $scope.treeCut = false;
         $scope.measures = ["max", "min", "avg"];
-        $scope.pixelsOptions = [0.25, 0.5, 1, 2, 3, 4, 5, 10, 15, 20];
+        $scope.pixelsOptions = [0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2, 3, 4, 5, 10, 15, 20];
         $scope.bipartite = false;
         $scope.mwVisualizationTypes = ["cluster", "scatter", "heat"];
         $scope.feVisualizationTypes = ["cluster", "scatter", "heat"];
@@ -195,7 +195,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                   {scaleCircleRadius: $scope.checkboxScaleCircleRadius.checked});
                 $scope.treeCut = true;
                 $scope.measure = "max";
-                $scope.pixels = 2;
+                $scope.pixels = 1.0;
                 $scope.bipartite = false;
                 break;
               case "heat":
@@ -205,7 +205,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                 $scope.checkboxColor.checked = false;
                 moduleManager.publishEvent(moduleManager.EVENT.CHANGE_COLOR_ENCODING,
                   {colorEncoding: $scope.checkboxColor.checked});
-                $scope.selectCircleRadius.value = "20";
+                $scope.selectCircleRadius.value = "5";
                 moduleManager.publishEvent(moduleManager.EVENT.CHANGE_CIRCLE_RADIUS,
                   {circleRadius: $scope.selectCircleRadius.value});
                 $scope.checkboxScaleCircleRadius.checked = false;
@@ -213,7 +213,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                   {scaleCircleRadius: $scope.checkboxScaleCircleRadius.checked});
                 $scope.treeCut = true;
                 $scope.measure = "max";
-                $scope.pixels = 2;
+                $scope.pixels = 2.0;
                 $scope.bipartite = false;
                 break;
             }
@@ -479,7 +479,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                 '<label for="analysis">Analysis</label>&nbsp;<select id="analysis" ng-model="analysis" ng-options="x for x in analysises" ng-init="analysis = analysises[0]"></select>&nbsp;',
                 '<label for="treeCut">Tree-Cut</label>&nbsp;<input id="treeCut" type="checkbox" ng-model="treeCut"></input>&nbsp;',
                 '<label for="measure">Measure</label>&nbsp;<select id="measure" ng-model="measure" ng-options="x for x in measures" ng-init="measure = measures[0]"></select>&nbsp;',
-                '<label for="pixels">Pixels</label>&nbsp;<select id="pixels" ng-model="pixels" ng-options="x for x in pixelsOptions" ng-init="pixels = pixelsOptions[1]"></select>&nbsp;',
+                '<label for="pixels">Pixels</label>&nbsp;<select id="pixels" ng-model="pixels" ng-options="x for x in pixelsOptions" ng-init="pixels = pixelsOptions[6]"></select>&nbsp;',
                 '<label for="bipartite">Bipartite</label>&nbsp;<input id="bipartite" type="checkbox" ng-model="bipartite"></input>&nbsp;'
             ].join('')
         };

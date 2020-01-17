@@ -398,7 +398,7 @@ public class LBiSuperCluster extends SuperCluster {
 //        else return false;
     }
 
-    private double getDifferentiableDistance(int pixels, int zoom) {
+    private double getDifferentiableDistance(double pixels, int zoom) {
         // current view zoom level's radius
         double radius = getRadius(zoom);
         // radius of view zoom level is usually represented by 12 pixels
@@ -421,19 +421,20 @@ public class LBiSuperCluster extends SuperCluster {
      * @param zoom
      * @return
      */
-    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom, boolean treeCut, String measure, int pixels, boolean bipartite) {
+    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom, boolean treeCut, String measure, double pixels, boolean bipartite) {
         Cluster[] clusters = getClusters(x0, y0, x1, y1, zoom);
         List<Cluster> betterClusters = new ArrayList<>();
         // run tree-cut algorithm
         if (treeCut) {
-            //-DEBUG-//
-            System.out.println("[Debug] [LBiSuperCluster --> getClusters] is running Tree-Cut algorithm ...");
-            System.out.println("[Debug] [LBiSuperCluster --> getClusters] differentiable radius = " + getRadius(zoom));
-            //-DEBUG-//
             MyTimer.startTimer();
 
             // real distance of given # pixels of differentiable distance
             double differentiableDistance = getDifferentiableDistance(pixels, zoom);
+
+            //-DEBUG-//
+            System.out.println("[Debug] [LBiSuperCluster --> getClusters] is running Tree-Cut algorithm ...");
+            System.out.println("[Debug] [LBiSuperCluster --> getClusters] differentiable distance = " + differentiableDistance);
+            //-DEBUG-//
 
             // bipartite the clusters into two groups first
             if (bipartite) {
