@@ -156,8 +156,8 @@ public class Agent extends AbstractActor {
     private void buildDataArrayPointWithId(List<PointTuple> points, ArrayNode dataArray) {
         for (int i = 0; i < points.size(); i ++) {
             ArrayNode pointTuple = JsonNodeFactory.instance.arrayNode();
-            pointTuple.add(points.get(i).getX());
             pointTuple.add(points.get(i).getY());
+            pointTuple.add(points.get(i).getX());
             pointTuple.add(points.get(i).getId());
             dataArray.add(pointTuple);
         }
@@ -166,8 +166,8 @@ public class Agent extends AbstractActor {
     private void buildDataArrayPointWithCount(Cluster[] points, ArrayNode dataArray) {
         for (int i = 0; i < points.length; i ++) {
             ArrayNode pointTuple = JsonNodeFactory.instance.arrayNode();
-            pointTuple.add(points[i].getX());
             pointTuple.add(points[i].getY());
+            pointTuple.add(points[i].getX());
             pointTuple.add(points[i].numPoints);
             dataArray.add(pointTuple);
         }

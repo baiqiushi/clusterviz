@@ -314,14 +314,21 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.selectCircleRadius.style.left = '8px';
         for (let i = 20; i >=5; i -= 5) {
           let option = document.createElement("option");
-          option.text = ""+ i;
+          option.text = "" + i;
           $scope.selectCircleRadius.add(option);
         }
-        for (let i = 4; i >=1 ; i --) {
+        for (let i = 4; i >=1 ; i -= 0.5) {
           let option = document.createElement("option");
-          option.text = ""+ i;
+          option.text = "" + i;
           $scope.selectCircleRadius.add(option);
         }
+        let option = document.createElement("option");
+        option.text = "0.5";
+        $scope.selectCircleRadius.add(option);
+        option = document.createElement("option");
+        option.text = "0.25";
+        $scope.selectCircleRadius.add(option);
+
         $scope.selectCircleRadius.value = "20";
         document.body.appendChild($scope.selectCircleRadius);
         $scope.selectCircleRadius.addEventListener("change", function () {
@@ -333,7 +340,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.selectCircleRadiusLabel.htmlFor ="circleRadius";
         $scope.selectCircleRadiusLabel.style.position = 'fixed';
         $scope.selectCircleRadiusLabel.style.top = '175px';
-        $scope.selectCircleRadiusLabel.style.left = '50px';
+        $scope.selectCircleRadiusLabel.style.left = '60px';
         document.body.appendChild($scope.selectCircleRadiusLabel);
 
         // Checkbox for scale circle radius
