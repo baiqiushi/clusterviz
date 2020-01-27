@@ -796,7 +796,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       // initialize the scatter layer
       if (!$scope.scatterLayer) {
         let circleRadius = $scope.circleRadius;
-        $scope.scatterLayer = new WebGLPointLayer();
+        $scope.scatterLayer = new WebGLPointLayer({renderMode: "pixel"}); // renderMode: original / pixel
         $scope.scatterLayer.setPointSize(circleRadius);
         $scope.scatterLayer.setPointColor(0, 0, 255);
         $scope.map.addLayer($scope.scatterLayer);
@@ -1023,7 +1023,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       // initialize the scatter layer
       if (!$scope.scatterLayer) {
         let circleRadius = $scope.circleRadius;
-        $scope.scatterLayer = new WebGLPointLayer();
+        $scope.scatterLayer = new WebGLPointLayer({renderMode: "pixel"}); // renderMode: original / pixel
         $scope.scatterLayer.setPointSize(circleRadius);
         $scope.scatterLayer.setPointColor(0, 0, 255);
         $scope.map.addLayer($scope.scatterLayer);

@@ -4,6 +4,9 @@ var WebGLPointLayer = L.CanvasLayer.extend({
         // Call initialize() from the parent class
         L.CanvasLayer.prototype.initialize.call(this, options);
 
+        // rendering mode
+        this._renderMode = options.renderMode ? options.renderMode: "original"; // renderMode: original / pixel
+
         // # of records
         this._dataLength = 0;
         // Buffer of data for WebGL rendering,
@@ -157,16 +160,32 @@ var WebGLPointLayer = L.CanvasLayer.extend({
         this._programs = new Array(2);
 
         var vertexShader = gl.createShader(gl.VERTEX_SHADER);
-        gl.shaderSource(vertexShader, vertCode);
+        switch (this._renderMode) {
+            case "original":
+                gl.shaderSource(vertexShader, vertCode);
+                break;
+            case "pixel":
+                gl.shaderSource(vertexShader, vertCode_pixel);
+                break;
+        }
         gl.compileShader(vertexShader);
         if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+            console.log("[vertexShader error] " + gl.getShaderInfoLog(vertexShader));
             alert(gl.getShaderInfoLog(vertexShader));
         }
 
         var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(fragmentShader, fragCode);
+        switch (this._renderMode) {
+            case "original":
+                gl.shaderSource(fragmentShader, fragCode);
+                break;
+            case "pixel":
+                gl.shaderSource(fragmentShader, fragCode_pixel);
+                break;
+        }
         gl.compileShader(fragmentShader);
         if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+            console.log("[fragmentShader error] " + gl.getShaderInfoLog(fragmentShader));
             alert(gl.getShaderInfoLog(fragmentShader));
         }
 
@@ -181,7 +200,18 @@ var WebGLPointLayer = L.CanvasLayer.extend({
 
         gl.useProgram(this._programs[0]);
 
-        this._programs[0].matLoc = gl.getUniformLocation(this._programs[0], "u_matrix");
+        switch (this._renderMode) {
+            case "original":
+                this._programs[0].matLoc = gl.getUniformLocation(this._programs[0], "u_matrix");
+                break;
+            case "pixel":
+                this._programs[0].mat1Loc = gl.getUniformLocation(this._programs[0], "u_matrix1");
+                this._programs[0].mat2Loc = gl.getUniformLocation(this._programs[0], "u_matrix2");
+                this._programs[0].vert0Loc = gl.getUniformLocation(this._programs[0], "u_vertex0");
+                this._programs[0].shiftLoc = gl.getUniformLocation(this._programs[0], "u_shift");
+                this._programs[0].resLoc = gl.getUniformLocation(this._programs[0], "u_resolution");
+                break;
+        }
         this._programs[0].pointSize = gl.getUniformLocation(this._programs[0], "u_pointSize");
         this._programs[0].colorLoc = gl.getUniformLocation(this._programs[0], "u_color");
         this._programs[0].selectedLoc = gl.getUniformLocation(this._programs[0], "u_selected");
@@ -189,9 +219,17 @@ var WebGLPointLayer = L.CanvasLayer.extend({
         this._programs[0].indexLoc = gl.getAttribLocation(this._programs[0], "a_index");
 
         var fragmentShader2 = gl.createShader(gl.FRAGMENT_SHADER);
-        gl.shaderSource(fragmentShader2, fragCode2);
+        switch (this._renderMode) {
+            case "original":
+                gl.shaderSource(fragmentShader2, fragCode2);
+                break;
+            case "pixel":
+                gl.shaderSource(fragmentShader2, fragCode2_pixel);
+                break;
+        }
         gl.compileShader(fragmentShader2);
         if (!gl.getShaderParameter(fragmentShader2, gl.COMPILE_STATUS)) {
+            console.log("[fragmentShader error] " + gl.getShaderInfoLog(fragmentShader2));
             alert(gl.getShaderInfoLog(fragmentShader2));
         }
 
@@ -205,7 +243,18 @@ var WebGLPointLayer = L.CanvasLayer.extend({
 
         gl.useProgram(this._programs[1]);
 
-        this._programs[1].matLoc = gl.getUniformLocation(this._programs[1], "u_matrix");
+        switch (this._renderMode) {
+            case "original":
+                this._programs[0].matLoc = gl.getUniformLocation(this._programs[0], "u_matrix");
+                break;
+            case "pixel":
+                this._programs[0].mat1Loc = gl.getUniformLocation(this._programs[0], "u_matrix1");
+                this._programs[0].mat2Loc = gl.getUniformLocation(this._programs[0], "u_matrix2");
+                this._programs[0].vert0Loc = gl.getUniformLocation(this._programs[0], "u_vertex0");
+                this._programs[0].shiftLoc = gl.getUniformLocation(this._programs[0], "u_shift");
+                this._programs[0].resLoc = gl.getUniformLocation(this._programs[0], "u_resolution");
+                break;
+        }
         this._programs[1].pointSize = gl.getUniformLocation(this._programs[1], "u_pointSize");
         this._programs[1].vertLoc = gl.getAttribLocation(this._programs[1], "a_vertex");
         this._programs[1].indexLoc = gl.getAttribLocation(this._programs[1], "a_index");
@@ -330,8 +379,7 @@ var WebGLPointLayer = L.CanvasLayer.extend({
                              Math.floor(e.originalEvent.clientY - rect.top + 0.5));
     },
 
-
-    render: function() {
+    _render_original: function() {
         var gl = this._gl, map = this._map;
         if ( gl == null || map == null ) return;
 
@@ -398,6 +446,181 @@ var WebGLPointLayer = L.CanvasLayer.extend({
         return Date.now();
     },
 
+    _render_pixel: function() {
+        var gl = this._gl, map = this._map;
+        if ( gl == null || map == null ) return;
+
+        var canvas = this.getCanvas();
+        var matrix1 = new Float32Array(16);
+        var matrix2 = new Float32Array(16);
+
+        var pointSize = this._pointSize;
+        let bounds = map.getBounds();
+        console.log("bounds = " + JSON.stringify(bounds));
+        let topLeft = new L.LatLng(bounds.getNorth(), bounds.getWest());
+        console.log("topLeft = " + topLeft);
+        let topLeftXY = this._LatLongToPixel_XY(topLeft.lat, topLeft.lng);
+        console.log("topLeftXY = " + JSON.stringify(topLeftXY));
+        let bottomRight = new L.LatLng(bounds.getSouth(), bounds.getEast());
+        console.log("bottomRight = " + bottomRight);
+        let bottomRightXY = this._LatLongToPixel_XY(bottomRight.lat, bottomRight.lng);
+        console.log("bottomRightXY = " + JSON.stringify(bottomRightXY));
+
+        let x0 = topLeftXY.x;
+        let x1 = bottomRightXY.x;
+        let y0 = topLeftXY.y;
+        let y1 = bottomRightXY.y;
+
+        let deltaX = x1 - x0;
+        console.log("deltaX = " + deltaX);
+        let deltaY = y1 - y0;
+        console.log("deltaY = " + deltaY);
+        matrix1.set([1 / deltaX, 0, 0, 0, 0, 1 / deltaY, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        console.log("matrix1 = " + matrix1);
+        matrix2.set([2, 0, 0, 0, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        console.log("matrix2 = " + matrix2);
+
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        console.log("[canvas] size = " + canvas.width + " x " + canvas.height);
+
+        // Pass 1
+        // Draw the invisible image for encoding points' IDs
+
+        gl.useProgram(this._programs[1]);
+        gl.bindFramebuffer(this._gl.FRAMEBUFFER, this._fb);
+        gl.disable(gl.BLEND);
+
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        gl.uniformMatrix4fv(this._programs[0].mat1Loc, false, matrix1);
+        gl.uniformMatrix4fv(this._programs[0].mat2Loc, false, matrix2);
+        gl.uniform4f(this._programs[0].vert0Loc, x0, y0, 0, 0);
+        gl.uniform4f(this._programs[0].shiftLoc, -1, 1, 0, 1);
+        gl.uniform2f(this._programs[0].resLoc, canvas.width, canvas.height);
+        gl.uniform1f(this._programs[1].pointSize, 1.2*pointSize);
+
+        if ( this._dataLength > 0 ) {
+            gl.drawArrays(gl.POINTS, 0, this._dataLength);
+        }
+
+        // Pass 2
+        // Draw the real visible points
+
+        gl.useProgram(this._programs[0]);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.disable(gl.BLEND);
+
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        /** - DEBUG-
+         console.log("==== a_vertex ====");
+         let a_vertex = [[this._verts[0]], [this._verts[1]], [this._verts[2]], [this._verts[3]]];
+         console.log("" + a_vertex);
+         console.log("==== u_matrix1 ====");
+         let u_matrix1 = [];
+         let u_row = [matrix1[0]];
+         for (let i = 1; i < matrix1.length; i ++) {
+            if (i % 4 == 0) {
+                u_matrix1.push(u_row);
+                u_row = [matrix1[i]];
+            }
+            else {
+                u_row.push(matrix1[i]);
+            }
+        }
+         u_matrix1.push(u_row);
+         console.log("" + u_matrix1);
+         console.log("==== u_matrix2 ====");
+         let u_matrix2 = [];
+         let u_row2 = [matrix2[0]];
+         for (let i = 1; i < matrix2.length; i ++) {
+            if (i % 4 == 0) {
+                u_matrix2.push(u_row2);
+                u_row2 = [matrix2[i]];
+            }
+            else {
+                u_row2.push(matrix2[i]);
+            }
+        }
+         u_matrix2.push(u_row2);
+         console.log("" + u_matrix2);
+         console.log("==== gl_Position ====");
+         function multiply(a, b) {
+            var aNumRows = a.length, aNumCols = a[0].length,
+              bNumRows = b.length, bNumCols = b[0].length,
+              m = new Array(aNumRows);  // initialize array of rows
+            for (var r = 0; r < aNumRows; ++r) {
+                m[r] = new Array(bNumCols); // initialize the current row
+                for (var c = 0; c < bNumCols; ++c) {
+                    m[r][c] = 0;             // initialize the current cell
+                    for (var i = 0; i < aNumCols; ++i) {
+                        m[r][c] += a[r][i] * b[i][c];
+                    }
+                }
+            }
+            return m;
+        }
+         // [x,   [x0,
+         //  y, -  y0,
+         //  0,     0,
+         //  0]     0]
+         a_vertex[0][0] -= x0;
+         a_vertex[1][0] -= y0;
+         console.log("p = v-v0 = " + a_vertex);
+         // [1/deltaX, 0, 0, 0,   [x-x0,
+         //  0, 1/deltaY, 0, 0, *  y-y0,
+         //  0,        0, 0, 0,       0,
+         //  0,        0  0, 0]       0]
+         let gl_Position = multiply(u_matrix1, a_vertex);
+         console.log("q1 = m1 * p = " + gl_Position);
+         // q1[0] = [floor(q1[0] * W) + 0.5] / W
+         // q1[1] = [floor(q1[1) * H] + 0.5] / H
+         // q1[2] = 0
+         // q1[3] = 0
+         gl_Position[0][0] = (Math.floor(gl_Position[0][0] * canvas.width) + 0.5) / canvas.width;
+         gl_Position[1][0] = (Math.floor(gl_Position[1][0] * canvas.height) + 0.5) / canvas.height;
+         console.log("q2 = " + gl_Position);
+         // [2,  0,  0,  0,   [ x',
+         //  0, -2,  0,  0, *   y',
+         //  0,  0,  0,  0,      0,
+         //  0,  0   0,  0]      0]
+         gl_Position = multiply(u_matrix2, gl_Position);
+         console.log("l = m2 * q2 = " + gl_Position);
+         gl_Position[0][0] += -1;
+         gl_Position[1][0] += 1;
+         gl_Position[3][0] = 1;
+         console.log("gl_Position = " + gl_Position);
+         */
+
+        gl.uniformMatrix4fv(this._programs[0].mat1Loc, false, matrix1);
+        gl.uniformMatrix4fv(this._programs[0].mat2Loc, false, matrix2);
+        gl.uniform4f(this._programs[0].vert0Loc, x0, y0, 0, 0);
+        gl.uniform4f(this._programs[0].shiftLoc, -1, 1, 0, 1);
+        gl.uniform2f(this._programs[0].resLoc, canvas.width, canvas.height);
+        gl.uniform3f(this._programs[0].colorLoc,
+          this._pointColorX,
+          this._pointColorY,
+          this._pointColorZ);
+        gl.uniform1f(this._programs[0].selectedLoc, this._cid);
+        gl.uniform1f(this._programs[0].pointSize, pointSize);
+
+        if ( this._dataLength > 0 ) {
+            gl.drawArrays(gl.POINTS, 0, this._dataLength);
+        }
+
+        return Date.now();
+    },
+
+    render: function() {
+        switch (this._renderMode) {
+            case "original":
+                return this._render_original();
+            case "pixel":
+                return this._render_pixel();
+        }
+    },
 
     _LatLongToPixel_XY: function(latitude, longitude) {
         // display webgl data on google maps
