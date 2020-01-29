@@ -8,6 +8,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.mode = "middleware"; // "frontend" / "middleware"
     $scope.mwVisualizationType = "cluster"; // "cluster" / "heat" / "scatter"
     $scope.feVisualizationType = "cluster"; // "cluster" / "heat" / "scatter"
+    $scope.scatterType = "gl-pixel"; // "gl-pixel" / "gl-raster" / "leaflet"
     $scope.numberInCircle = true;
     $scope.colorEncoding = true;
     $scope.circleRadius = 20;
@@ -377,6 +378,25 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
                 }
                 break;
             }
+          }
+        });
+
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_SCATTER_TYPE, function(e) {
+          console.log("switch scatter type to " + e.scatterType);
+          $scope.scatterType = e.scatterType;
+          switch ($scope.mode) {
+            case "frontend":
+              $scope.cleanScatterLayer();
+              if ($scope.rawData) {
+                $scope.drawFEScatterLayer($scope.rawData);
+              }
+              break;
+            case "middleware":
+              $scope.cleanScatterLayer();
+              if ($scope.points) {
+                $scope.drawMWScatterLayer($scope.points);
+              }
+              break;
           }
         });
       }
@@ -796,9 +816,28 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       // initialize the scatter layer
       if (!$scope.scatterLayer) {
         let circleRadius = $scope.circleRadius;
-        $scope.scatterLayer = new WebGLPointLayer({renderMode: "pixel"}); // renderMode: original / pixel
-        $scope.scatterLayer.setPointSize(circleRadius);
-        $scope.scatterLayer.setPointColor(0, 0, 255);
+        switch ($scope.scatterType) {
+          case "gl-pixel":
+            $scope.scatterLayer = new WebGLPointLayer({renderMode: "pixel"}); // renderMode: raster / pixel
+            $scope.scatterLayer.setPointSize(2 * circleRadius);
+            $scope.scatterLayer.setPointColor(0, 0, 255);
+            break;
+          case "gl-raster":
+            $scope.scatterLayer = new WebGLPointLayer({renderMode: "raster"}); // renderMode: raster / pixel
+            $scope.scatterLayer.setPointSize(2 * circleRadius);
+            $scope.scatterLayer.setPointColor(0, 0, 255);
+            break;
+          case "leaflet":
+            $scope.scatterLayer = L.TileLayer.maskCanvas({
+              radius: circleRadius,  // radius in pixels or in meters (see useAbsoluteRadius)
+              useAbsoluteRadius: false,  // true: r in meters, false: r in pixels
+              color: 'blue',  // the color of the layer
+              opacity: 1.0,  // opacity of the not covered area
+              noMask: true//,  // true results in normal (filled) circled, instead masked circles
+              //lineColor: 'blue'   // color of the circle outline if noMask is true
+            });
+            break;
+        }
         $scope.map.addLayer($scope.scatterLayer);
         $scope.points = [];
       }
@@ -814,7 +853,17 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           points.push([point[0], point[1], i]);
         }
         // redraw scatter layer
-        $scope.scatterLayer.appendData(points);
+        switch ($scope.scatterType) {
+          case "gl-pixel":
+            $scope.scatterLayer.appendData(points);
+            break;
+          case "gl-raster":
+            $scope.scatterLayer.appendData(points);
+            break;
+          case "leaflet":
+            $scope.scatterLayer.setData(points);
+            break;
+        }
       }
 
       // timing for rendering
@@ -1023,9 +1072,28 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       // initialize the scatter layer
       if (!$scope.scatterLayer) {
         let circleRadius = $scope.circleRadius;
-        $scope.scatterLayer = new WebGLPointLayer({renderMode: "pixel"}); // renderMode: original / pixel
-        $scope.scatterLayer.setPointSize(circleRadius);
-        $scope.scatterLayer.setPointColor(0, 0, 255);
+        switch ($scope.scatterType) {
+          case "gl-pixel":
+            $scope.scatterLayer = new WebGLPointLayer({renderMode: "pixel"}); // renderMode: raster / pixel
+            $scope.scatterLayer.setPointSize(2 * circleRadius);
+            $scope.scatterLayer.setPointColor(0, 0, 255);
+            break;
+          case "gl-raster":
+            $scope.scatterLayer = new WebGLPointLayer({renderMode: "raster"}); // renderMode: raster / pixel
+            $scope.scatterLayer.setPointSize(2 * circleRadius);
+            $scope.scatterLayer.setPointColor(0, 0, 255);
+            break;
+          case "leaflet":
+            $scope.scatterLayer = L.TileLayer.maskCanvas({
+              radius: circleRadius,  // radius in pixels or in meters (see useAbsoluteRadius)
+              useAbsoluteRadius: false,  // true: r in meters, false: r in pixels
+              color: 'blue',  // the color of the layer
+              opacity: 1.0,  // opacity of the not covered area
+              noMask: true//,  // true results in normal (filled) circled, instead masked circles
+              //lineColor: 'blue'   // color of the circle outline if noMask is true
+            });
+            break;
+        }
         $scope.map.addLayer($scope.scatterLayer);
         $scope.rawData = [];
       }
@@ -1040,19 +1108,39 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
             $scope.rawData.push(data[i]); // [lng, lat, id]
           }
         }
-        console.log("[Frontend - scatter-plot] drawing points size = " + data.length);
         let start = performance.now();
         // construct consumable points array for scatter layer
         let points = [];
-        for (let i = 0; i < data.length; i ++) {
-          let point = data[i];
-          points.push([point[0], point[1], point[2]]);
+        switch ($scope.scatterType) {
+          case "gl-pixel":
+          case "gl-raster":
+            console.log("[Frontend - scatter-plot] drawing points size = " + data.length);
+            for (let i = 0; i < data.length; i ++) {
+              let point = data[i];
+              points.push([point[0], point[1], point[2]]);
+            }
+            break;
+          case "leaflet":
+            console.log("[Frontend - scatter-plot] drawing points size = " + $scope.rawData.length);
+            for (let i = 0; i < $scope.rawData.length; i ++) {
+              let point = $scope.rawData[i];
+              points.push([point[0], point[1], point[2]]);
+            }
+            break;
         }
         let end = performance.now();
         console.log("[Frontend - scatter-plot] transforming data takes " + ((end - start) / 1000.0) + " seconds.");
         start = performance.now();
         // redraw scatter layer
-        $scope.scatterLayer.appendData(points);
+        switch ($scope.scatterType) {
+          case "gl-pixel":
+          case "gl-raster":
+            $scope.scatterLayer.appendData(points);
+            break;
+          case "leaflet":
+            $scope.scatterLayer.setData(points);
+            break;
+        }
         end = performance.now();
         console.log("[Frontend - scatter-plot] rendering takes " + ((end - start) / 1000.0) + " seconds.");
       }

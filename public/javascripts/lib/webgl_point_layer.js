@@ -5,7 +5,7 @@ var WebGLPointLayer = L.CanvasLayer.extend({
         L.CanvasLayer.prototype.initialize.call(this, options);
 
         // rendering mode
-        this._renderMode = options.renderMode ? options.renderMode: "original"; // renderMode: original / pixel
+        this._renderMode = options.renderMode ? options.renderMode: "raster"; // renderMode: raster / pixel
 
         // # of records
         this._dataLength = 0;
@@ -161,7 +161,7 @@ var WebGLPointLayer = L.CanvasLayer.extend({
 
         var vertexShader = gl.createShader(gl.VERTEX_SHADER);
         switch (this._renderMode) {
-            case "original":
+            case "raster":
                 gl.shaderSource(vertexShader, vertCode);
                 break;
             case "pixel":
@@ -176,7 +176,7 @@ var WebGLPointLayer = L.CanvasLayer.extend({
 
         var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
         switch (this._renderMode) {
-            case "original":
+            case "raster":
                 gl.shaderSource(fragmentShader, fragCode);
                 break;
             case "pixel":
@@ -201,7 +201,7 @@ var WebGLPointLayer = L.CanvasLayer.extend({
         gl.useProgram(this._programs[0]);
 
         switch (this._renderMode) {
-            case "original":
+            case "raster":
                 this._programs[0].matLoc = gl.getUniformLocation(this._programs[0], "u_matrix");
                 break;
             case "pixel":
@@ -220,7 +220,7 @@ var WebGLPointLayer = L.CanvasLayer.extend({
 
         var fragmentShader2 = gl.createShader(gl.FRAGMENT_SHADER);
         switch (this._renderMode) {
-            case "original":
+            case "raster":
                 gl.shaderSource(fragmentShader2, fragCode2);
                 break;
             case "pixel":
@@ -244,7 +244,7 @@ var WebGLPointLayer = L.CanvasLayer.extend({
         gl.useProgram(this._programs[1]);
 
         switch (this._renderMode) {
-            case "original":
+            case "raster":
                 this._programs[0].matLoc = gl.getUniformLocation(this._programs[0], "u_matrix");
                 break;
             case "pixel":
@@ -379,7 +379,7 @@ var WebGLPointLayer = L.CanvasLayer.extend({
                              Math.floor(e.originalEvent.clientY - rect.top + 0.5));
     },
 
-    _render_original: function() {
+    _render_raster: function() {
         var gl = this._gl, map = this._map;
         if ( gl == null || map == null ) return;
 
@@ -615,8 +615,8 @@ var WebGLPointLayer = L.CanvasLayer.extend({
 
     render: function() {
         switch (this._renderMode) {
-            case "original":
-                return this._render_original();
+            case "raster":
+                return this._render_raster();
             case "pixel":
                 return this._render_pixel();
         }

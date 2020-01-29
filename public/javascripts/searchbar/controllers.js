@@ -51,6 +51,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.bipartite = false;
         $scope.mwVisualizationTypes = ["cluster", "scatter", "heat"];
         $scope.feVisualizationTypes = ["cluster", "scatter", "heat"];
+        $scope.scatterTypes = ["gl-pixel","leaflet"];
         $scope.recording = false;
         $scope.replaying = false;
 
@@ -81,6 +82,44 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         document.body.appendChild($scope.selectZoomShiftLabel);
 
         /** Frontend mode */
+        // Select for Scatter Types under Frontend Scatter mode
+        $scope.addSelectFEScatterTypes = function() {
+          // Select for frontend-scatter mode scatter types
+          $scope.selectFEScatterTypes = document.createElement("select");
+          $scope.selectFEScatterTypes.id = "feScatterTypes";
+          $scope.selectFEScatterTypes.title = "feScatterTypes";
+          $scope.selectFEScatterTypes.style.position = 'fixed';
+          $scope.selectFEScatterTypes.style.top = '110px';
+          $scope.selectFEScatterTypes.style.left = '155px';
+          for (let i = 0; i < $scope.scatterTypes.length; i ++) {
+            let option = document.createElement("option");
+            option.text = $scope.scatterTypes[i];
+            $scope.selectFEScatterTypes.add(option);
+          }
+          $scope.selectFEScatterTypes.value = $scope.scatterTypes[0];
+          document.body.appendChild($scope.selectFEScatterTypes);
+          $scope.selectFEScatterTypes.addEventListener("change", function () {
+            moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SCATTER_TYPE,
+              {scatterType: $scope.selectFEScatterTypes.value});
+          });
+        };
+        // only show it when mode is "frontend-scatter"
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_FE_VISUALIZATION_TYPE, function(e) {
+          if (e.feVisualizationType === "scatter") {
+            // if select element does not exist, create it
+            if (document.getElementById("feScatterTypes") === null) {
+              $scope.addSelectFEScatterTypes();
+            }
+          }
+          else {
+            // if select element exists, remove it
+            if (document.getElementById("feScatterTypes")) {
+              document.body.removeChild($scope.selectFEScatterTypes);
+              $scope.selectFEScatterTypes = null;
+            }
+          }
+        });
+
         // Select for Visualization Types under Frontend mode
         $scope.addSelectFEVisualizationTypes = function() {
           // Select for frontend mode visualization types
@@ -102,7 +141,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
               {feVisualizationType: $scope.selectFEVisualizationTypes.value});
             switch ($scope.selectFEVisualizationTypes.value) {
               case "scatter":
-                $scope.selectCircleRadius.value = "2";
+                $scope.selectCircleRadius.value = "1";
                 moduleManager.publishEvent(moduleManager.EVENT.CHANGE_CIRCLE_RADIUS,
                   {circleRadius: $scope.selectCircleRadius.value});
                 break;
@@ -127,6 +166,11 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
             if (document.getElementById("feVisualizationTypes")) {
               document.body.removeChild($scope.selectFEVisualizationTypes);
               $scope.selectFEVisualizationTypes = null;
+            }
+            // if select frontend scatter types exists, remove it
+            if (document.getElementById("feScatterTypes")) {
+              document.body.removeChild($scope.selectFEScatterTypes);
+              $scope.selectFEScatterTypes = null;
             }
           }
         });
@@ -154,6 +198,43 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         document.body.appendChild($scope.radioFrontendLabel);
 
         /** Middleware mode */
+        // Select for Scatter Types under Middleware Scatter mode
+        $scope.addSelectMWScatterTypes = function() {
+          // Select for middleware-scatter mode scatter types
+          $scope.selectMWScatterTypes = document.createElement("select");
+          $scope.selectMWScatterTypes.id = "mwScatterTypes";
+          $scope.selectMWScatterTypes.title = "mwScatterTypes";
+          $scope.selectMWScatterTypes.style.position = 'fixed';
+          $scope.selectMWScatterTypes.style.top = '125px';
+          $scope.selectMWScatterTypes.style.left = '175px';
+          for (let i = 0; i < $scope.scatterTypes.length; i ++) {
+            let option = document.createElement("option");
+            option.text = $scope.scatterTypes[i];
+            $scope.selectMWScatterTypes.add(option);
+          }
+          $scope.selectMWScatterTypes.value = $scope.scatterTypes[0];
+          document.body.appendChild($scope.selectMWScatterTypes);
+          $scope.selectMWScatterTypes.addEventListener("change", function () {
+            moduleManager.publishEvent(moduleManager.EVENT.CHANGE_SCATTER_TYPE,
+              {scatterType: $scope.selectMWScatterTypes.value});
+          });
+        };
+        // only show it when mode is "middleware-scatter"
+        moduleManager.subscribeEvent(moduleManager.EVENT.CHANGE_MW_VISUALIZATION_TYPE, function(e) {
+          if (e.mwVisualizationType === "scatter") {
+            // if select element does not exist, create it
+            if (document.getElementById("mwScatterTypes") === null) {
+              $scope.addSelectMWScatterTypes();
+            }
+          }
+          else {
+            // if select element exists, remove it
+            if (document.getElementById("mwScatterTypes")) {
+              document.body.removeChild($scope.selectMWScatterTypes);
+              $scope.selectMWScatterTypes = null;
+            }
+          }
+        });
         // Select for Visualization Types under Middleware mode
         $scope.addSelectMWVisualizationTypes = function() {
           // Select for middleware mode visualization types
@@ -187,7 +268,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
                 $scope.checkboxColor.checked = false;
                 moduleManager.publishEvent(moduleManager.EVENT.CHANGE_COLOR_ENCODING,
                   {colorEncoding: $scope.checkboxColor.checked});
-                $scope.selectCircleRadius.value = "2";
+                $scope.selectCircleRadius.value = "1";
                 moduleManager.publishEvent(moduleManager.EVENT.CHANGE_CIRCLE_RADIUS,
                   {circleRadius: $scope.selectCircleRadius.value});
                 $scope.checkboxScaleCircleRadius.checked = false;
@@ -235,6 +316,11 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
             if (document.getElementById("mwVisualizationTypes")) {
               document.body.removeChild($scope.selectMWVisualizationTypes);
               $scope.selectMWVisualizationTypes = null;
+            }
+            // if select middleware scatter types exists, remove it
+            if (document.getElementById("mwScatterTypes")) {
+              document.body.removeChild($scope.selectMWScatterTypes);
+              $scope.selectMWScatterTypes = null;
             }
           }
         });
