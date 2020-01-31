@@ -557,6 +557,10 @@ public class Agent extends AbstractActor {
                 case "sbic":
                     cluster = new SBiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
                     break;
+                case "dataexplorer":
+                case "de":
+                    cluster = new DataExplorer(this.minZoom, this.maxZoom, indexType, analysis);
+                    break;
                 default:
                     cluster = new SuperCluster(this.minZoom, this.maxZoom, indexType);
             }

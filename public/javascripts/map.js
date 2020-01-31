@@ -223,9 +223,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           if ($scope.recording) {
             $scope.actions.push({center: $scope.map.getCenter(), zoom: $scope.map.getZoom()});
           }
-          if ($scope.replaying) {
-            moduleManager.publishEvent(moduleManager.EVENT.FINISH_ACTION, {});
-          }
+          // if ($scope.replaying) {
+          //   moduleManager.publishEvent(moduleManager.EVENT.FINISH_ACTION, {});
+          // }
           moduleManager.publishEvent(moduleManager.EVENT.CHANGE_ZOOM_LEVEL, {zoom: $scope.map.getZoom()});
         });
 
@@ -497,7 +497,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
         function finishAction(e) {
           console.log("Action [" + ($scope.replayingIndex - 1) + "] is done!");
-          setTimeout(replayNextAction, 4000);
+          setTimeout(replayNextAction, 1000);
         }
 
         console.log("replaying status changed: " + e.replaying);
@@ -530,9 +530,10 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         console.log("===== Actions timings (json) =====");
         console.log(JSON.stringify($scope.actionTimings));
         console.log("===== Actions timings (csv) =====");
-        let output = "zoom,    treeCutTime,    networkTime,    renderTime\n";
+        let output = "zoom,    serverTime,    treeCutTime,    networkTime,    renderTime\n";
         for (let i = 0; i < $scope.actionTimings.length; i ++) {
           output += $scope.actions[i].zoom + ",    " +
+            $scope.actionTimings[i].serverTime + ",    " +
             $scope.actionTimings[i].treeCutTime + ",    " +
             $scope.actionTimings[i].networkTime + ",    " +
             $scope.actionTimings[i].renderTime + "\n";
@@ -720,6 +721,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         $scope.actionTime.renderTime = renderTime;
         $scope.actionTimings.push($scope.actionTime);
       }
+      if ($scope.replaying) {
+        moduleManager.publishEvent(moduleManager.EVENT.FINISH_ACTION, {});
+      }
 
       return 0;
     };
@@ -759,6 +763,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       if ($scope.timeActions) {
         $scope.actionTime.renderTime = renderTime;
         $scope.actionTimings.push($scope.actionTime);
+      }
+      if ($scope.replaying) {
+        moduleManager.publishEvent(moduleManager.EVENT.FINISH_ACTION, {});
       }
     };
 
@@ -873,6 +880,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       if ($scope.timeActions) {
         $scope.actionTime.renderTime = renderTime;
         $scope.actionTimings.push($scope.actionTime);
+      }
+      if ($scope.replaying) {
+        moduleManager.publishEvent(moduleManager.EVENT.FINISH_ACTION, {});
       }
     };
 

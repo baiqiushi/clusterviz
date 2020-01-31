@@ -456,15 +456,15 @@ var WebGLPointLayer = L.CanvasLayer.extend({
 
         var pointSize = this._pointSize;
         let bounds = map.getBounds();
-        console.log("bounds = " + JSON.stringify(bounds));
+        //console.log("bounds = " + JSON.stringify(bounds));
         let topLeft = new L.LatLng(bounds.getNorth(), bounds.getWest());
-        console.log("topLeft = " + topLeft);
+        //console.log("topLeft = " + topLeft);
         let topLeftXY = this._LatLongToPixel_XY(topLeft.lat, topLeft.lng);
-        console.log("topLeftXY = " + JSON.stringify(topLeftXY));
+        //console.log("topLeftXY = " + JSON.stringify(topLeftXY));
         let bottomRight = new L.LatLng(bounds.getSouth(), bounds.getEast());
-        console.log("bottomRight = " + bottomRight);
+        //console.log("bottomRight = " + bottomRight);
         let bottomRightXY = this._LatLongToPixel_XY(bottomRight.lat, bottomRight.lng);
-        console.log("bottomRightXY = " + JSON.stringify(bottomRightXY));
+        //console.log("bottomRightXY = " + JSON.stringify(bottomRightXY));
 
         let x0 = topLeftXY.x;
         let x1 = bottomRightXY.x;
@@ -472,16 +472,16 @@ var WebGLPointLayer = L.CanvasLayer.extend({
         let y1 = bottomRightXY.y;
 
         let deltaX = x1 - x0;
-        console.log("deltaX = " + deltaX);
+        //console.log("deltaX = " + deltaX);
         let deltaY = y1 - y0;
-        console.log("deltaY = " + deltaY);
+        //console.log("deltaY = " + deltaY);
         matrix1.set([1 / deltaX, 0, 0, 0, 0, 1 / deltaY, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        console.log("matrix1 = " + matrix1);
+        //console.log("matrix1 = " + matrix1);
         matrix2.set([2, 0, 0, 0, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-        console.log("matrix2 = " + matrix2);
+        //console.log("matrix2 = " + matrix2);
 
         gl.viewport(0, 0, canvas.width, canvas.height);
-        console.log("[canvas] size = " + canvas.width + " x " + canvas.height);
+        //console.log("[canvas] size = " + canvas.width + " x " + canvas.height);
 
         // Pass 1
         // Draw the invisible image for encoding points' IDs
@@ -493,11 +493,11 @@ var WebGLPointLayer = L.CanvasLayer.extend({
         gl.clearColor(0.0, 0.0, 0.0, 0.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
-        gl.uniformMatrix4fv(this._programs[0].mat1Loc, false, matrix1);
-        gl.uniformMatrix4fv(this._programs[0].mat2Loc, false, matrix2);
-        gl.uniform4f(this._programs[0].vert0Loc, x0, y0, 0, 0);
-        gl.uniform4f(this._programs[0].shiftLoc, -1, 1, 0, 1);
-        gl.uniform2f(this._programs[0].resLoc, canvas.width, canvas.height);
+        gl.uniformMatrix4fv(this._programs[1].mat1Loc, false, matrix1);
+        gl.uniformMatrix4fv(this._programs[1].mat2Loc, false, matrix2);
+        gl.uniform4f(this._programs[1].vert0Loc, x0, y0, 0, 0);
+        gl.uniform4f(this._programs[1].shiftLoc, -1, 1, 0, 1);
+        gl.uniform2f(this._programs[1].resLoc, canvas.width, canvas.height);
         gl.uniform1f(this._programs[1].pointSize, 1.2*pointSize);
 
         if ( this._dataLength > 0 ) {
