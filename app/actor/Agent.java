@@ -233,6 +233,7 @@ public class Agent extends AbstractActor {
     private void answerClusterQuery(String clusterKey, Request _request, String status, int progress) {
         MyTimer.temporaryTimer.clear();
         MyTimer.temporaryTimer.put("treeCut", 0.0);
+        MyTimer.temporaryTimer.put("aggregate", 0.0);
         MyTimer.startTimer();
         Query query = _request.query;
 
@@ -246,7 +247,7 @@ public class Agent extends AbstractActor {
         if (query.bbox == null) {
             clusters = cluster.getClusters(query.zoom);
         } else {
-            clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom, query.treeCut, query.measure, query.pixels, query.bipartite);
+            clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom, query.treeCut, query.measure, query.pixels, query.bipartite, query.resX, query.resY);
         }
 
         // construct the response Json and return
@@ -268,12 +269,14 @@ public class Agent extends AbstractActor {
         MyTimer.stopTimer();
         double totalTime = MyTimer.durationSeconds();
         double treeCutTime = MyTimer.temporaryTimer.get("treeCut");
+        double aggregateTime = MyTimer.temporaryTimer.get("aggregate");
 
         ((ObjectNode) response).put("status", status);
         ((ObjectNode) response).put("progress", progress);
         ((ObjectNode) response).set("result", result);
         ((ObjectNode) response).put("totalTime", totalTime);
         ((ObjectNode) response).put("treeCutTime", treeCutTime);
+        ((ObjectNode) response).put("aggregateTime", aggregateTime);
         respond(response);
     }
 
@@ -560,6 +563,10 @@ public class Agent extends AbstractActor {
                 case "dataexplorer":
                 case "de":
                     cluster = new DataExplorer(this.minZoom, this.maxZoom, indexType, analysis);
+                    break;
+                case "dataaggregator":
+                case "da":
+                    cluster = new DataAggregator(this.minZoom, this.maxZoom, indexType, analysis);
                     break;
                 default:
                     cluster = new SuperCluster(this.minZoom, this.maxZoom, indexType);

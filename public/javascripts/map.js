@@ -70,6 +70,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           $scope.map.getBounds().getEast(),
           $scope.map.getBounds().getNorth()
         ];
+
+        $scope.query.resX = $scope.map.getSize().x * 2;
+        $scope.query.resY = $scope.map.getSize().y * 2;
       }
 
       if (e.algorithm) {
@@ -530,11 +533,12 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         console.log("===== Actions timings (json) =====");
         console.log(JSON.stringify($scope.actionTimings));
         console.log("===== Actions timings (csv) =====");
-        let output = "zoom,    serverTime,    treeCutTime,    networkTime,    renderTime\n";
+        let output = "zoom,    serverTime,    treeCutTime,    aggregateTime,    networkTime,    renderTime\n";
         for (let i = 0; i < $scope.actionTimings.length; i ++) {
           output += $scope.actions[i].zoom + ",    " +
             $scope.actionTimings[i].serverTime + ",    " +
             $scope.actionTimings[i].treeCutTime + ",    " +
+            $scope.actionTimings[i].aggregateTime + ",    " +
             $scope.actionTimings[i].networkTime + ",    " +
             $scope.actionTimings[i].renderTime + "\n";
         }
@@ -613,13 +617,20 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
         const serverTime = response.totalTime;
         const treeCutTime = response.treeCutTime;
+        const aggregateTime = response.aggregateTime;
         const networkTime = queryTime - serverTime;
         console.log("===== query time =====");
         console.log("serverTime: " + serverTime + " seconds.");
         console.log("treeCutTime: " + treeCutTime + " seconds.");
+        console.log("aggregateTime: " + aggregateTime + " seconds.");
         console.log("networkTime: " + networkTime + " seconds.");
         if ($scope.timeActions) {
-          $scope.actionTime = {serverTime: serverTime, treeCutTime: treeCutTime, networkTime: networkTime};
+          $scope.actionTime = {
+            serverTime: serverTime,
+            treeCutTime: treeCutTime,
+            aggregateTime: aggregateTime,
+            networkTime: networkTime
+          };
         }
 
         switch (response.type) {

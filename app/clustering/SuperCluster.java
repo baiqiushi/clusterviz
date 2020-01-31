@@ -271,10 +271,35 @@ public class SuperCluster {
      * @param x1
      * @param y1
      * @param zoom
+     * @param treeCut
+     * @param measure
+     * @param pixels
+     * @param bipartite
      * @return
      */
     public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom, boolean treeCut, String measure, double pixels, boolean bipartite) {
         return getClusters(x0, y0, x1, y1, zoom);
+    }
+
+    /**
+     * Get an array of Clusters for given visible region and zoom level,
+     *     then run tree-cut algorithm to choose a better subset of clusters to return
+     *
+     * @param x0
+     * @param y0
+     * @param x1
+     * @param y1
+     * @param zoom
+     * @param treeCut
+     * @param measure
+     * @param pixels
+     * @param bipartite
+     * @param resX
+     * @param resY
+     * @return
+     */
+    public Cluster[] getClusters(double x0, double y0, double x1, double y1, int zoom, boolean treeCut, String measure, double pixels, boolean bipartite, int resX, int resY) {
+        return getClusters(x0, y0, x1, y1, zoom, treeCut, measure, pixels, bipartite);
     }
 
     /**
