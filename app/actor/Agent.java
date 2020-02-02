@@ -85,9 +85,16 @@ public class Agent extends AbstractActor {
         Constants.MAX_LATITUDE = this.config.getDouble("data.maxLat");
 
         Constants.MIN_X = SuperCluster.lngX(Constants.MIN_LONGITUDE);
-        Constants.MIN_Y = SuperCluster.latY(Constants.MAX_LATITUDE); // latitude -> x is reversed than geo coordinates
+        Constants.MIN_Y = SuperCluster.latY(Constants.MAX_LATITUDE); // latitude -> y is reversed than geo coordinates
         Constants.MAX_X = SuperCluster.lngX(Constants.MAX_LONGITUDE);
-        Constants.MAX_Y = SuperCluster.latY(Constants.MIN_LATITUDE); // latitude -> x is reversed than geo coordinates
+        Constants.MAX_Y = SuperCluster.latY(Constants.MIN_LATITUDE); // latitude -> y is reversed than geo coordinates
+
+        //-DEBUG-//
+        System.out.println("MIN_X = " + Constants.MIN_X);
+        System.out.println("MAX_X = " + Constants.MAX_X);
+        System.out.println("MIN_Y = " + Constants.MIN_Y);
+        System.out.println("MAX_Y = " + Constants.MAX_Y);
+        //-DEBUG-//
 
         Constants.MAX_RESOLUTION = this.config.getInt("index.maxResolution");
     }
@@ -188,10 +195,10 @@ public class Agent extends AbstractActor {
         }
         Query query = _request.query;
 
-        if (query.cluster == null) {
+        if (query.clusterKey == null) {
             // TODO - exception
         }
-        String clusterKey = query.cluster;
+        String clusterKey = query.clusterKey;
 
 
         // handle non-progressive query
@@ -209,7 +216,7 @@ public class Agent extends AbstractActor {
 
                 String clusterOrder = query.order == null ? "original" : query.order;
                 String indexType = query.indexType == null ? "KDTree" : query.indexType;
-                success = clusterData(clusterKey, clusterOrder, "SuperCluster", indexType, false, false);
+                success = clusterData(query, false, false);
                 if (!success) {
                     // TODO - exception
                 }
@@ -290,7 +297,7 @@ public class Agent extends AbstractActor {
         MyMemory.porgressTotalMemory.clear();
 
         Query query = _request.query;
-        String clusterKey = query.cluster;
+        String clusterKey = query.clusterKey;
         if (_request.keyword == null) {
             // TODO - exception
         }
@@ -321,7 +328,7 @@ public class Agent extends AbstractActor {
             String clusterOrder = query.order == null ? "original" : query.order;
             String indexType = query.indexType == null ? "KDTree" : query.indexType;
             MyTimer.startTimer();
-            success = clusterData(clusterKey, clusterOrder, query.algorithm, indexType, deltaOnly, _request.analysis != null);
+            success = clusterData(query, deltaOnly, _request.analysis != null);
             MyTimer.stopTimer();
             MyTimer.progressTimer.get("clusterTime").add(MyTimer.durationSeconds());
             MyMemory.progressUsedMemory.add(MyMemory.getUsedMemory());
@@ -480,21 +487,20 @@ public class Agent extends AbstractActor {
     /**
      * cluster data for given order and name it with given key
      *
-     * @param clusterKey
-     * @param clusterOrder
+     * @param query - Query
      * @param deltaOnly - valid only for progressive queries, true - if pointTuples only keep delta data, false - otherwise
      * @param analysis - true - if we need to analysis the rand-index of clustering results, false - otherwise
      * @return
      */
-    private boolean clusterData(String clusterKey, String clusterOrder, String algorithm, String indexType, boolean deltaOnly, boolean analysis) {
+    private boolean clusterData(Query query, boolean deltaOnly, boolean analysis) {
 
         if (analysis) {
-            double[][] points = orderPoints(clusterKey, clusterOrder, deltaOnly);
+            double[][] points = orderPoints(query.clusterKey, query.order, deltaOnly);
             if (points == null) {
                 return false;
             }
             else {
-                SuperCluster cluster = getSuperCluster(clusterKey, algorithm, indexType, true);
+                SuperCluster cluster = getSuperCluster(query, true);
                 cluster.load(points);
                 if (deltaOnly) {
                     PointTupleListFactory.recycle(this.pointTuples);
@@ -507,7 +513,7 @@ public class Agent extends AbstractActor {
                 return false;
             }
             else {
-                SuperCluster cluster = getSuperCluster(clusterKey, algorithm, indexType, false);
+                SuperCluster cluster = getSuperCluster(query, false);
                 cluster.load(this.pointTuples);
                 if (deltaOnly) {
                     PointTupleListFactory.recycle(this.pointTuples);
@@ -518,10 +524,10 @@ public class Agent extends AbstractActor {
         return true;
     }
 
-    private SuperCluster getSuperCluster(String clusterKey, String algorithm, String indexType, boolean analysis) {
+    private SuperCluster getSuperCluster(Query query, boolean analysis) {
         SuperCluster cluster;
-        if (superClusters.containsKey(clusterKey)) {
-            cluster = superClusters.get(clusterKey);
+        if (superClusters.containsKey(query.clusterKey)) {
+            cluster = superClusters.get(query.clusterKey);
         }
         else {
             // if too many cached clusters, replace the least used one
@@ -539,7 +545,7 @@ public class Agent extends AbstractActor {
                 }
             }
 
-            switch (algorithm.toLowerCase()) {
+            switch (query.algorithm.toLowerCase()) {
                 case "isupercluster":
                 case "isc":
                     cluster = new iSuperCluster(this.minZoom, this.maxZoom, analysis);
@@ -550,29 +556,33 @@ public class Agent extends AbstractActor {
                     break;
                 case "bisupercluster":
                 case "bisc":
-                    cluster = new BiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
+                    cluster = new BiSuperCluster(this.minZoom, this.maxZoom, query.indexType, analysis);
                     break;
                 case "lbisupercluster":
                 case "lbisc":
-                    cluster = new LBiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
+                    cluster = new LBiSuperCluster(this.minZoom, this.maxZoom, query.indexType, analysis);
                     break;
                 case "sbisupercluster":
                 case "sbic":
-                    cluster = new SBiSuperCluster(this.minZoom, this.maxZoom, indexType, analysis);
+                    cluster = new SBiSuperCluster(this.minZoom, this.maxZoom, query.indexType, analysis);
                     break;
                 case "dataexplorer":
                 case "de":
-                    cluster = new DataExplorer(this.minZoom, this.maxZoom, indexType, analysis);
+                    cluster = new DataExplorer(this.minZoom, this.maxZoom, query.indexType, analysis);
                     break;
                 case "dataaggregator":
                 case "da":
-                    cluster = new DataAggregator(this.minZoom, this.maxZoom, indexType, analysis);
+                    cluster = new DataAggregator(this.minZoom, this.maxZoom, query.indexType, analysis);
+                    break;
+                case "quadtreeaggregator":
+                case "qta":
+                    cluster = new QuadTreeAggregator(this.minZoom, this.maxZoom, query.resX, query.resY);
                     break;
                 default:
-                    cluster = new SuperCluster(this.minZoom, this.maxZoom, indexType);
+                    cluster = new SuperCluster(this.minZoom, this.maxZoom, query.indexType);
             }
-            superClusters.put(clusterKey, cluster);
-            superClustersHits.put(clusterKey, 0);
+            superClusters.put(query.clusterKey, cluster);
+            superClustersHits.put(query.clusterKey, 0);
         }
         return cluster;
     }
@@ -598,7 +608,12 @@ public class Agent extends AbstractActor {
                 else {
                     String clusterKey = _cmd.arguments[0];
                     String clusterOrder = _cmd.arguments[1];
-                    success = clusterData(clusterKey, clusterOrder, "SuperCluster", "KDTree", false, false);
+                    Query cmdQuery = new Query();
+                    cmdQuery.clusterKey = clusterKey;
+                    cmdQuery.order = clusterOrder;
+                    cmdQuery.algorithm = "SuperCluster";
+                    cmdQuery.indexType = "KDTree";
+                    success = clusterData(cmdQuery, false, false);
                     if (success) {
                         respond(buildCmdResponse(_request, _cmd.action, "cluster built for key = " + clusterKey + " order = " + clusterOrder, "done"));
                     }

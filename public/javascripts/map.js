@@ -33,7 +33,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
     // store query object for "middleware" mode
     $scope.query = {
-      cluster: "",
+      clusterKey: "",
       order: "",
       algorithm: "",
       zoom: 0,
@@ -101,7 +101,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
       // only send query when comprised query has enough information, i.e. keyword, order, algorithm
       if ($scope.query.keyword && $scope.query.order && $scope.query.algorithm) {
-        $scope.query.cluster = $scope.query.keyword + "-" + $scope.query.order + "-" + $scope.query.algorithm;
+        $scope.query.clusterKey = $scope.query.keyword + "-" + $scope.query.order + "-" + $scope.query.algorithm;
 
         let request = {
           type: "query",
@@ -117,7 +117,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
             objective: e.analysis,
             arguments: [
               request.query.keyword + "-" + request.query.order + "-SuperCluster",
-              request.query.cluster,
+              request.query.clusterKey,
               e.zoom
             ]
           };
@@ -703,7 +703,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
               analysis: {
                 objective: "distance",
                 arguments: [
-                  $scope.query.cluster, // clusterKey
+                  $scope.query.clusterKey, // clusterKey
                   $scope.map.getZoom() + 1, // zoom
                   $scope.p1, // point1_id
                   $scope.p2
