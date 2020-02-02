@@ -1,6 +1,7 @@
 package clustering;
 
 import model.Cluster;
+import model.Point;
 import model.PointTuple;
 import util.Constants;
 import util.MyMemory;
@@ -16,17 +17,17 @@ public class QuadTreeAggregator extends SuperCluster {
     public static double highestResScale;
 
     public class BBox {
-        public Cluster center;
+        public Point center;
         public double halfWidth;
         public double halfHeight;
 
-        public BBox(Cluster center, double halfWidth, double halfHeight) {
+        public BBox(Point center, double halfWidth, double halfHeight) {
             this.center = center;
             this.halfWidth = halfWidth;
             this.halfHeight = halfHeight;
         }
 
-        public boolean containsPoint(Cluster point) {
+        public boolean containsPoint(Point point) {
             if (point.getX() >= (center.getX() - halfWidth)
                     && point.getY() >= (center.getY() - halfHeight)
                     && point.getX() <= (center.getX() + halfWidth)
@@ -76,7 +77,7 @@ public class QuadTreeAggregator extends SuperCluster {
         // points in this node
         public short pointsCount;
         // TODO - Currently intermediate notes also store QT_NODE_CAPACITY points
-        public Cluster[] points;
+        public Point[] points;
 
         // children
         public QuadTree northWest;
@@ -88,7 +89,7 @@ public class QuadTreeAggregator extends SuperCluster {
             this.boundary = boundary;
         }
 
-        public boolean insert(Cluster point) {
+        public boolean insert(Point point) {
             // Ignore objects that do not belong in this quad tree
             if (!this.boundary.containsPoint(point)) {
                 return false;
@@ -96,7 +97,7 @@ public class QuadTreeAggregator extends SuperCluster {
             // If there is space in this quad tree and if doesn't have subdivisions, add the object here
             if (this.pointsCount < QT_NODE_CAPACITY && this.northWest == null) {
                 if (this.points == null) {
-                   this.points = new Cluster[QT_NODE_CAPACITY];
+                   this.points = new Point[QT_NODE_CAPACITY];
                 }
                 this.points[this.pointsCount ++] = point;
                 return true;
@@ -129,31 +130,31 @@ public class QuadTreeAggregator extends SuperCluster {
             // northwest
             x = this.boundary.center.getX() - halfWidth;
             y = this.boundary.center.getY() + halfHeight;
-            Cluster nwCenter = new Cluster(x, y, -1);
+            Point nwCenter = new Point(x, y, -1);
             BBox nwBoundary = new BBox(nwCenter, halfWidth, halfHeight);
             this.northWest = new QuadTree(nwBoundary);
             // northeast
             x = this.boundary.center.getX() + halfWidth;
             y = this.boundary.center.getY() + halfHeight;
-            Cluster neCenter = new Cluster(x, y, -1);
+            Point neCenter = new Point(x, y, -1);
             BBox neBoundary = new BBox(neCenter, halfWidth, halfHeight);
             this.northEast = new QuadTree(neBoundary);
             // southwest
             x = this.boundary.center.getX() - halfWidth;
             y = this.boundary.center.getY() - halfHeight;
-            Cluster swCenter = new Cluster(x, y, -1);
+            Point swCenter = new Point(x, y, -1);
             BBox swBoundary = new BBox(swCenter, halfWidth, halfHeight);
             this.southWest = new QuadTree(swBoundary);
             // southeast
             x = this.boundary.center.getX() + halfWidth;
             y = this.boundary.center.getY() - halfHeight;
-            Cluster seCenter = new Cluster(x, y, -1);
+            Point seCenter = new Point(x, y, -1);
             BBox seBoundary = new BBox(seCenter, halfWidth, halfHeight);
             this.southEast = new QuadTree(seBoundary);
         }
 
-        public List<Cluster> range(BBox range, double resScale) {
-            List<Cluster> pointsInRange = new ArrayList<>();
+        public List<Point> range(BBox range, double resScale) {
+            List<Point> pointsInRange = new ArrayList<>();
 
             // Automatically abort if the range does not intersect this quad
             if (!this.boundary.intersectsBBox(range))
@@ -201,7 +202,7 @@ public class QuadTreeAggregator extends SuperCluster {
         double y = (Constants.MAX_Y + Constants.MIN_Y) / 2;
         double halfWidth = (Constants.MAX_X - Constants.MIN_X) / 2;
         double halfHeight = (Constants.MAX_Y - Constants.MIN_Y) / 2;
-        Cluster center = new Cluster(x, y, -1);
+        Point center = new Point(x, y, -1);
         BBox boundary = new BBox(center, halfWidth, halfHeight);
         this.quadTree = new QuadTree(boundary);
 
@@ -224,7 +225,7 @@ public class QuadTreeAggregator extends SuperCluster {
         int count = 0;
         int skip = 0;
         for (PointTuple point: points) {
-            if (this.quadTree.insert(createPointCluster(point.getX(), point.getY(), point.getId())))
+            if (this.quadTree.insert(createPoint(point.getX(), point.getY(), point.getId())))
                 count ++;
             else
                 skip ++;
@@ -238,6 +239,10 @@ public class QuadTreeAggregator extends SuperCluster {
         if (keepTiming) this.printTiming();
 
         MyMemory.printMemory();
+    }
+
+    private Point createPoint(double _x, double _y, int _id) {
+        return new Point(lngX(_x), latY(_y), _id);
     }
 
     /**
@@ -269,7 +274,7 @@ public class QuadTreeAggregator extends SuperCluster {
         double resScale = Math.min((iX1 - iX0) / resX, (iY0 - iY1) / resY);
         double x = (iX0 + iX1) / 2;
         double y = (iY0 + iY1) / 2;
-        Cluster center = new Cluster(x, y, -1);
+        Point center = new Point(x, y, -1);
         double halfWidth = (iX1 - iX0) / 2;
         double halfHeight = (iY0 - iY1) / 2;
         BBox range = new BBox(center, halfWidth, halfHeight);
@@ -277,12 +282,10 @@ public class QuadTreeAggregator extends SuperCluster {
         System.out.println("[QuadTree Aggregator] starting range search on QuadTree with: \n" +
                 "range = " + range + "; \n resScale = " + resScale + ";");
 
-        List<Cluster> points = this.quadTree.range(range, resScale);
+        List<Point> points = this.quadTree.range(range, resScale);
         List<Cluster> results = new ArrayList<>();
-        for (Cluster point: points) {
-            Cluster cluster = point.clone();
-            cluster.setX(xLng(cluster.getX()));
-            cluster.setY(yLat(cluster.getY()));
+        for (Point point: points) {
+            Cluster cluster = new Cluster(xLng(point.getX()), yLat(point.getY()), point.getId());
             results.add(cluster);
         }
         long end = System.nanoTime();
