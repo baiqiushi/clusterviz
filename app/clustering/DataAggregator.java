@@ -123,8 +123,8 @@ public class DataAggregator extends SuperCluster {
         double deltaY = iY1 - iY0;
         for (Cluster point: allPoints) {
             // find pixel index of this point based on resolution resX * resY
-            int i = (int) Math.round((point.getX() - iX0) * resX / deltaX);
-            int j = (int) Math.round((point.getY() - iY0) * resY / deltaY);
+            int i = (int) Math.floor((point.getX() - iX0) * resX / deltaX);
+            int j = (int) Math.floor((point.getY() - iY0) * resY / deltaY);
             // only add it into result when <i, j> is not in set
             if (!set.contains(new Pair<>(i, j))) {
                 set.add(new Pair<>(i, j));

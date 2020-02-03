@@ -71,8 +71,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           $scope.map.getBounds().getNorth()
         ];
 
-        $scope.query.resX = $scope.map.getSize().x * 2;
-        $scope.query.resY = $scope.map.getSize().y * 2;
+        $scope.query.resX = $scope.map.getSize().x;
+        $scope.query.resY = $scope.map.getSize().y;
       }
 
       if (e.algorithm) {
