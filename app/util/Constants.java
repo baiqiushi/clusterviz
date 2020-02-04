@@ -18,4 +18,9 @@ public class Constants {
     public static double MAX_Y;
 
     public static int MAX_RESOLUTION;
+
+    public static String DB_URL;
+    public static String DB_USERNAME;
+    public static String DB_PASSWORD;
+    public static String DB_TABLENAME;
 }

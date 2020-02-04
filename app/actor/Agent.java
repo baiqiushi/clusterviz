@@ -89,12 +89,10 @@ public class Agent extends AbstractActor {
         Constants.MAX_X = SuperCluster.lngX(Constants.MAX_LONGITUDE);
         Constants.MAX_Y = SuperCluster.latY(Constants.MIN_LATITUDE); // latitude -> y is reversed than geo coordinates
 
-        //-DEBUG-//
-        System.out.println("MIN_X = " + Constants.MIN_X);
-        System.out.println("MAX_X = " + Constants.MAX_X);
-        System.out.println("MIN_Y = " + Constants.MIN_Y);
-        System.out.println("MAX_Y = " + Constants.MAX_Y);
-        //-DEBUG-//
+        Constants.DB_URL = this.config.getString("db.url");
+        Constants.DB_USERNAME = this.config.getString("db.username");
+        Constants.DB_PASSWORD = this.config.getString("db.password");
+        Constants.DB_TABLENAME = this.config.getString("db.tablename");
 
         Constants.MAX_RESOLUTION = this.config.getInt("index.maxResolution");
     }

@@ -13,13 +13,9 @@ public class PostgreSQL {
 
     public Connection conn = null;
 
-    public String url = "jdbc:postgresql://localhost/twitter";
-    public String username = "postgres";
-    public String password = "postgres";
-
     public boolean connectDB() {
         try {
-            conn = DriverManager.getConnection(url, username, password);
+            conn = DriverManager.getConnection(Constants.DB_URL, Constants.DB_USERNAME, Constants.DB_PASSWORD);
             System.out.println("Connected to the PostgreSQL server successfully.");
             return true;
         } catch (SQLException e) {
@@ -51,7 +47,7 @@ public class PostgreSQL {
         // reuse array list of PointTuple
         List<PointTuple> result = PointTupleListFactory.newPointTupleList();
         int i = 0;
-        String sql = "SELECT x, y, id FROM tweets WHERE to_tsvector('english', text)@@to_tsquery('english', ?)";
+        String sql = "SELECT x, y, id FROM " + Constants.DB_TABLENAME + " WHERE to_tsvector('english', text)@@to_tsquery('english', ?)";
         long start = System.nanoTime();
         try {
             PreparedStatement statement = conn.prepareStatement(sql);
@@ -111,7 +107,7 @@ public class PostgreSQL {
 //            System.out.println("[Debug] [PostgreSQL] is reusing List<PointTuple> with size = " + result.size());
 //        }
         //-DEBUG-//
-        String sql = "SELECT x, y, id FROM tweets WHERE to_tsvector('english', text)@@to_tsquery('english', ?) and create_at between ? and ?";
+        String sql = "SELECT x, y, id FROM " + Constants.DB_TABLENAME + " WHERE to_tsvector('english', text)@@to_tsquery('english', ?) and create_at between ? and ?";
         long start = System.nanoTime();
         try {
             PreparedStatement statement = conn.prepareStatement(sql);
@@ -177,7 +173,7 @@ public class PostgreSQL {
 //            System.out.println("[Debug] [PostgreSQL] is reusing List<PointTuple> with size = " + result.size());
 //        }
         //-DEBUG-//
-        String sql = "SELECT x, y, id FROM tweets WHERE create_at between ? and ?";
+        String sql = "SELECT x, y, id FROM " + Constants.DB_TABLENAME + " WHERE create_at between ? and ?";
         long start = System.nanoTime();
         try {
             PreparedStatement statement = conn.prepareStatement(sql);
@@ -233,7 +229,7 @@ public class PostgreSQL {
 
         System.out.println("Querying PostgreSQL with limit: [" + limit + "] ... ...");
         List<PointTuple> result = new ArrayList<PointTuple>();
-        String sql = "SELECT x, y, id FROM tweets limit ?";
+        String sql = "SELECT x, y, id FROM " + Constants.DB_TABLENAME + " limit ?";
         long start = System.nanoTime();
         try {
             PreparedStatement statement = conn.prepareStatement(sql);
