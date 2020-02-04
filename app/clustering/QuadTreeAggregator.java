@@ -107,7 +107,7 @@ public class QuadTreeAggregator extends SuperCluster {
             this.centroid.setY(this.boundary.center.getY());
 
             // if current node's boundary is smaller than highestResScale, drop this point
-            if (Math.max(this.boundary.halfWidth, this.boundary.halfHeight) < highestResScale) {
+            if (Math.max(this.boundary.halfWidth, this.boundary.halfHeight) * 2 < highestResScale) {
                 return false;
             }
 
@@ -336,6 +336,10 @@ public class QuadTreeAggregator extends SuperCluster {
         double halfWidth = (iX1 - iX0) / 2;
         double halfHeight = (iY0 - iY1) / 2;
         BBox range = new BBox(center, halfWidth, halfHeight);
+
+        if (treeCut) {
+            resScale = resScale * pixels;
+        }
 
         System.out.println("[QuadTree Aggregator] starting range search on QuadTree with: \n" +
                 "range = " + range + "; \n resScale = " + resScale + ";");
