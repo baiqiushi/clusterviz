@@ -266,7 +266,7 @@ public class QuadTreeAggregator extends SuperCluster {
 
         double pixelWidth = (Constants.MAX_X - Constants.MIN_X) / resX;
         double pixelHeight = (Constants.MAX_Y - Constants.MIN_Y) / resY;
-        highestResScale = Math.min(pixelWidth / Math.pow(2, this.maxZoom - 3), pixelHeight / Math.pow(2, this.maxZoom - 3));
+        highestResScale = Math.min(pixelWidth / Math.pow(2, this.maxZoom - 4), pixelHeight / Math.pow(2, this.maxZoom - 4));
 
         // initialize the timing map
         if (keepTiming) {
