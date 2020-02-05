@@ -159,6 +159,8 @@ public class QuadTreeAggregator extends SuperCluster {
             Point seCenter = new Point(x, y, -1);
             BBox seBoundary = new BBox(seCenter, halfWidth, halfHeight);
             this.southEast = new QuadTree(seBoundary, this.level + 1);
+
+            nodesCount += 4;
         }
 
         public List<Cluster> range(BBox range, double resScale) {
@@ -246,6 +248,7 @@ public class QuadTreeAggregator extends SuperCluster {
     }
 
     QuadTree quadTree;
+    static long nodesCount = 0; // count quad-tree nodes
 
     //-Timing-//
     static final boolean keepTiming = true;
@@ -299,7 +302,9 @@ public class QuadTreeAggregator extends SuperCluster {
         MyMemory.printMemory();
 
         //-DEBUG-//
-        //this.quadTree.printGraphViz();
+        System.out.println("==== Until now ====");
+        System.out.println("QuadTree has inserted " + this.totalNumberOfPoints + " points.");
+        System.out.println("QuadTree has generated " + nodesCount + " nodes.");
         //-DEBUG-//
     }
 
