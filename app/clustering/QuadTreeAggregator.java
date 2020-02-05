@@ -177,7 +177,7 @@ public class QuadTreeAggregator extends SuperCluster {
             }
 
             // Terminate here, if this node's boundary is already smaller than resScale
-            if (Math.max(this.boundary.halfWidth, this.boundary.halfHeight) * 2 < resScale) {
+            if (Math.max(this.boundary.halfWidth, this.boundary.halfHeight) * 2 <= resScale) {
                 if (this.centroid != null) {
                     pointsInRange.add(this.centroid);
                 }
