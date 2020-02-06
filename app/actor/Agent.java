@@ -576,10 +576,6 @@ public class Agent extends AbstractActor {
                 case "qta":
                     cluster = new QuadTreeAggregator(this.minZoom, this.maxZoom, query.resX, query.resY);
                     break;
-                case "resolutiontreeaggregator":
-                case "rta":
-                    cluster = new ResolutionTreeAggregator(this.minZoom, this.maxZoom, query.resX, query.resY);
-                    break;
                 default:
                     cluster = new SuperCluster(this.minZoom, this.maxZoom, query.indexType);
             }

@@ -42,7 +42,7 @@ angular.module("clustermap.searchbar", ["clustermap.common"])
         $scope.orders = ["original", "reverse", "spatial", "spatial-reverse"];
         $scope.algorithms = ["SuperCluster", "SuperClusterInBatch", "iSuperCluster",
           "AiSuperCluster", "BiSuperCluster", "LBiSuperCluster", "QuadTreeAggregator",
-          "DataExplorer", "DataAggregator", "ResolutionTreeAggregator", "SBiSuperCluster"];
+          "DataExplorer", "DataAggregator", "SBiSuperCluster"];
         $scope.indexTypes = ["KDTree", "GridIndex"];
         $scope.zooms = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
         $scope.analysises = ["", "rand-index", "adjusted-rand-index"];
