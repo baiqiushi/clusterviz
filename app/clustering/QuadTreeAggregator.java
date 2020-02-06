@@ -1,6 +1,5 @@
 package clustering;
 
-import javafx.util.Pair;
 import model.Cluster;
 import model.Point;
 import model.PointTuple;
@@ -13,22 +12,26 @@ public class QuadTreeAggregator extends SuperCluster {
 
     public static double highestResScale;
 
-    public class BBox {
-        public Point center;
-        public double halfWidth;
-        public double halfHeight;
+    public class QuadTree {
+        // Store count of the sub-tree
+        public int count;
+        public Point point;
 
-        public BBox(Point center, double halfWidth, double halfHeight) {
-            this.center = center;
-            this.halfWidth = halfWidth;
-            this.halfHeight = halfHeight;
+        // children
+        public QuadTree northWest;
+        public QuadTree northEast;
+        public QuadTree southWest;
+        public QuadTree southEast;
+
+        public QuadTree() {
+            this.count = 0;
         }
 
-        public boolean containsPoint(Point point) {
-            if (point.getX() >= (center.getX() - halfWidth)
-                    && point.getY() >= (center.getY() - halfHeight)
-                    && point.getX() < (center.getX() + halfWidth)
-                    && point.getY() < (center.getY() + halfHeight)) {
+        public boolean containsPoint(double cX, double cY, double halfWidth, double halfHeight, Point point) {
+            if (point.getX() >= (cX - halfWidth)
+                    && point.getY() >= (cY - halfHeight)
+                    && point.getX() < (cX + halfWidth)
+                    && point.getY() < (cY + halfHeight)) {
                 return true;
             }
             else {
@@ -36,17 +39,18 @@ public class QuadTreeAggregator extends SuperCluster {
             }
         }
 
-        public boolean intersectsBBox(BBox range) {
-            // this bbox
-            double left = this.center.getX() - this.halfWidth;
-            double right = this.center.getX() + this.halfWidth;
-            double bottom = this.center.getY() - this.halfHeight;
-            double top = this.center.getY() + this.halfHeight;
-            // range bbox
-            double minX = range.center.getX() - range.halfWidth;
-            double maxX = range.center.getX() + range.halfWidth;
-            double minY = range.center.getY() - range.halfHeight;
-            double maxY = range.center.getY() + range.halfHeight;
+        public boolean intersectsBBox(double c1X, double c1Y, double halfWidth1, double halfHeight1,
+                                      double c2X, double c2Y, double halfWidth2, double halfHeight2) {
+            // bbox 1
+            double left = c1X - halfWidth1;
+            double right = c1X + halfWidth1;
+            double bottom = c1Y - halfHeight1;
+            double top = c1Y + halfHeight1;
+            // bbox 2
+            double minX = c2X - halfWidth2;
+            double maxX = c2X + halfWidth2;
+            double minY = c2Y - halfHeight2;
+            double maxY = c2Y + halfHeight2;
 
             // right to the right
             if (minX > right) return false;
@@ -60,194 +64,147 @@ public class QuadTreeAggregator extends SuperCluster {
             return true;
         }
 
-        public String toString() {
-            StringBuilder s = new StringBuilder();
-            s.append("bbox[ (" + center.getX() + ", " + center.getY() + ")" + ", " + halfWidth + ", " + halfHeight + "]");
-            return s.toString();
-        }
-    }
-
-    public class QuadTree {
-        public int level;
-
-        // boundary of this node
-        public BBox boundary;
-
-        // Store centroid of the sub-tree
-        public Cluster centroid;
-
-        // children
-        public QuadTree northWest;
-        public QuadTree northEast;
-        public QuadTree southWest;
-        public QuadTree southEast;
-
-        public QuadTree(BBox boundary, int level) {
-            this.boundary = boundary;
-            this.level = level;
-        }
-
-        public boolean insert(Cluster point) {
+        public boolean insert(double cX, double cY, double halfWidth, double halfHeight, Point point) {
             // Ignore objects that do not belong in this quad tree
-            if (!this.boundary.containsPoint(point)) {
+            if (!containsPoint(cX, cY, halfWidth, halfHeight, point)) {
                 return false;
             }
-            // If this node is empty, put this point on this node
-            if (this.centroid == null) {
-                this.centroid = point;
+            // If this node is leaf and empty, put this point on this node
+            if (this.point == null && this.northWest == null) {
+                this.point = point;
+                this.count = 1;
                 return true;
             }
-            // Else, add count into centroid of this node
-            // keep existing point
-            Cluster existingPoint = this.centroid.clone();
-            // update centroid of this node to be the center
-            this.centroid.numPoints = this.centroid.numPoints == 0? 1: this.centroid.numPoints;
-            this.centroid.numPoints += 1;
-            this.centroid.setX(this.boundary.center.getX());
-            this.centroid.setY(this.boundary.center.getY());
+            // Else, add count into this node
+            this.count ++;
 
-            // if current node's boundary is smaller than highestResScale, drop this point
-            if (Math.max(this.boundary.halfWidth, this.boundary.halfHeight) * 2 < highestResScale) {
+            // if boundary is smaller than highestResScale, drop this point
+            if (Math.max(halfWidth, halfHeight) * 2 < highestResScale) {
                 return false;
             }
 
             // Otherwise, subdivide
             if (this.northWest == null) {
                 this.subdivide();
-                this.northWest.insert(existingPoint);
-                this.northEast.insert(existingPoint);
-                this.southWest.insert(existingPoint);
-                this.southEast.insert(existingPoint);
+                // insert current node's point into corresponding quadrant
+                this.insertNorthWest(cX, cY, halfWidth, halfHeight, this.point);
+                this.insertNorthEast(cX, cY, halfWidth, halfHeight, this.point);
+                this.insertSouthWest(cX, cY, halfWidth, halfHeight, this.point);
+                this.insertSouthEast(cX, cY, halfWidth, halfHeight, this.point);
+                this.point = null;
             }
 
-            // then add the point to whichever node will accept it
-            if (this.northWest.insert(point)) return true;
-            if (this.northEast.insert(point)) return true;
-            if (this.southWest.insert(point)) return true;
-            if (this.southEast.insert(point)) return true;
-            // Otherwise, the point cannot be inserted for some unknown reason (this should never happen)
+            // insert new point into corresponding quadrant
+            if (insertNorthWest(cX, cY, halfWidth, halfHeight, point)) return true;
+            if (insertNorthEast(cX, cY, halfWidth, halfHeight, point)) return true;
+            if (insertSouthWest(cX, cY, halfWidth, halfHeight, point)) return true;
+            if (insertSouthEast(cX, cY, halfWidth, halfHeight, point)) return true;
+
             return false;
         }
 
-        void subdivide() {
-            // divide this node's boundary into 4 equal quadrants, and new children QuadTrees
-            double x, y;
-            double halfWidth, halfHeight;
-            halfWidth = this.boundary.halfWidth / 2;
-            halfHeight = this.boundary.halfHeight / 2;
-            // northwest
-            x = this.boundary.center.getX() - halfWidth;
-            y = this.boundary.center.getY() + halfHeight;
-            Point nwCenter = new Point(x, y, -1);
-            BBox nwBoundary = new BBox(nwCenter, halfWidth, halfHeight);
-            this.northWest = new QuadTree(nwBoundary, this.level + 1);
-            // northeast
-            x = this.boundary.center.getX() + halfWidth;
-            y = this.boundary.center.getY() + halfHeight;
-            Point neCenter = new Point(x, y, -1);
-            BBox neBoundary = new BBox(neCenter, halfWidth, halfHeight);
-            this.northEast = new QuadTree(neBoundary, this.level + 1);
-            // southwest
-            x = this.boundary.center.getX() - halfWidth;
-            y = this.boundary.center.getY() - halfHeight;
-            Point swCenter = new Point(x, y, -1);
-            BBox swBoundary = new BBox(swCenter, halfWidth, halfHeight);
-            this.southWest = new QuadTree(swBoundary, this.level + 1);
-            // southeast
-            x = this.boundary.center.getX() + halfWidth;
-            y = this.boundary.center.getY() - halfHeight;
-            Point seCenter = new Point(x, y, -1);
-            BBox seBoundary = new BBox(seCenter, halfWidth, halfHeight);
-            this.southEast = new QuadTree(seBoundary, this.level + 1);
+        boolean insertNorthWest(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point) {
+            double halfWidth = _halfWidth / 2;
+            double halfHeight = _halfHeight / 2;
+            double cX = _cX - halfWidth;
+            double cY = _cY + halfHeight;
+            return this.northWest.insert(cX, cY, halfWidth, halfHeight, point);
+        }
 
+        boolean insertNorthEast(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point) {
+            double halfWidth = _halfWidth / 2;
+            double halfHeight = _halfHeight / 2;
+            double cX = _cX + halfWidth;
+            double cY = _cY + halfHeight;
+            return this.northEast.insert(cX, cY, halfWidth, halfHeight, point);
+        }
+
+        boolean insertSouthWest(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point) {
+            double halfWidth = _halfWidth / 2;
+            double halfHeight = _halfHeight / 2;
+            double cX = _cX - halfWidth;
+            double cY = _cY - halfHeight;
+            return this.southWest.insert(cX, cY, halfWidth, halfHeight, point);
+        }
+
+        boolean insertSouthEast(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point) {
+            double halfWidth = _halfWidth / 2;
+            double halfHeight = _halfHeight / 2;
+            double cX = _cX + halfWidth;
+            double cY = _cY - halfHeight;
+            return this.southEast.insert(cX, cY, halfWidth, halfHeight, point);
+        }
+
+        void subdivide() {
+            this.northWest = new QuadTree();
+            this.northEast = new QuadTree();
+            this.southWest = new QuadTree();
+            this.southEast = new QuadTree();
             nodesCount += 4;
         }
 
-        public List<Cluster> range(BBox range, double resScale) {
-            List<Cluster> pointsInRange = new ArrayList<>();
+        public List<Point> range(double ncX, double ncY, double nhalfWidth, double nhalfHeight,
+                                   double rcX, double rcY, double rhalfWidth, double rhalfHeight,
+                                   double resScale) {
+            List<Point> pointsInRange = new ArrayList<>();
 
             // Automatically abort if the range does not intersect this quad
-            if (!this.boundary.intersectsBBox(range))
+            if (!intersectsBBox(ncX, ncY, nhalfWidth, nhalfHeight, rcX, rcY, rhalfWidth, rhalfHeight))
                 return pointsInRange; // empty list
 
             // Terminate here, if there are no children
             if (this.northWest == null) {
-                if (this.centroid != null) {
-                    pointsInRange.add(this.centroid);
+                if (this.point != null) {
+                    pointsInRange.add(this.point);
                 }
                 return pointsInRange;
             }
 
             // Terminate here, if this node's boundary is already smaller than resScale
-            if (Math.max(this.boundary.halfWidth, this.boundary.halfHeight) * 2 <= resScale) {
-                if (this.centroid != null) {
-                    pointsInRange.add(this.centroid);
-                }
+            if (Math.max(nhalfWidth, nhalfHeight) * 2 <= resScale) {
+                // add this node center to result
+                pointsInRange.add(new Point(ncX, ncY, -1));
                 return pointsInRange;
             }
 
             // Otherwise, add the points from the children
-            pointsInRange.addAll(this.northWest.range(range, resScale));
-            pointsInRange.addAll(this.northEast.range(range, resScale));
-            pointsInRange.addAll(this.southWest.range(range, resScale));
-            pointsInRange.addAll(this.southEast.range(range, resScale));
+            double cX, cY;
+            double halfWidth, halfHeight;
+            halfWidth = nhalfWidth / 2;
+            halfHeight = nhalfHeight / 2;
+            // northwest
+            cX = ncX - halfWidth;
+            cY = ncY + halfHeight;
+            pointsInRange.addAll(this.northWest.range(cX, cY, halfWidth, halfHeight,
+                    rcX, rcY, rhalfWidth, rhalfHeight, resScale));
+
+            // northeast
+            cX = ncX + halfWidth;
+            cY = ncY + halfHeight;
+            pointsInRange.addAll(this.northEast.range(cX, cY, halfWidth, halfHeight,
+                    rcX, rcY, rhalfWidth, rhalfHeight, resScale));
+
+            // southwest
+            cX = ncX - halfWidth;
+            cY = ncY - halfHeight;
+            pointsInRange.addAll(this.southWest.range(cX, cY, halfWidth, halfHeight,
+                    rcX, rcY, rhalfWidth, rhalfHeight, resScale));
+
+            // southeast
+            cX = ncX + halfWidth;
+            cY = ncY - halfHeight;
+            pointsInRange.addAll(this.southEast.range(cX, cY, halfWidth, halfHeight,
+                    rcX, rcY, rhalfWidth, rhalfHeight, resScale));
 
             return pointsInRange;
-        }
-
-        /**
-         * Copy paste the output to this link: http://www.webgraphviz.com/
-         */
-        public void printGraphViz() {
-            System.out.println("=================== QuadTree ===================");
-            System.out.println("digraph quadtree {");
-            Queue<Pair<Integer, QuadTree>> queue = new LinkedList<>();
-            int sequence = 0;
-            queue.add(new Pair<>(sequence++, this));
-            while (queue.size() > 0) {
-                Pair<Integer, QuadTree> entry = queue.poll();
-                int id = entry.getKey();
-                QuadTree node = entry.getValue();
-                String uid = id + "-" + node.level;
-                double scale = Math.max(node.boundary.halfWidth, node.boundary.halfHeight);
-                if (node.northWest != null) {
-                    QuadTree child = node.northWest;
-                    int c_id = sequence ++;
-                    String c_uid = c_id + "-" + child.level;
-                    double c_scale = Math.max(child.boundary.halfWidth, child.boundary.halfHeight);
-                    System.out.println("\"[" + uid + "] " + scale + "\" -> \"[" + c_uid + "] " + c_scale + "\"");
-                    queue.add(new Pair<>(c_id, child));
-                }
-                if (node.northEast != null) {
-                    QuadTree child = node.northEast;
-                    int c_id = sequence ++;
-                    String c_uid = c_id + "-" + child.level;
-                    double c_scale = Math.max(child.boundary.halfWidth, child.boundary.halfHeight);
-                    System.out.println("\"[" + uid + "] " + scale + "\" -> \"[" + c_uid + "] " + c_scale + "\"");
-                    queue.add(new Pair<>(c_id, child));
-                }
-                if (node.southWest != null) {
-                    QuadTree child = node.southWest;
-                    int c_id = sequence ++;
-                    String c_uid = c_id + "-" + child.level;
-                    double c_scale = Math.max(child.boundary.halfWidth, child.boundary.halfHeight);
-                    System.out.println("\"[" + uid + "] " + scale + "\" -> \"[" + c_uid + "] " + c_scale + "\"");
-                    queue.add(new Pair<>(c_id, child));
-                }
-                if (node.southEast != null) {
-                    QuadTree child = node.southEast;
-                    int c_id = sequence ++;
-                    String c_uid = c_id + "-" + child.level;
-                    double c_scale = Math.max(child.boundary.halfWidth, child.boundary.halfHeight);
-                    System.out.println("\"[" + uid + "] " + scale + "\" -> \"[" + c_uid + "] " + c_scale + "\"");
-                    queue.add(new Pair<>(c_id, child));
-                }
-            }
-            System.out.println("}");
         }
     }
 
     QuadTree quadTree;
+    double quadTreeCX;
+    double quadTreeCY;
+    double quadTreeHalfWidth;
+    double quadTreeHalfHeight;
     static long nodesCount = 0; // count quad-tree nodes
 
     //-Timing-//
@@ -259,13 +216,11 @@ public class QuadTreeAggregator extends SuperCluster {
         this.minZoom = _minZoom;
         this.maxZoom = _maxZoom;
 
-        double x = (Constants.MAX_X + Constants.MIN_X) / 2;
-        double y = (Constants.MAX_Y + Constants.MIN_Y) / 2;
-        double halfWidth = (Constants.MAX_X - Constants.MIN_X) / 2;
-        double halfHeight = (Constants.MAX_Y - Constants.MIN_Y) / 2;
-        Point center = new Point(x, y, -1);
-        BBox boundary = new BBox(center, halfWidth, halfHeight);
-        this.quadTree = new QuadTree(boundary, 0);
+        this.quadTreeCX = (Constants.MAX_X + Constants.MIN_X) / 2;
+        this.quadTreeCY = (Constants.MAX_Y + Constants.MIN_Y) / 2;
+        this.quadTreeHalfWidth = (Constants.MAX_X - Constants.MIN_X) / 2;
+        this.quadTreeHalfHeight = (Constants.MAX_Y - Constants.MIN_Y) / 2;
+        this.quadTree = new QuadTree();
 
         double pixelWidth = (Constants.MAX_X - Constants.MIN_X) / resX;
         double pixelHeight = (Constants.MAX_Y - Constants.MIN_Y) / resY;
@@ -286,7 +241,8 @@ public class QuadTreeAggregator extends SuperCluster {
         int count = 0;
         int skip = 0;
         for (PointTuple point: points) {
-            if (this.quadTree.insert(createPointCluster(point.getX(), point.getY(), point.getId())))
+            if (this.quadTree.insert(this.quadTreeCX, this.quadTreeCY, this.quadTreeHalfWidth, this.quadTreeHalfHeight,
+                    createPoint(point.getX(), point.getY(), point.getId())))
                 count ++;
             else
                 skip ++;
@@ -306,6 +262,10 @@ public class QuadTreeAggregator extends SuperCluster {
         System.out.println("QuadTree has inserted " + this.totalNumberOfPoints + " points.");
         System.out.println("QuadTree has generated " + nodesCount + " nodes.");
         //-DEBUG-//
+    }
+
+    protected Point createPoint(double _x, double _y, int _id) {
+        return new Point(lngX(_x), latY(_y), _id);
     }
 
     /**
@@ -335,26 +295,24 @@ public class QuadTreeAggregator extends SuperCluster {
         double iX1 = lngX(x1);
         double iY1 = latY(y1);
         double resScale = Math.min((iX1 - iX0) / resX, (iY0 - iY1) / resY);
-        double x = (iX0 + iX1) / 2;
-        double y = (iY0 + iY1) / 2;
-        Point center = new Point(x, y, -1);
-        double halfWidth = (iX1 - iX0) / 2;
-        double halfHeight = (iY0 - iY1) / 2;
-        BBox range = new BBox(center, halfWidth, halfHeight);
+        double rcX = (iX0 + iX1) / 2;
+        double rcY = (iY0 + iY1) / 2;
+        double rhalfWidth = (iX1 - iX0) / 2;
+        double rhalfHeight = (iY0 - iY1) / 2;
 
         if (treeCut) {
             resScale = resScale * pixels;
         }
 
         System.out.println("[QuadTree Aggregator] starting range search on QuadTree with: \n" +
-                "range = " + range + "; \n resScale = " + resScale + ";");
+                "range = [(" + rcX + ", " + rcY + "), " + rhalfWidth + ", " + rhalfHeight + "] ; \n" +
+                "resScale = " + resScale + ";");
 
-        List<Cluster> points = this.quadTree.range(range, resScale);
+        List<Point> points = this.quadTree.range(this.quadTreeCX, this.quadTreeCY, this.quadTreeHalfWidth, this.quadTreeHalfHeight,
+                rcX, rcY, rhalfWidth, rhalfHeight, resScale);
         List<Cluster> results = new ArrayList<>();
-        for (Cluster point: points) {
-            Cluster cluster = point.clone();
-            cluster.setX(xLng(cluster.getX()));
-            cluster.setY(yLat(cluster.getY()));
+        for (Point point: points) {
+            Cluster cluster = new Cluster(xLng(point.getX()), yLat(point.getY()), point.getId());
             results.add(cluster);
         }
         long end = System.nanoTime();
