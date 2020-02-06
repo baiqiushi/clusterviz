@@ -1,6 +1,5 @@
 package clustering;
 
-import javafx.util.Pair;
 import model.Cluster;
 import model.PointTuple;
 import util.I2DIndex;
@@ -114,7 +113,7 @@ public class DataAggregator extends SuperCluster {
         long start = System.nanoTime();
         // aggregate into a small set of aggregated points based on resolution (resX, resY)
         List<Cluster> aggPoints = new ArrayList<>();
-        Set<Pair<Integer, Integer>> set = new HashSet<>();
+        boolean[][] bitmap = new boolean[resX][resY];
         double iX0 = lngX(x0);
         double iY0 = latY(y0);
         double iX1 = lngX(x1);
@@ -126,8 +125,8 @@ public class DataAggregator extends SuperCluster {
             int i = (int) Math.floor((point.getX() - iX0) * resX / deltaX);
             int j = (int) Math.floor((point.getY() - iY0) * resY / deltaY);
             // only add it into result when <i, j> is not in set
-            if (!set.contains(new Pair<>(i, j))) {
-                set.add(new Pair<>(i, j));
+            if (!bitmap[i][j]) {
+                bitmap[i][j] = true;
                 Cluster cluster = point.clone();
                 cluster.setX(xLng(cluster.getX()));
                 cluster.setY(yLat(cluster.getY()));
