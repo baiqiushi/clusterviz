@@ -34,6 +34,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     // wsFormat
     $scope.wsFormat = "binary"; // "array" (json) / "binary"
 
+    // store request object for handle websocket onMessage
+    $scope.request = {};
+
     // store query object for "middleware" mode
     $scope.query = {
       clusterKey: "",
@@ -135,6 +138,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
         $scope.ws.send(JSON.stringify(request));
 
+        $scope.request = request;
+
         document.getElementById("myBar").style.width = "0%";
       }
     };
@@ -146,7 +151,8 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       let request = {
         type: "progress-transfer",
         id: "progress-transfer-" + e.keyword,
-        keyword: e.keyword
+        keyword: e.keyword,
+        format: "array"
       };
 
       if (e.keyword) {
@@ -158,13 +164,15 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
 
       $scope.ws.send(JSON.stringify(request));
 
+      $scope.request = request;
+
       document.getElementById("myBar").style.width = "0%";
       $scope.pointsCount = 0;
       $scope.timings = [];
     };
 
     $scope.sendCmd = function(id, keyword, commands) {
-      let cmd = {
+      let request = {
         type: "cmd",
         id: id,
         keyword: keyword,
@@ -172,9 +180,11 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       };
 
       console.log("sending cmd:");
-      console.log(JSON.stringify(cmd));
+      console.log(JSON.stringify(request));
 
-      $scope.ws.send(JSON.stringify(cmd));
+      $scope.ws.send(JSON.stringify(request));
+
+      $scope.request = request;
     };
 
     $scope.waitForWS = function() {
@@ -641,6 +651,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         data.push(record);
       }
       response.result = {data: data};
+      console.log("==== websocket received binary data ====");
+      console.log(binaryData);
+      console.log("size = " + (headerSize + dataLength * recordSize) / (1024.0 * 1024.0) + " MB.");
       return response;
     };
 
@@ -652,13 +665,19 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         let queryTime = (queryEnd - $scope.queryStart) / 1000.0; // seconds
 
         let response = {};
-        switch ($scope.wsFormat) {
-          case "array":
-            response = JSON.parse(event.data);
+        switch ($scope.request.type) {
+          case "query":
+            switch ($scope.request.format) {
+              case "array":
+                response = JSON.parse(event.data);
+                break;
+              case "binary":
+                response = $scope.parseBinary(event.data);
+                break;
+            }
             break;
-          case "binary":
-            response = $scope.parseBinary(event.data);
-            response.type = "query";
+          default:
+            response = JSON.parse(event.data);
             break;
         }
 
@@ -683,7 +702,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           };
         }
 
-        switch (response.type) {
+        switch ($scope.request.type) {
           case "query":
             $scope.handleResult(response.result);
             if (typeof response.progress == "number") {

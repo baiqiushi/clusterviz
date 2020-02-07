@@ -1008,11 +1008,13 @@ public class Agent extends AbstractActor {
     }
 
     private void respond(JsonNode _response) {
+        MyLogger.info(this.getClass(), "responding in JSON format.");
         out.tell(_response, self());
     }
 
     private void respond(byte[] _response) {
         ByteString response = ByteString.fromArray(_response);
+        MyLogger.info(this.getClass(), "responding in Binary format.");
         out.tell(response, self());
     }
 }
