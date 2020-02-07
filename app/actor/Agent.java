@@ -3,6 +3,7 @@ package actor;
 import akka.actor.AbstractActor;
 import akka.actor.ActorRef;
 import akka.actor.Props;
+import akka.util.ByteString;
 import clustering.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -18,6 +19,9 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+
+import static util.Constants.DOUBLE_BYTES;
+import static util.Constants.INT_BYTES;
 
 public class Agent extends AbstractActor {
 
@@ -111,6 +115,7 @@ public class Agent extends AbstractActor {
                     }
                     handleRequest(request);
                 })
+                .matchAny(object -> MyLogger.error(this.getClass(), "Received unknown message: " + object.getClass()))
                 .build();
     }
 
@@ -176,6 +181,42 @@ public class Agent extends AbstractActor {
             pointTuple.add(points[i].numPoints);
             dataArray.add(pointTuple);
         }
+    }
+
+    private byte[] buildDataBinary(Cluster[] points, int headerSize) {
+        int totalPoints = points.length;
+        byte[] data = new byte[headerSize + (DOUBLE_BYTES + DOUBLE_BYTES + INT_BYTES) * totalPoints]; // each point has [Y X numPoints]
+        for (int i = 0; i < totalPoints; i ++) {
+            // start index j
+            int j = headerSize + i * (DOUBLE_BYTES + DOUBLE_BYTES + INT_BYTES);
+            Cluster point = points[i];
+            long y = Double.doubleToRawLongBits(point.getY());
+            data[j+0] = (byte) ((y >> 56) & 0xff);
+            data[j+1] = (byte) ((y >> 48) & 0xff);
+            data[j+2] = (byte) ((y >> 40) & 0xff);
+            data[j+3] = (byte) ((y >> 32) & 0xff);
+            data[j+4] = (byte) ((y >> 24) & 0xff);
+            data[j+5] = (byte) ((y >> 16) & 0xff);
+            data[j+6] = (byte) ((y >>  8) & 0xff);
+            data[j+7] = (byte) ((y >>  0) & 0xff);
+            j = j + DOUBLE_BYTES;
+            long x = Double.doubleToRawLongBits(point.getX());
+            data[j+0] = (byte) ((x >> 56) & 0xff);
+            data[j+1] = (byte) ((x >> 48) & 0xff);
+            data[j+2] = (byte) ((x >> 40) & 0xff);
+            data[j+3] = (byte) ((x >> 32) & 0xff);
+            data[j+4] = (byte) ((x >> 24) & 0xff);
+            data[j+5] = (byte) ((x >> 16) & 0xff);
+            data[j+6] = (byte) ((x >>  8) & 0xff);
+            data[j+7] = (byte) ((x >>  0) & 0xff);
+            j = j + DOUBLE_BYTES;
+            int numPoints = point.numPoints;
+            data[j+0] = (byte)((numPoints >> 24) & 0xff);
+            data[j+1] = (byte)((numPoints >> 16) & 0xff);
+            data[j+2] = (byte)((numPoints >>  8) & 0xff);
+            data[j+3] = (byte)((numPoints >>  0) & 0xff);
+        }
+        return data;
     }
 
     /**
@@ -255,34 +296,93 @@ public class Agent extends AbstractActor {
             clusters = cluster.getClusters(query.bbox[0], query.bbox[1], query.bbox[2], query.bbox[3], query.zoom, query.treeCut, query.measure, query.pixels, query.bipartite, query.resX, query.resY);
         }
 
-        // construct the response Json and return
-        JsonNode response = Json.toJson(_request);
+        // if using binary format
+        if (_request.format.equalsIgnoreCase("binary")) {
 
-        ObjectNode result = JsonNodeFactory.instance.objectNode();
-        ArrayNode data = result.putArray("data");
+            // header refer to below
+            int headerSize = INT_BYTES + 3 * DOUBLE_BYTES;
 
-        if (clusters != null) {
-            switch (_request.format) {
-                case "geojson":
-                    buildGeoJsonArrayCluster(clusters, data);
-                    break;
-                case "array":
-                    buildDataArrayPointWithCount(clusters, data);
-                    break;
-            }
+            byte[] binaryData = buildDataBinary(clusters, headerSize);
+
+            MyTimer.stopTimer();
+            double totalTime = MyTimer.durationSeconds();
+            double treeCutTime = MyTimer.temporaryTimer.get("treeCut");
+            double aggregateTime = MyTimer.temporaryTimer.get("aggregate");
+
+            // construct final response
+            //  progress  totalTime  treeCut   aggTime   binary data payload
+            // | 4 BYTES | 8 BYTES | 8 BYTES | 8 BYTES | ...
+            // header 1: progress
+            int j = 0;
+            binaryData[j+0] = (byte)((progress >> 24) & 0xff);
+            binaryData[j+1] = (byte)((progress >> 16) & 0xff);
+            binaryData[j+2] = (byte)((progress >>  8) & 0xff);
+            binaryData[j+3] = (byte)((progress >>  0) & 0xff);
+            // header 2: totalTime
+            j = j + INT_BYTES;
+            long totalTimeL = Double.doubleToRawLongBits(totalTime);
+            binaryData[j+0] = (byte) ((totalTimeL >> 56) & 0xff);
+            binaryData[j+1] = (byte) ((totalTimeL >> 48) & 0xff);
+            binaryData[j+2] = (byte) ((totalTimeL >> 40) & 0xff);
+            binaryData[j+3] = (byte) ((totalTimeL >> 32) & 0xff);
+            binaryData[j+4] = (byte) ((totalTimeL >> 24) & 0xff);
+            binaryData[j+5] = (byte) ((totalTimeL >> 16) & 0xff);
+            binaryData[j+6] = (byte) ((totalTimeL >>  8) & 0xff);
+            binaryData[j+7] = (byte) ((totalTimeL >>  0) & 0xff);
+            j = j + DOUBLE_BYTES;
+            long treeCutTimeL = Double.doubleToRawLongBits(treeCutTime);
+            binaryData[j+0] = (byte) ((treeCutTimeL >> 56) & 0xff);
+            binaryData[j+1] = (byte) ((treeCutTimeL >> 48) & 0xff);
+            binaryData[j+2] = (byte) ((treeCutTimeL >> 40) & 0xff);
+            binaryData[j+3] = (byte) ((treeCutTimeL >> 32) & 0xff);
+            binaryData[j+4] = (byte) ((treeCutTimeL >> 24) & 0xff);
+            binaryData[j+5] = (byte) ((treeCutTimeL >> 16) & 0xff);
+            binaryData[j+6] = (byte) ((treeCutTimeL >>  8) & 0xff);
+            binaryData[j+7] = (byte) ((treeCutTimeL >>  0) & 0xff);
+            j = j + DOUBLE_BYTES;
+            long aggregateTimeL = Double.doubleToRawLongBits(aggregateTime);
+            binaryData[j+0] = (byte) ((aggregateTimeL >> 56) & 0xff);
+            binaryData[j+1] = (byte) ((aggregateTimeL >> 48) & 0xff);
+            binaryData[j+2] = (byte) ((aggregateTimeL >> 40) & 0xff);
+            binaryData[j+3] = (byte) ((aggregateTimeL >> 32) & 0xff);
+            binaryData[j+4] = (byte) ((aggregateTimeL >> 24) & 0xff);
+            binaryData[j+5] = (byte) ((aggregateTimeL >> 16) & 0xff);
+            binaryData[j+6] = (byte) ((aggregateTimeL >>  8) & 0xff);
+            binaryData[j+7] = (byte) ((aggregateTimeL >>  0) & 0xff);
+
+            respond(binaryData);
         }
-        MyTimer.stopTimer();
-        double totalTime = MyTimer.durationSeconds();
-        double treeCutTime = MyTimer.temporaryTimer.get("treeCut");
-        double aggregateTime = MyTimer.temporaryTimer.get("aggregate");
+        // else using Json format
+        else {
+            // construct the response Json and return
+            JsonNode response = Json.toJson(_request);
 
-        ((ObjectNode) response).put("status", status);
-        ((ObjectNode) response).put("progress", progress);
-        ((ObjectNode) response).set("result", result);
-        ((ObjectNode) response).put("totalTime", totalTime);
-        ((ObjectNode) response).put("treeCutTime", treeCutTime);
-        ((ObjectNode) response).put("aggregateTime", aggregateTime);
-        respond(response);
+            ObjectNode result = JsonNodeFactory.instance.objectNode();
+            ArrayNode data = result.putArray("data");
+
+            if (clusters != null) {
+                switch (_request.format) {
+                    case "geojson":
+                        buildGeoJsonArrayCluster(clusters, data);
+                        break;
+                    case "array":
+                        buildDataArrayPointWithCount(clusters, data);
+                        break;
+                }
+            }
+            MyTimer.stopTimer();
+            double totalTime = MyTimer.durationSeconds();
+            double treeCutTime = MyTimer.temporaryTimer.get("treeCut");
+            double aggregateTime = MyTimer.temporaryTimer.get("aggregate");
+
+            ((ObjectNode) response).put("status", status);
+            ((ObjectNode) response).put("progress", progress);
+            ((ObjectNode) response).set("result", result);
+            ((ObjectNode) response).put("totalTime", totalTime);
+            ((ObjectNode) response).put("treeCutTime", treeCutTime);
+            ((ObjectNode) response).put("aggregateTime", aggregateTime);
+            respond(response);
+        }
     }
 
     private void handleQueryProgressively(Request _request) {
@@ -909,5 +1009,10 @@ public class Agent extends AbstractActor {
 
     private void respond(JsonNode _response) {
         out.tell(_response, self());
+    }
+
+    private void respond(byte[] _response) {
+        ByteString response = ByteString.fromArray(_response);
+        out.tell(response, self());
     }
 }

@@ -26,5 +26,5 @@ public class Request {
     public Query query;
     public Command[] cmds;
     public Analysis analysis;
-    public String format; // result data format: "geojson"/"array"
+    public String format; // result data format: "geojson"/"array"/"binary"
 }

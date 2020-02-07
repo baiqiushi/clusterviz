@@ -23,4 +23,7 @@ public class Constants {
     public static String DB_USERNAME;
     public static String DB_PASSWORD;
     public static String DB_TABLENAME;
+
+    public static int DOUBLE_BYTES = 8;
+    public static int INT_BYTES = 4;
 }

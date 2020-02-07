@@ -10,5 +10,10 @@ public class MemoryTest {
         }
 
         MyMemory.printMemory();
+
+        // double bytes
+        System.out.println(Double.BYTES);
+        // int bytes
+        System.out.println(Integer.BYTES);
     }
 }

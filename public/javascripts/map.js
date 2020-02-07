@@ -31,6 +31,9 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     $scope.actionTime = {};
     $scope.actionTimings = [];
 
+    // wsFormat
+    $scope.wsFormat = "binary"; // "array" (json) / "binary"
+
     // store query object for "middleware" mode
     $scope.query = {
       clusterKey: "",
@@ -43,6 +46,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
     };
 
     $scope.ws = new WebSocket("ws://" + location.host + "/ws");
+    $scope.ws.binaryType = 'arraybuffer';
 
     // store computed radius of each zoom level
     $scope.radiuses = [];
@@ -108,7 +112,7 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
           id: $scope.query.keyword,
           keyword: $scope.query.keyword,
           query: $scope.query,
-          format: $scope.mwVisualizationType === "cluster" ? "geojson" : "array"
+          format: $scope.mwVisualizationType === "cluster" ? "geojson" : $scope.wsFormat
         };
 
         // if e.analysis is not "", comparing the given algorithm with SuperCluster using e.analysis indicated function
@@ -603,6 +607,43 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
       }
     };
 
+    $scope.parseBinary = function(binaryData) {
+      // ---------------------------- data ----------------------------
+      //  progress  totalTime  treeCut   aggTime   binary data payload
+      // | 4 BYTES | 8 BYTES | 8 BYTES | 8 BYTES | ...
+      // ---- binary data payload ----
+      //    lat        lng    numPoints
+      // | 8 BYTES | 8 BYTES | 4 BYTES | ...(repeat)...
+      let dv = new DataView(binaryData);
+      let response = {};
+      let j = 0; // offset by bytes
+      response.progress = dv.getInt32(j);
+      j = j + 4;
+      response.totalTime = dv.getFloat64(j);
+      j = j + 8;
+      response.treeCutTime = dv.getFloat64(j);
+      j = j + 8;
+      response.aggregateTime = dv.getFloat64(j);
+      j = j + 8;
+      const headerSize = 4 + 8 + 8 + 8;
+      const recordSize = 8 + 8 + 4;
+      let dataLength = (dv.byteLength - headerSize) / recordSize;
+      let data = [];
+      for (let i = 0; i < dataLength; i ++) {
+        // current record's starting offset
+        j = headerSize + recordSize * i;
+        let record = [];
+        record.push(dv.getFloat64(j)); // lat
+        j = j + 8;
+        record.push(dv.getFloat64(j)); // lng
+        j = j + 8;
+        record.push(dv.getInt32(j)); // numPoints
+        data.push(record);
+      }
+      response.result = {data: data};
+      return response;
+    };
+
     $scope.ws.onmessage = function(event) {
       $timeout(function() {
 
@@ -610,7 +651,16 @@ angular.module("clustermap.map", ["leaflet-directive", "clustermap.common"])
         let queryEnd = performance.now();
         let queryTime = (queryEnd - $scope.queryStart) / 1000.0; // seconds
 
-        const response = JSON.parse(event.data);
+        let response = {};
+        switch ($scope.wsFormat) {
+          case "array":
+            response = JSON.parse(event.data);
+            break;
+          case "binary":
+            response = $scope.parseBinary(event.data);
+            response.type = "query";
+            break;
+        }
 
         console.log("===== websocket response =====");
         console.log(JSON.stringify(response));
