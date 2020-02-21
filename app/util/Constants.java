@@ -26,4 +26,6 @@ public class Constants {
 
     public static int DOUBLE_BYTES = 8;
     public static int INT_BYTES = 4;
+
+    public static int RADIUS_IN_PIXELS = 1;
 }
