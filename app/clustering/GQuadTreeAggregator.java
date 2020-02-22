@@ -5,8 +5,8 @@ import model.Cluster;
 import model.Point;
 import model.PointTuple;
 import util.Constants;
-import util.DeckGLAggregator;
-import util.IAggregator;
+import util.DeckGLRenderer;
+import util.IRenderer;
 import util.MyMemory;
 
 import java.util.*;
@@ -15,11 +15,12 @@ public class GQuadTreeAggregator extends SuperCluster {
 
     public static double highestResScale;
 
-    public static IAggregator aggregator;
+    public static IRenderer aggregator;
 
     public class QuadTree {
         // Store count of the sub-tree
         public int count;
+        public int[][][] rendering;
         public List<Point> samples;
 
         // children
@@ -69,7 +70,7 @@ public class GQuadTreeAggregator extends SuperCluster {
             return true;
         }
 
-        public boolean insert(double cX, double cY, double halfWidth, double halfHeight, Point point, IAggregator aggregator, int level) {
+        public boolean insert(double cX, double cY, double halfWidth, double halfHeight, Point point, IRenderer aggregator, int level) {
             // Ignore objects that do not belong in this quad tree
             if (!containsPoint(cX, cY, halfWidth, halfHeight, point)) {
                 return false;
@@ -78,6 +79,7 @@ public class GQuadTreeAggregator extends SuperCluster {
             if (this.samples == null && this.northWest == null) {
                 this.samples = new ArrayList<>();
                 this.samples.add(point);
+                this.rendering = aggregator.render(null, cX, cY, halfWidth, halfHeight, point);
                 this.count = 1;
                 return true;
             }
@@ -99,8 +101,12 @@ public class GQuadTreeAggregator extends SuperCluster {
                 this.insertSouthEast(cX, cY, halfWidth, halfHeight, this.samples.get(0), aggregator, level + 1);
             }
 
-            // Only start storing samples from level 10
-            if (level > 10 && ! aggregator.contains(cX, cY, halfWidth, halfHeight, this.samples, point)) this.samples.add(point);
+            // update the rendering of this node
+            int[][][] currentRendering = this.rendering;
+            this.rendering = aggregator.render(this.rendering, cX, cY, halfWidth, halfHeight, point);
+            // if new rendering is different, store this point within samples
+            // (only start storing samples from level 10)
+            if (level > 10 && aggregator.isDifferent(currentRendering, this.rendering)) this.samples.add(point);
 
             // insert new point into corresponding quadrant
             if (insertNorthWest(cX, cY, halfWidth, halfHeight, point, aggregator, level + 1)) return true;
@@ -111,7 +117,7 @@ public class GQuadTreeAggregator extends SuperCluster {
             return false;
         }
 
-        boolean insertNorthWest(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IAggregator aggregator, int level) {
+        boolean insertNorthWest(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IRenderer aggregator, int level) {
             double halfWidth = _halfWidth / 2;
             double halfHeight = _halfHeight / 2;
             double cX = _cX - halfWidth;
@@ -119,7 +125,7 @@ public class GQuadTreeAggregator extends SuperCluster {
             return this.northWest.insert(cX, cY, halfWidth, halfHeight, point, aggregator, level);
         }
 
-        boolean insertNorthEast(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IAggregator aggregator, int level) {
+        boolean insertNorthEast(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IRenderer aggregator, int level) {
             double halfWidth = _halfWidth / 2;
             double halfHeight = _halfHeight / 2;
             double cX = _cX + halfWidth;
@@ -127,7 +133,7 @@ public class GQuadTreeAggregator extends SuperCluster {
             return this.northEast.insert(cX, cY, halfWidth, halfHeight, point, aggregator, level);
         }
 
-        boolean insertSouthWest(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IAggregator aggregator, int level) {
+        boolean insertSouthWest(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IRenderer aggregator, int level) {
             double halfWidth = _halfWidth / 2;
             double halfHeight = _halfHeight / 2;
             double cX = _cX - halfWidth;
@@ -135,7 +141,7 @@ public class GQuadTreeAggregator extends SuperCluster {
             return this.southWest.insert(cX, cY, halfWidth, halfHeight, point, aggregator, level);
         }
 
-        boolean insertSouthEast(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IAggregator aggregator, int level) {
+        boolean insertSouthEast(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IRenderer aggregator, int level) {
             double halfWidth = _halfWidth / 2;
             double halfHeight = _halfHeight / 2;
             double cX = _cX + halfWidth;
@@ -324,7 +330,7 @@ public class GQuadTreeAggregator extends SuperCluster {
         double pixelHeight = (Constants.MAX_Y - Constants.MIN_Y) / resY;
         highestResScale = Math.min(pixelWidth / Math.pow(2, this.maxZoom - 4), pixelHeight / Math.pow(2, this.maxZoom - 4));
 
-        aggregator = new DeckGLAggregator(Constants.RADIUS_IN_PIXELS);
+        aggregator = new DeckGLRenderer(Constants.RADIUS_IN_PIXELS);
 
         // initialize the timing map
         if (keepTiming) {
