@@ -7,7 +7,8 @@ import java.util.List;
 public class DeckGLAggregator implements IAggregator {
 
     static double SMOOTH_EDGE_RADIUS = 0.5;
-    static int[] COLOR = {0, 0, 255, 255};
+    static int[] COLOR = {0, 0, 255}; // blue
+    static int[] BG_COLOR = {255, 255, 255}; // white
 
     int radiusInPixels;
     int side;
@@ -22,7 +23,15 @@ public class DeckGLAggregator implements IAggregator {
     public boolean contains(double _cX, double _cY,
                             double _halfWidth, double _halfHeight,
                             List<Point> set1, Point point) {
-        double[][] alphas = new double[side][side];
+        int[][][] rendering = new int[side][side][3];
+        // init rendering with BG_COLOR
+        for (int i = 0; i < side; i ++) {
+            for (int j = 0; j < side; j ++) {
+                rendering[i][j][0] = BG_COLOR[0]; // R
+                rendering[i][j][1] = BG_COLOR[1]; // G
+                rendering[i][j][2] = BG_COLOR[2]; // B
+            }
+        }
         double pixelWidth = 2 * _halfWidth;
         double pixelHeight = 2 * _halfHeight;
         double pixelDiagonal = Math.sqrt(Math.pow(pixelWidth, 2) + Math.pow(pixelHeight, 2));
@@ -30,6 +39,7 @@ public class DeckGLAggregator implements IAggregator {
         double distanceToCenter;
         double inCircle;
         double alpha;
+        int[] newColor = new int[3];
         // compute aggregated rendering from set1
         for (Point p: set1) {
             for (int i = 0; i < side; i ++) {
@@ -42,7 +52,10 @@ public class DeckGLAggregator implements IAggregator {
                     // how dense this pixel color
                     inCircle = smoothEdge(distanceToCenter, radiusInPixels);
                     alpha = 1.0 * inCircle;
-                    alphas[i][j] = Math.max(alphas[i][j], alpha);
+                    // apply blend function DST_COLOR = SRC_COLOR * SRC_ALPHA + DST_COLOR * (1 - SRC_ALPHA)
+                    rendering[i][j][0] = (int) (COLOR[0] * alpha + rendering[i][j][0] * (1.0 - alpha)); // R
+                    rendering[i][j][1] = (int) (COLOR[1] * alpha + rendering[i][j][1] * (1.0 - alpha)); // G
+                    rendering[i][j][2] = (int) (COLOR[2] * alpha + rendering[i][j][2] * (1.0 - alpha)); // B
                 }
             }
         }
@@ -58,8 +71,14 @@ public class DeckGLAggregator implements IAggregator {
                 // how dense this pixel color
                 inCircle = smoothEdge(distanceToCenter, radiusInPixels);
                 alpha = 1.0 * inCircle;
-                // as long as one pixel color can be denser, return false;
-                if (alphas[i][j] < alpha) {
+                // apply blend function DST_COLOR = SRC_COLOR * SRC_ALPHA + DST_COLOR * (1 - SRC_ALPHA)
+                newColor[0] = (int) (COLOR[0] * alpha + rendering[i][j][0] * (1.0 - alpha)); // R
+                newColor[1] = (int) (COLOR[1] * alpha + rendering[i][j][1] * (1.0 - alpha)); // G
+                newColor[2] = (int) (COLOR[2] * alpha + rendering[i][j][2] * (1.0 - alpha)); // B
+                // as long as one pixel color is different, return false;
+                if (rendering[i][j][0] != newColor[0] ||
+                        rendering[i][j][1] != newColor[1] ||
+                        rendering[i][j][2] != newColor[2]) {
                     return false;
                 }
             }
