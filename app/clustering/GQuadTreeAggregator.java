@@ -69,7 +69,7 @@ public class GQuadTreeAggregator extends SuperCluster {
             return true;
         }
 
-        public boolean insert(double cX, double cY, double halfWidth, double halfHeight, Point point, IAggregator aggregator) {
+        public boolean insert(double cX, double cY, double halfWidth, double halfHeight, Point point, IAggregator aggregator, int level) {
             // Ignore objects that do not belong in this quad tree
             if (!containsPoint(cX, cY, halfWidth, halfHeight, point)) {
                 return false;
@@ -93,53 +93,54 @@ public class GQuadTreeAggregator extends SuperCluster {
             if (this.northWest == null) {
                 this.subdivide();
                 // insert current node's point into corresponding quadrant
-                this.insertNorthWest(cX, cY, halfWidth, halfHeight, this.samples.get(0), aggregator);
-                this.insertNorthEast(cX, cY, halfWidth, halfHeight, this.samples.get(0), aggregator);
-                this.insertSouthWest(cX, cY, halfWidth, halfHeight, this.samples.get(0), aggregator);
-                this.insertSouthEast(cX, cY, halfWidth, halfHeight, this.samples.get(0), aggregator);
+                this.insertNorthWest(cX, cY, halfWidth, halfHeight, this.samples.get(0), aggregator, level + 1);
+                this.insertNorthEast(cX, cY, halfWidth, halfHeight, this.samples.get(0), aggregator, level + 1);
+                this.insertSouthWest(cX, cY, halfWidth, halfHeight, this.samples.get(0), aggregator, level + 1);
+                this.insertSouthEast(cX, cY, halfWidth, halfHeight, this.samples.get(0), aggregator, level + 1);
             }
 
-            if (! aggregator.contains(cX, cY, halfWidth, halfHeight, this.samples, point)) this.samples.add(point);
+            // Only start storing samples from level 10
+            if (level > 10 && ! aggregator.contains(cX, cY, halfWidth, halfHeight, this.samples, point)) this.samples.add(point);
 
             // insert new point into corresponding quadrant
-            if (insertNorthWest(cX, cY, halfWidth, halfHeight, point, aggregator)) return true;
-            if (insertNorthEast(cX, cY, halfWidth, halfHeight, point, aggregator)) return true;
-            if (insertSouthWest(cX, cY, halfWidth, halfHeight, point, aggregator)) return true;
-            if (insertSouthEast(cX, cY, halfWidth, halfHeight, point, aggregator)) return true;
+            if (insertNorthWest(cX, cY, halfWidth, halfHeight, point, aggregator, level + 1)) return true;
+            if (insertNorthEast(cX, cY, halfWidth, halfHeight, point, aggregator, level + 1)) return true;
+            if (insertSouthWest(cX, cY, halfWidth, halfHeight, point, aggregator, level + 1)) return true;
+            if (insertSouthEast(cX, cY, halfWidth, halfHeight, point, aggregator, level + 1)) return true;
 
             return false;
         }
 
-        boolean insertNorthWest(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IAggregator aggregator) {
+        boolean insertNorthWest(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IAggregator aggregator, int level) {
             double halfWidth = _halfWidth / 2;
             double halfHeight = _halfHeight / 2;
             double cX = _cX - halfWidth;
             double cY = _cY + halfHeight;
-            return this.northWest.insert(cX, cY, halfWidth, halfHeight, point, aggregator);
+            return this.northWest.insert(cX, cY, halfWidth, halfHeight, point, aggregator, level);
         }
 
-        boolean insertNorthEast(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IAggregator aggregator) {
+        boolean insertNorthEast(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IAggregator aggregator, int level) {
             double halfWidth = _halfWidth / 2;
             double halfHeight = _halfHeight / 2;
             double cX = _cX + halfWidth;
             double cY = _cY + halfHeight;
-            return this.northEast.insert(cX, cY, halfWidth, halfHeight, point, aggregator);
+            return this.northEast.insert(cX, cY, halfWidth, halfHeight, point, aggregator, level);
         }
 
-        boolean insertSouthWest(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IAggregator aggregator) {
+        boolean insertSouthWest(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IAggregator aggregator, int level) {
             double halfWidth = _halfWidth / 2;
             double halfHeight = _halfHeight / 2;
             double cX = _cX - halfWidth;
             double cY = _cY - halfHeight;
-            return this.southWest.insert(cX, cY, halfWidth, halfHeight, point, aggregator);
+            return this.southWest.insert(cX, cY, halfWidth, halfHeight, point, aggregator, level);
         }
 
-        boolean insertSouthEast(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IAggregator aggregator) {
+        boolean insertSouthEast(double _cX, double _cY, double _halfWidth, double _halfHeight, Point point, IAggregator aggregator, int level) {
             double halfWidth = _halfWidth / 2;
             double halfHeight = _halfHeight / 2;
             double cX = _cX + halfWidth;
             double cY = _cY - halfHeight;
-            return this.southEast.insert(cX, cY, halfWidth, halfHeight, point, aggregator);
+            return this.southEast.insert(cX, cY, halfWidth, halfHeight, point, aggregator, level);
         }
 
         void subdivide() {
@@ -152,7 +153,7 @@ public class GQuadTreeAggregator extends SuperCluster {
 
         public List<Point> range(double ncX, double ncY, double nhalfWidth, double nhalfHeight,
                                  double rcX, double rcY, double rhalfWidth, double rhalfHeight,
-                                 double resScale) {
+                                 double resScale, int level) {
             List<Point> pointsInRange = new ArrayList<>();
 
             // Automatically abort if the range does not intersect this quad
@@ -161,6 +162,7 @@ public class GQuadTreeAggregator extends SuperCluster {
 
             // Terminate here, if there are no children
             if (this.northWest == null) {
+                highestLevelForQuery = Math.max(highestLevelForQuery, level);
                 if (this.samples != null) {
                     pointsInRange.addAll(this.samples);
                 }
@@ -169,6 +171,7 @@ public class GQuadTreeAggregator extends SuperCluster {
 
             // Terminate here, if this node's boundary is already smaller than resScale
             if (Math.max(nhalfWidth, nhalfHeight) * 2 <= resScale) {
+                lowestLevelForQuery = Math.min(lowestLevelForQuery, level);
                 // add this node's samples
                 pointsInRange.addAll(this.samples);
                 return pointsInRange;
@@ -183,25 +186,25 @@ public class GQuadTreeAggregator extends SuperCluster {
             cX = ncX - halfWidth;
             cY = ncY + halfHeight;
             pointsInRange.addAll(this.northWest.range(cX, cY, halfWidth, halfHeight,
-                    rcX, rcY, rhalfWidth, rhalfHeight, resScale));
+                    rcX, rcY, rhalfWidth, rhalfHeight, resScale, level + 1));
 
             // northeast
             cX = ncX + halfWidth;
             cY = ncY + halfHeight;
             pointsInRange.addAll(this.northEast.range(cX, cY, halfWidth, halfHeight,
-                    rcX, rcY, rhalfWidth, rhalfHeight, resScale));
+                    rcX, rcY, rhalfWidth, rhalfHeight, resScale, level + 1));
 
             // southwest
             cX = ncX - halfWidth;
             cY = ncY - halfHeight;
             pointsInRange.addAll(this.southWest.range(cX, cY, halfWidth, halfHeight,
-                    rcX, rcY, rhalfWidth, rhalfHeight, resScale));
+                    rcX, rcY, rhalfWidth, rhalfHeight, resScale, level + 1));
 
             // southeast
             cX = ncX + halfWidth;
             cY = ncY - halfHeight;
             pointsInRange.addAll(this.southEast.range(cX, cY, halfWidth, halfHeight,
-                    rcX, rcY, rhalfWidth, rhalfHeight, resScale));
+                    rcX, rcY, rhalfWidth, rhalfHeight, resScale, level + 1));
 
             return pointsInRange;
         }
@@ -237,6 +240,59 @@ public class GQuadTreeAggregator extends SuperCluster {
             }
             System.out.println();
         }
+
+        public void statistics() {
+            System.out.println("=================== GQuadTree Statistics ===================");
+            System.out.println("level,    # samples,    # nodes,    # samples/node,    min # samples,    max # samples");
+            Queue<Pair<Integer, QuadTree>> queue = new LinkedList<>();
+            queue.add(new Pair<>(0, this));
+            int currentLevel = -1;
+            int totalNumberOfSamples = 0;
+            int totalNumberOfNodes = 0;
+            int totalMinNumberOfSamples = Integer.MAX_VALUE;
+            int totalMaxNumberOfSamples = 0;
+            int numberOfSamples = 0;
+            int numberOfNodes = 0;
+            int minNumberOfSamples = Integer.MAX_VALUE;
+            int maxNumberOfSamples = 0;
+            while (queue.size() > 0) {
+                Pair<Integer, QuadTree> currentEntry = queue.poll();
+                int level = currentEntry.getKey();
+                QuadTree currentNode = currentEntry.getValue();
+                int currentNumberOfSamples = currentNode.samples == null? 0: currentNode.samples.size();
+                numberOfSamples += currentNumberOfSamples;
+                numberOfNodes += 1;
+                minNumberOfSamples = Math.min(currentNumberOfSamples, minNumberOfSamples);
+                maxNumberOfSamples = Math.max(currentNumberOfSamples, maxNumberOfSamples);
+                if (level > currentLevel) {
+                    System.out.println(level + ",    " + numberOfSamples + ",    " + numberOfNodes + ",    " + (numberOfSamples/numberOfNodes) + ",    " + minNumberOfSamples + ",    " + maxNumberOfSamples);
+                    currentLevel = level;
+                    totalNumberOfSamples += numberOfSamples;
+                    totalNumberOfNodes += numberOfNodes;
+                    totalMinNumberOfSamples = Math.min(totalMinNumberOfSamples, minNumberOfSamples);
+                    totalMaxNumberOfSamples = Math.max(totalMaxNumberOfSamples, maxNumberOfSamples);
+                    numberOfSamples = 0;
+                    numberOfNodes = 0;
+                    minNumberOfSamples = Integer.MAX_VALUE;
+                    maxNumberOfSamples = 0;
+                }
+                if (currentNode.northWest != null) {
+                    queue.add(new Pair<>(level + 1, currentNode.northWest));
+                }
+                if (currentNode.northEast != null) {
+                    queue.add(new Pair<>(level + 1, currentNode.northEast));
+                }
+                if (currentNode.southWest != null) {
+                    queue.add(new Pair<>(level + 1, currentNode.southWest));
+                }
+                if (currentNode.southEast != null) {
+                    queue.add(new Pair<>(level + 1, currentNode.southEast));
+                }
+            }
+            System.out.println("-------------------------- Summary -------------------------");
+            System.out.println("total # samples,    total # nodes,    total # samples/node,    total min # samples,    total max # samples");
+            System.out.println(totalNumberOfSamples + ",    " + totalNumberOfNodes + ",    " + (totalNumberOfSamples/totalNumberOfNodes) + ",    " + totalMinNumberOfSamples + " ,   " + totalMaxNumberOfSamples);
+        }
     }
 
     QuadTree quadTree;
@@ -244,7 +300,10 @@ public class GQuadTreeAggregator extends SuperCluster {
     double quadTreeCY;
     double quadTreeHalfWidth;
     double quadTreeHalfHeight;
+    int totalStoredNumberOfPoints = 0;
     static long nodesCount = 0; // count quad-tree nodes
+    static int lowestLevelForQuery = Integer.MAX_VALUE; // the lowest level of range searching for a query
+    static int highestLevelForQuery = 0; // the highest level of range searching for a query
 
     //-Timing-//
     static final boolean keepTiming = true;
@@ -279,16 +338,17 @@ public class GQuadTreeAggregator extends SuperCluster {
     public void load(List<PointTuple> points) {
         System.out.println("General QuadTree Aggregator loading " + points.size() + " points ... ...");
         long start = System.nanoTime();
+        this.totalNumberOfPoints += points.size();
         int count = 0;
         int skip = 0;
         for (PointTuple point: points) {
             if (this.quadTree.insert(this.quadTreeCX, this.quadTreeCY, this.quadTreeHalfWidth, this.quadTreeHalfHeight,
-                    createPoint(point.getX(), point.getY(), point.getId()), aggregator))
+                    createPoint(point.getX(), point.getY(), point.getId()), aggregator, 0))
                 count ++;
             else
                 skip ++;
         }
-        this.totalNumberOfPoints += count;
+        this.totalStoredNumberOfPoints += count;
         long end = System.nanoTime();
         System.out.println("General QuadTree Aggregator inserted " + count + " points and skipped " + skip + " points.");
         if (keepTiming) timing.put("total", timing.get("total") + (double) (end - start) / 1000000000.0);
@@ -300,9 +360,11 @@ public class GQuadTreeAggregator extends SuperCluster {
 
         //-DEBUG-//
         System.out.println("==== Until now ====");
-        System.out.println("General QuadTree has inserted " + this.totalNumberOfPoints + " points.");
+        System.out.println("General QuadTree has processed " + this.totalNumberOfPoints + " points.");
+        System.out.println("General QuadTree has stored " + this.totalStoredNumberOfPoints + " points.");
+        System.out.println("General QuadTree has skipped " + skip + " points.");
         System.out.println("General QuadTree has generated " + nodesCount + " nodes.");
-        this.quadTree.print();
+        this.quadTree.statistics();
         //-DEBUG-//
     }
 
@@ -350,8 +412,11 @@ public class GQuadTreeAggregator extends SuperCluster {
                 "range = [(" + rcX + ", " + rcY + "), " + rhalfWidth + ", " + rhalfHeight + "] ; \n" +
                 "resScale = " + resScale + ";");
 
+        lowestLevelForQuery = Integer.MAX_VALUE;
+        highestLevelForQuery = 0;
+
         List<Point> points = this.quadTree.range(this.quadTreeCX, this.quadTreeCY, this.quadTreeHalfWidth, this.quadTreeHalfHeight,
-                rcX, rcY, rhalfWidth, rhalfHeight, resScale);
+                rcX, rcY, rhalfWidth, rhalfHeight, resScale, 0);
         List<Cluster> results = new ArrayList<>();
         for (Point point: points) {
             Cluster cluster = new Cluster(xLng(point.getX()), yLat(point.getY()), point.getId());
@@ -360,6 +425,8 @@ public class GQuadTreeAggregator extends SuperCluster {
         long end = System.nanoTime();
         double totalTime = (double) (end - start) / 1000000000.0;
         System.out.println("[General QuadTree Aggregator] getClusters time: " + totalTime + " seconds.");
+        System.out.println("[General QuadTree Aggregator] lowest level for this query: " + lowestLevelForQuery);
+        System.out.println("[General QuadTree Aggregator] highest level for this query: " + highestLevelForQuery);
         return results.toArray(new Cluster[results.size()]);
     }
 
