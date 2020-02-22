@@ -79,7 +79,8 @@ public class GQuadTreeAggregator extends SuperCluster {
             if (this.samples == null && this.northWest == null) {
                 this.samples = new ArrayList<>();
                 this.samples.add(point);
-                this.rendering = aggregator.render(null, cX, cY, halfWidth, halfHeight, point);
+                this.rendering = aggregator.createRendering();
+                aggregator.render(this.rendering, cX, cY, halfWidth, halfHeight, point);
                 this.count = 1;
                 return true;
             }
@@ -102,11 +103,10 @@ public class GQuadTreeAggregator extends SuperCluster {
             }
 
             // update the rendering of this node
-            int[][][] currentRendering = this.rendering;
-            this.rendering = aggregator.render(this.rendering, cX, cY, halfWidth, halfHeight, point);
+            boolean isDifferent = aggregator.render(this.rendering, cX, cY, halfWidth, halfHeight, point);
             // if new rendering is different, store this point within samples
             // (only start storing samples from level 10)
-            if (level > 10 && aggregator.isDifferent(currentRendering, this.rendering)) this.samples.add(point);
+            if (level > 10 && isDifferent) this.samples.add(point);
 
             // insert new point into corresponding quadrant
             if (insertNorthWest(cX, cY, halfWidth, halfHeight, point, aggregator, level + 1)) return true;
