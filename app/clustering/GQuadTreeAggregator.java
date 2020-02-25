@@ -89,7 +89,8 @@ public class GQuadTreeAggregator extends SuperCluster {
 
             // if boundary is smaller than highestResScale, drop this point
             if (Math.max(halfWidth, halfHeight) * 2 < highestResScale) {
-                return false;
+                this.samples.add(point);
+                return true;
             }
 
             // Otherwise, subdivide
@@ -299,6 +300,76 @@ public class GQuadTreeAggregator extends SuperCluster {
             System.out.println("total # samples,    total # nodes,    total # samples/node,    total min # samples,    total max # samples");
             System.out.println(totalNumberOfSamples + ",    " + totalNumberOfNodes + ",    " + (totalNumberOfSamples/totalNumberOfNodes) + ",    " + totalMinNumberOfSamples + " ,   " + totalMaxNumberOfSamples);
         }
+
+        public void histograms(int someLevel) {
+            int[] histogramForSamplesOnIntermediateNodes = new int[101]; // 0 ~ 99, >=100
+            int[] histogramForRawPointsOnLeafNodes = new int[101]; // 0 ~ 99, >=100
+            int[] histogramForSamplesOnIntermediateNodesAtLevel = new int[101]; // 0 ~ 99, >=100
+            int[] histogramForRawPointsOnIntermediateNodesAtLevel = new int[101]; // 0 ~ 999, >=1000
+
+            Queue<Pair<Integer, QuadTree>> queue = new LinkedList<>();
+            queue.add(new Pair<>(0, this));
+            while (queue.size() > 0) {
+                Pair<Integer, QuadTree> currentEntry = queue.poll();
+                int level = currentEntry.getKey();
+                QuadTree currentNode = currentEntry.getValue();
+                int currentNumberOfSamples = currentNode.samples == null? 0: currentNode.samples.size();
+                if (currentNode.northWest != null) {
+                    queue.add(new Pair<>(level + 1, currentNode.northWest));
+                }
+                if (currentNode.northEast != null) {
+                    queue.add(new Pair<>(level + 1, currentNode.northEast));
+                }
+                if (currentNode.southWest != null) {
+                    queue.add(new Pair<>(level + 1, currentNode.southWest));
+                }
+                if (currentNode.southEast != null) {
+                    queue.add(new Pair<>(level + 1, currentNode.southEast));
+                }
+                if (currentNode.northWest != null && level > 10){
+                    if (currentNumberOfSamples > 99) histogramForSamplesOnIntermediateNodes[100] += 1;
+                    else histogramForSamplesOnIntermediateNodes[currentNumberOfSamples] += 1;
+                    if (level == someLevel) {
+                        if (currentNumberOfSamples > 99) histogramForSamplesOnIntermediateNodesAtLevel[100] += 1;
+                        else histogramForSamplesOnIntermediateNodesAtLevel[currentNumberOfSamples] += 1;
+                        if (currentNode.count > 990) histogramForRawPointsOnIntermediateNodesAtLevel[100] += 1;
+                        else histogramForRawPointsOnIntermediateNodesAtLevel[currentNode.count/10] += 1;
+                    }
+                }
+                else if (currentNode.northWest == null) {
+                    if (currentNumberOfSamples > 99) histogramForRawPointsOnLeafNodes[100] += 1;
+                    else histogramForRawPointsOnLeafNodes[currentNumberOfSamples] += 1;
+                }
+            }
+
+            System.out.println("=================== GQuadTree Histogram for Samples on Intermediate Nodes ===================");
+            System.out.println("# of samples on node,    # of nodes");
+            for (int i = 0; i < 100; i ++) {
+                System.out.println(i + ",    " + histogramForSamplesOnIntermediateNodes[i]);
+            }
+            System.out.println(">=100,    " + histogramForSamplesOnIntermediateNodes[100]);
+
+            System.out.println("=================== GQuadTree Histogram for Raw Points on Leaf Nodes ===================");
+            System.out.println("# of raw points on node,    # of nodes");
+            for (int i = 0; i < 100; i ++) {
+                System.out.println(i + ",    " + histogramForRawPointsOnLeafNodes[i]);
+            }
+            System.out.println(">=100,    " + histogramForRawPointsOnLeafNodes[100]);
+
+            System.out.println("=================== GQuadTree Histogram for Samples on Intermediate Nodes at level " + someLevel + " ===================");
+            System.out.println("# of samples on node,    # of nodes");
+            for (int i = 0; i < 100; i ++) {
+                System.out.println(i + ",    " + histogramForSamplesOnIntermediateNodesAtLevel[i]);
+            }
+            System.out.println(">=100,    " + histogramForSamplesOnIntermediateNodesAtLevel[100]);
+
+            System.out.println("=================== GQuadTree Histogram for Raw Points on Intermediate Nodes at level " + someLevel + " ===================");
+            System.out.println("# of raw points on node,    # of nodes");
+            for (int i = 0; i < 100; i ++) {
+                System.out.println((0 + i*10) + "~" + (9 + i*10) + ",    " + histogramForRawPointsOnIntermediateNodesAtLevel[i]);
+            }
+            System.out.println(">=1000,    " + histogramForRawPointsOnIntermediateNodesAtLevel[100]);
+        }
     }
 
     QuadTree quadTree;
@@ -371,6 +442,7 @@ public class GQuadTreeAggregator extends SuperCluster {
         System.out.println("General QuadTree has skipped " + skip + " points.");
         System.out.println("General QuadTree has generated " + nodesCount + " nodes.");
         this.quadTree.statistics();
+        this.quadTree.histograms(12);
         //-DEBUG-//
     }
 
