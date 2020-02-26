@@ -465,7 +465,8 @@ public class GQuadTreeAggregator extends SuperCluster {
         double iY0 = latY(y0);
         double iX1 = lngX(x1);
         double iY1 = latY(y1);
-        double pixelScale = Math.min((iX1 - iX0) / resX, (iY0 - iY1) / resY);
+        //double pixelScale = Math.min((iX1 - iX0) / resX, (iY0 - iY1) / resY);
+        double pixelScale = 1.0 / 256 / Math.pow(2, zoom);
         double rcX = (iX0 + iX1) / 2;
         double rcY = (iY0 + iY1) / 2;
         double rhalfWidth = (iX1 - iX0) / 2;
