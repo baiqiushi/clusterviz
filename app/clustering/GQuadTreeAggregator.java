@@ -485,6 +485,7 @@ public class GQuadTreeAggregator extends SuperCluster {
                 "pixelScale = " + pixelScale + ";");
 
         lowestLevelForQuery = Integer.MAX_VALUE;
+        lowestPixelScale = Double.MAX_VALUE;
         highestLevelForQuery = 0;
         highestPixelScale = 0.0;
 
