@@ -4,7 +4,7 @@ import model.Point;
 
 public interface IRenderer {
 
-    int[][][] createRendering();
+    byte[][][] createRendering(int _resolution);
 
-    boolean render(int[][][] background, double _cX, double _cY, double _halfWidth, double _halfHeight, Point point);
+    boolean render(byte[][][] background, double _cX, double _cY, double _halfDimension, int _resolution, Point point);
 }

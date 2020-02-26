@@ -1,5 +1,6 @@
 package util;
 
+import clustering.SuperCluster;
 import model.Point;
 
 public class MemoryTest {
@@ -15,5 +16,10 @@ public class MemoryTest {
         System.out.println(Double.BYTES);
         // int bytes
         System.out.println(Integer.BYTES);
+
+        System.out.println("lngX(-180) = " + SuperCluster.lngX(-180));
+        System.out.println("lngX(180) = "  + SuperCluster.lngX(180));
+        System.out.println("latY(-90) = " + SuperCluster.latY(-90));
+        System.out.println("latY(90) = " + SuperCluster.latY(90));
     }
 }

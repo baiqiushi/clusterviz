@@ -28,4 +28,6 @@ public class Constants {
     public static int INT_BYTES = 4;
 
     public static int RADIUS_IN_PIXELS = 1;
+
+    public static int TILE_RESOLUTION = 16;
 }
