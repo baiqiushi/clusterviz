@@ -168,6 +168,7 @@ public class GQuadTreeAggregator extends SuperCluster {
             // Terminate here, if there are no children
             if (this.northWest == null) {
                 highestLevelForQuery = Math.max(highestLevelForQuery, level);
+                highestPixelScale = Math.max(highestPixelScale, (nhalfDimension * 2 / oneNodeResolution));
                 if (this.samples != null) {
                     pointsInRange.addAll(this.samples);
                 }
@@ -177,6 +178,7 @@ public class GQuadTreeAggregator extends SuperCluster {
             // Terminate here, if this node's pixel scale is already smaller than the range query's pixel scale
             if ((nhalfDimension * 2 / oneNodeResolution) <= rPixelScale) {
                 lowestLevelForQuery = Math.min(lowestLevelForQuery, level);
+                lowestPixelScale = Math.min(lowestPixelScale, (nhalfDimension * 2 / oneNodeResolution));
                 // add this node's samples
                 pointsInRange.addAll(this.samples);
                 return pointsInRange;
@@ -373,7 +375,9 @@ public class GQuadTreeAggregator extends SuperCluster {
     int totalStoredNumberOfPoints = 0;
     static long nodesCount = 0; // count quad-tree nodes
     static int lowestLevelForQuery = Integer.MAX_VALUE; // the lowest level of range searching for a query
+    static double lowestPixelScale = Double.MAX_VALUE; // the lowest pixel scale of range searching for a query
     static int highestLevelForQuery = 0; // the highest level of range searching for a query
+    static double highestPixelScale = 0.0; // the highest pixel scale of range searching for a query
 
     //-Timing-//
     static final boolean keepTiming = true;
@@ -482,6 +486,7 @@ public class GQuadTreeAggregator extends SuperCluster {
 
         lowestLevelForQuery = Integer.MAX_VALUE;
         highestLevelForQuery = 0;
+        highestPixelScale = 0.0;
 
         List<Point> points = this.quadTree.range(0.5, 0.5, 0.5,
                 rcX, rcY, rhalfWidth, rhalfHeight, pixelScale, 0);
@@ -495,6 +500,8 @@ public class GQuadTreeAggregator extends SuperCluster {
         System.out.println("[General QuadTree Aggregator] getClusters time: " + totalTime + " seconds.");
         System.out.println("[General QuadTree Aggregator] lowest level for this query: " + lowestLevelForQuery);
         System.out.println("[General QuadTree Aggregator] highest level for this query: " + highestLevelForQuery);
+        System.out.println("[General QuadTree Aggregator] lowest pixelScale for this query: " + lowestPixelScale);
+        System.out.println("[General QuadTree Aggregator] highest pixelScale for this query: " + highestPixelScale);
         return results.toArray(new Cluster[results.size()]);
     }
 

@@ -29,5 +29,5 @@ public class Constants {
 
     public static int RADIUS_IN_PIXELS = 1;
 
-    public static int TILE_RESOLUTION = 32;
+    public static int TILE_RESOLUTION = 1;
 }
