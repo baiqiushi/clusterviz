@@ -22,7 +22,7 @@ public class GQuadTreeAggregator extends SuperCluster {
     public class QuadTree {
         // Store count of the sub-tree
         public int count;
-        public byte[][][] rendering;
+        public byte[] rendering;
         public List<Point> samples;
 
         // children

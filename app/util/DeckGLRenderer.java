@@ -23,23 +23,36 @@ public class DeckGLRenderer implements IRenderer {
         System.out.println("[DeckGLAggregator] initializing with { radiusInPixels: " + radiusInPixels + "}.");
     }
 
-    public byte[][][] createRendering(int _resolution) {
+    /**
+     * Create a rendering with background color
+     *
+     *  - Use 1-D array to simulate a 3-D array
+     *    suppose 3-D array has dimension lengths: side * side * 3
+     *    [i][j][k] = i * side * 3 + j * 3 + k
+     *
+     * @param _resolution
+     * @return
+     */
+    public byte[] createRendering(int _resolution) {
         int side = _resolution + 2 * (radiusInPixels + 1);
-        byte[][][] rendering = new byte[side][side][3];
+        byte[] rendering = new byte[side * side * 3];
         // init rendering with BG_COLOR
         for (int i = 0; i < side; i++) {
             for (int j = 0; j < side; j++) {
-                rendering[i][j][0] = BG_COLOR[0]; // R
-                rendering[i][j][1] = BG_COLOR[1]; // G
-                rendering[i][j][2] = BG_COLOR[2]; // B
+                rendering[i * side * 3 + j * 3 + 0] = BG_COLOR[0]; // R
+                rendering[i * side * 3 + j * 3 + 1] = BG_COLOR[1]; // G
+                rendering[i * side * 3 + j * 3 + 2] = BG_COLOR[2]; // B
             }
         }
         return rendering;
     }
 
     /**
+     * Render a new point onto the given rendering
      *
-     * @param rendering
+     * @param rendering - Use 1-D array to simulate a 3-D array
+     *                    suppose 3-D array has dimension lengths: side * side * 3
+     *                    [i][j][k] = i * side * 3 + j * 3 + k
      * @param _cX
      * @param _cY
      * @param _halfDimension
@@ -47,13 +60,15 @@ public class DeckGLRenderer implements IRenderer {
      * @param point
      * @return boolean - if render the point on given rendering does not change the result, return false; else return true;
      */
-    public boolean render(byte[][][] rendering, double _cX, double _cY, double _halfDimension, int _resolution, Point point) {
+    public boolean render(byte[] rendering, double _cX, double _cY, double _halfDimension, int _resolution, Point point) {
+        int side = _resolution + 2 * (radiusInPixels + 1);
         boolean isDifferent = false;
         double pixelLength = 2 * _halfDimension / (double)_resolution;
         double px, py;
         double distanceToCenter;
         double inCircle;
         double alpha;
+        int or, og, ob;
         int r, g, b;
         // render the point on the background as a new rendering
         // boundary of the rendering
@@ -79,21 +94,24 @@ public class DeckGLRenderer implements IRenderer {
                 // how dense this pixel color
                 inCircle = smoothEdge(distanceToCenter, radiusInPixels);
                 alpha = 1.0 * inCircle;
+                or = UnsignedByte.toInt(rendering[i * side * 3 + j * 3 + 0]);
+                og = UnsignedByte.toInt(rendering[i * side * 3 + j * 3 + 1]);
+                ob = UnsignedByte.toInt(rendering[i * side * 3 + j * 3 + 2]);
                 // apply blend function DST_COLOR = SRC_COLOR * SRC_ALPHA + DST_COLOR * (1 - SRC_ALPHA)
-                r = (int) (UnsignedByte.toInt(COLOR[0]) * alpha + UnsignedByte.toInt(rendering[i][j][0]) * (1.0 - alpha)); // R
-                g = (int) (UnsignedByte.toInt(COLOR[1]) * alpha + UnsignedByte.toInt(rendering[i][j][1]) * (1.0 - alpha)); // G
-                b = (int) (UnsignedByte.toInt(COLOR[2]) * alpha + UnsignedByte.toInt(rendering[i][j][2]) * (1.0 - alpha)); // B
-                if (UnsignedByte.toInt(rendering[i][j][0]) != r) {
+                r = (int) (UnsignedByte.toInt(COLOR[0]) * alpha + or * (1.0 - alpha)); // R
+                g = (int) (UnsignedByte.toInt(COLOR[1]) * alpha + og * (1.0 - alpha)); // G
+                b = (int) (UnsignedByte.toInt(COLOR[2]) * alpha + ob * (1.0 - alpha)); // B
+                if (or != r) {
                     isDifferent = true;
-                    rendering[i][j][0] = UnsignedByte.toByte(r);
+                    rendering[i * side * 3 + j * 3 + 0] = UnsignedByte.toByte(r);
                 }
-                if (UnsignedByte.toInt(rendering[i][j][1]) != g) {
+                if (og != g) {
                     isDifferent = true;
-                    rendering[i][j][1] = UnsignedByte.toByte(g);
+                    rendering[i * side * 3 + j * 3 + 1] = UnsignedByte.toByte(g);
                 }
-                if (UnsignedByte.toInt(rendering[i][j][2]) != b) {
+                if (ob != b) {
                     isDifferent = true;
-                    rendering[i][j][2] = UnsignedByte.toByte(b);
+                    rendering[i * side * 3 + j * 3 + 2] = UnsignedByte.toByte(b);
                 }
             }
         }
